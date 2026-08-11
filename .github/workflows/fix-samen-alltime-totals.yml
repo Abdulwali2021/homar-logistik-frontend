@@ -1,0 +1,53 @@
+name: Fix SAMEN all-time totals
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-samen-alltime-totals.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Make SAMEN totals include all dates
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+
+          pattern = re.compile(r'''(        function renderLogisticsTable\(\) \{\n            let list = JSON\.parse\(localStorage\.getItem\("homar_samen"\) \|\| "\[\]"\);\n            let tbody = document\.getElementById\("logisticsBody"\);\n            tbody\.innerHTML = "";\n\n)            let sumQty = 0;\n            let sumDriver = 0;\n            let sumPrice = 0;\n            let sumTotal = 0;\n\n            list\.forEach\(\(item, index\) => \{\n                if \(!filterByCalendar\(item\)\) return;\n\n                let rowTotalNOK = \(item\.qty \* item\.price\) \+ Number\(item\.driverPrice \|\| 0\);\n                sumQty \+= item\.qty;\n                sumDriver \+= Number\(item\.driverPrice \|\| 0\);\n                sumPrice \+= \(item\.qty \* item\.price\);\n                sumTotal \+= rowTotalNOK;''')
+
+          replacement = r'''\1            // SAMEN-totalene skal alltid vise totalsum for ALLE datoer,
+            // uavhengig av hvilken dato som vises i tabellen.
+            let sumQty = list.reduce((acc, item) => acc + (Number(item.qty) || 0), 0);
+            let sumDriver = list.reduce((acc, item) => acc + (Number(item.driverPrice) || 0), 0);
+            let sumPrice = list.reduce((acc, item) => acc + ((Number(item.qty) || 0) * (Number(item.price) || 0)), 0);
+            let sumTotal = list.reduce((acc, item) => acc + (((Number(item.qty) || 0) * (Number(item.price) || 0)) + (Number(item.driverPrice) || 0)), 0);
+
+            list.forEach((item, index) => {
+                if (!filterByCalendar(item)) return;
+
+                let rowTotalNOK = (item.qty * item.price) + Number(item.driverPrice || 0);'''
+
+          new_text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'Could not patch renderLogisticsTable; matches={count}')
+
+          path.write_text(new_text, encoding='utf-8')
+
+      - name: Commit repair
+        shell: bash
+        run: |
+          git config user.name "HOMAR Repair"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html
+          git commit -m "Fix SAMEN totals to include historical months"
+          git push
