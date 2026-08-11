@@ -923,31 +923,19 @@
         function canModifyOrDelete(item) {
             let role = getCurrentUserRole();
             if (role === "Admin") return true;
-            
-            let currentUser = getCurrentUser();
-            let creator = item.createdBy || "admin";
-            if (creator !== currentUser) return false;
-
-            let createdAt = item.createdAt ? new Date(item.createdAt).getTime() : new Date(item.date).getTime();
-            let now = new Date().getTime();
-            let hoursPassed = (now - createdAt) / (1000 * 60 * 60);
-
-            return hoursPassed <= 24;
+            let perms = getUserPermissions(getCurrentUser());
+            if (perms.fullAccess) return true;
+            if (perms.noAccess || !perms.deleteAnytime) return false;
+            return String(item.createdBy || "admin").toUpperCase() === String(getCurrentUser() || "").toUpperCase();
         }
 
         function canEditDetails(item) {
             let role = getCurrentUserRole();
             if (role === "Admin") return true;
-
-            let currentUser = getCurrentUser();
-            let creator = item.createdBy || "admin";
-            if (creator !== currentUser) return false;
-
-            let createdAt = item.createdAt ? new Date(item.createdAt).getTime() : new Date(item.date).getTime();
-            let now = new Date().getTime();
-            let hoursPassed = (now - createdAt) / (1000 * 60 * 60);
-
-            return hoursPassed <= 24;
+            let perms = getUserPermissions(getCurrentUser());
+            if (perms.fullAccess) return true;
+            if (perms.noAccess || !perms.editAnytime) return false;
+            return String(item.createdBy || "admin").toUpperCase() === String(getCurrentUser() || "").toUpperCase();
         }
 
         function checkInputCardVisibility() {
@@ -1177,7 +1165,11 @@
         }
 
         function normType(str) {
-            return String(str || "").toUpperCase().replace(/\s+/g, '');
+            return String(str || "")
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, "");
         }
 
         // Qarash funksjoner
@@ -1722,25 +1714,15 @@
 
         function getStockMap() {
             let lager = JSON.parse(localStorage.getItem("homar_lager") || "[]");
-            let samen = JSON.parse(localStorage.getItem("homar_samen") || "[]");
             let shamito = JSON.parse(localStorage.getItem("homar_shamito") || "[]");
-
             let stock = {};
             lager.forEach(item => {
                 let t = String(item.type || "").toUpperCase();
-                stock[t] = (stock[t] || 0) + item.qty;
-            });
-            samen.forEach(item => {
-                let t = String(item.type || "").toUpperCase();
-                if (stock[t] !== undefined) {
-                    stock[t] -= item.qty;
-                }
+                stock[t] = (stock[t] || 0) + (Number(item.qty) || 0);
             });
             shamito.forEach(item => {
                 let t = String(item.type || "").toUpperCase();
-                if (stock[t] !== undefined) {
-                    stock[t] -= item.qty;
-                }
+                if (stock[t] !== undefined) stock[t] -= (Number(item.qty) || 0);
             });
             return stock;
         }
@@ -2220,32 +2202,33 @@
             toggleNoAccessCheck();
         }
 
-        function saveUserPermissions() {
+        async function saveUserPermissions() {
             let username = document.getElementById("adminUserSelect").value;
-            if (username === "admin") {
-                alert("HOVEDADMINISTRATOR HAR ALLEREDE FULLE RETTIGHETER.");
-                return;
-            }
+            if (String(username || "").toUpperCase() === "ADMIN") { alert("HOVEDADMINISTRATOR HAR ALLEREDE FULLE RETTIGHETER."); return; }
             let fullAccess = document.getElementById("userPermFullAccess").checked;
             let noAccess = document.getElementById("userPermNoAccess").checked;
             let perms = {
-                fullAccess: fullAccess,
-                noAccess: noAccess,
+                fullAccess, noAccess,
                 canViewBudget: fullAccess ? true : (noAccess ? false : document.getElementById("userPermViewBudget").checked),
                 canRegister: fullAccess ? true : (noAccess ? false : document.getElementById("userPermRegister").checked),
                 canChangeStatus: fullAccess ? true : (noAccess ? false : document.getElementById("userPermStatus").checked),
                 editAnytime: fullAccess ? true : (noAccess ? false : document.getElementById("userPermEditAnytime").checked),
                 deleteAnytime: fullAccess ? true : (noAccess ? false : document.getElementById("userPermDeleteAnytime").checked)
             };
-            let allPerms = JSON.parse(localStorage.getItem("homar_user_permissions") || "{}");
-            allPerms[username] = perms;
-            localStorage.setItem("homar_user_permissions", JSON.stringify(allPerms));
-            
             let msg = document.getElementById("userPermMsg");
-            msg.style.color = "green";
-            msg.textContent = "TILGANGER LAGRET FOR BRUKER " + username.toUpperCase() + "!";
-            loadAdminData();
-            setTimeout(() => msg.textContent = "", 3000);
+            try {
+                const result = await window.homarApiRequest('/admin/users/' + encodeURIComponent(username) + '/permissions', { method:'PUT', body:JSON.stringify(perms) });
+                let all = JSON.parse(localStorage.getItem("homar_user_permissions") || "{}");
+                all[String(username).toUpperCase()] = result.permissions || perms;
+                localStorage.setItem("homar_user_permissions", JSON.stringify(all));
+                await window.syncApiUsersToLocal();
+                msg.style.color = "green";
+                msg.textContent = "TILGANGER LAGRET FOR " + String(username).toUpperCase() + "!";
+                loadAdminData();
+            } catch (err) {
+                msg.style.color = "red";
+                msg.textContent = "FEIL: " + (err.message || "KUNNE IKKE LAGRE TILGANGER");
+            }
         }
 
         function saveRole() {
@@ -2329,50 +2312,32 @@
             }
         }
 
-        function saveUser() {
-            if (getCurrentUserRole() !== "Admin") {
-                alert("KUN ADMIN KAN ADMINISTRERE BRUKERE!");
-                return;
-            }
+        async function saveUser() {
+            if (getCurrentUserRole() !== "Admin") { alert("KUN ADMIN KAN ADMINISTRERE BRUKERE!"); return; }
             let u = document.getElementById("newUsername").value.trim().toUpperCase();
-            let p = document.getElementById("newPassword").value.trim();
+            let p = document.getElementById("newPassword").value;
             let r = document.getElementById("newRole").value;
             let editingUser = document.getElementById("editingUsername").value;
             let msg = document.getElementById("adminMsg");
-
-            if (!u || !p) {
-                msg.style.color = "red";
-                msg.textContent = "FYLL UT BRUKERNAVN OG PASSORD!";
-                return;
-            }
-
-            let users = JSON.parse(localStorage.getItem("homar_users") || "[]");
-
-            if (editingUser) {
-                let userObj = users.find(x => x.username.toUpperCase() === editingUser.toUpperCase());
-                if (userObj) {
-                    userObj.username = u;
-                    userObj.password = p;
-                    userObj.role = r;
-                }
+            if (!u || (!editingUser && !p)) { msg.style.color = "red"; msg.textContent = "FYLL UT BRUKERNAVN OG PASSORD!"; return; }
+            try {
+                let payload = { username:u, role:r };
+                if (p) payload.password = p;
+                if (editingUser) await window.homarApiRequest('/admin/users/' + encodeURIComponent(editingUser), { method:'PUT', body:JSON.stringify(payload) });
+                else await window.homarApiRequest('/admin/users', { method:'POST', body:JSON.stringify(payload) });
+                await window.syncApiUsersToLocal();
                 document.getElementById("editingUsername").value = "";
+                document.getElementById("newUsername").value = "";
+                document.getElementById("newPassword").value = "";
                 document.getElementById("userFormTitle").textContent = "OPPRETT NY BRUKER";
                 document.getElementById("userSubmitBtn").textContent = "LEGG TIL";
-            } else {
-                if (users.find(x => x.username.toUpperCase() === u)) {
-                    msg.style.color = "red";
-                    msg.textContent = "BRUKERNAVNET EKSISTERER ALLEREDE!";
-                    return;
-                }
-                users.push({ username: u, password: p, role: r });
+                msg.style.color = "green";
+                msg.textContent = editingUser ? "BRUKER OPPDATERT!" : "BRUKER OPPRETTET!";
+                loadAdminData();
+            } catch (err) {
+                msg.style.color = "red";
+                msg.textContent = "FEIL: " + (err.message || "KUNNE IKKE LAGRE BRUKER");
             }
-
-            localStorage.setItem("homar_users", JSON.stringify(users));
-            document.getElementById("newUsername").value = "";
-            document.getElementById("newPassword").value = "";
-            msg.style.color = "green";
-            msg.textContent = "BRUKER LAGRET!";
-            loadAdminData();
         }
 
         function editUser(username) {
@@ -2390,20 +2355,16 @@
             window.scrollTo({ top: document.getElementById("newUsername").offsetTop, behavior: 'smooth' });
         }
 
-        function deleteUser(username) {
-            if (getCurrentUserRole() !== "Admin") {
-                alert("KUN ADMIN KAN SLETTE BRUKERE!");
-                return;
-            }
-            if (username.toUpperCase() === "ADMIN") {
-                alert("KAN IKKE SLETTE HOVEDADMINISTRATOR!");
-                return;
-            }
-            if (confirm(`VIL DU SLETTE BRUKER ${username.toUpperCase()}?`)) {
-                let users = JSON.parse(localStorage.getItem("homar_users") || "[]");
-                users = users.filter(x => x.username.toUpperCase() !== username.toUpperCase());
-                localStorage.setItem("homar_users", JSON.stringify(users));
+        async function deleteUser(username) {
+            if (getCurrentUserRole() !== "Admin") { alert("KUN ADMIN KAN SLETTE BRUKERE!"); return; }
+            if (String(username || "").toUpperCase() === "ADMIN") { alert("KAN IKKE SLETTE HOVEDADMINISTRATOR!"); return; }
+            if (!confirm(`VIL DU SLETTE BRUKER ${String(username).toUpperCase()}?`)) return;
+            try {
+                await window.homarApiRequest('/admin/users/' + encodeURIComponent(username), { method:'DELETE' });
+                await window.syncApiUsersToLocal();
                 loadAdminData();
+            } catch (err) {
+                alert("KUNNE IKKE SLETTE BRUKER: " + (err.message || "UKJENT FEIL"));
             }
         }
 
@@ -3033,6 +2994,24 @@
             return data;
         }
 
+        window.homarApiRequest = apiRequest;
+
+        async function syncApiUsersToLocal() {
+            const current = JSON.parse(localStorage.getItem('homar_api_user') || '{}');
+            if (String(current.role || '').toUpperCase() !== 'ADMIN') return [];
+            const users = await apiRequest('/admin/users');
+            const permissionMap = {};
+            const localUsers = users.map(u => {
+                const username = String(u.username || '').toUpperCase();
+                permissionMap[username] = u.permissions || {};
+                return { id:u.id, username, password:'', role:u.role || 'Bruker', active:u.active !== false };
+            });
+            localStorage.setItem('homar_users', JSON.stringify(localUsers));
+            localStorage.setItem('homar_user_permissions', JSON.stringify(permissionMap));
+            return users;
+        }
+        window.syncApiUsersToLocal = syncApiUsersToLocal;
+
         function parseStored(key) {
             const raw = localStorage.getItem(key);
             if (raw === null) return undefined;
@@ -3086,9 +3065,17 @@
         }
 
         function applyApiUser(user) {
-            nativeSetItem.call(localStorage, 'homar_api_user', JSON.stringify(user || {}));
-            nativeSetItem.call(localStorage, 'homar_current_user', String((user && user.username) || 'ADMIN').toLowerCase());
+            const safeUser = user || {};
+            const username = String(safeUser.username || 'ADMIN').toUpperCase();
+            nativeSetItem.call(localStorage, 'homar_api_user', JSON.stringify(safeUser));
+            nativeSetItem.call(localStorage, 'homar_current_user', username);
             nativeSetItem.call(localStorage, 'homar_logged_in', 'true');
+            if (safeUser.permissions) {
+                let all = {};
+                try { all = JSON.parse(localStorage.getItem('homar_user_permissions') || '{}'); } catch (_) {}
+                all[username] = safeUser.permissions;
+                nativeSetItem.call(localStorage, 'homar_user_permissions', JSON.stringify(all));
+            }
         }
 
         window.getCurrentUserRole = function () {
@@ -3099,21 +3086,38 @@
             } catch (_) { return 'Bruker'; }
         };
 
-        window.getUserPermissions = function () {
+        window.getUserPermissions = function (username) {
             try {
-                const user = JSON.parse(localStorage.getItem('homar_api_user') || '{}');
-                if (String(user.role || '').toUpperCase() === 'ADMIN') {
+                const current = JSON.parse(localStorage.getItem('homar_api_user') || '{}');
+                const currentUsername = String(current.username || '').toUpperCase();
+                const targetUsername = String(username || currentUsername).toUpperCase();
+                if (targetUsername === 'ADMIN') {
                     return { fullAccess:true, noAccess:false, canViewBudget:true, canRegister:true, canChangeStatus:true, editAnytime:true, deleteAnytime:true };
                 }
-                const p = user.permissions || {};
+                if (targetUsername === currentUsername && current.permissions) {
+                    const p = current.permissions || {};
+                    const fullAccess = !!p.fullAccess;
+                    const noAccess = fullAccess ? false : !!p.noAccess;
+                    return {
+                        fullAccess, noAccess,
+                        canViewBudget: fullAccess ? true : (noAccess ? false : !!p.canViewBudget),
+                        canRegister: fullAccess ? true : (noAccess ? false : !!p.canRegister),
+                        canChangeStatus: fullAccess ? true : (noAccess ? false : !!p.canChangeStatus),
+                        editAnytime: fullAccess ? true : (noAccess ? false : !!p.editAnytime),
+                        deleteAnytime: fullAccess ? true : (noAccess ? false : !!p.deleteAnytime)
+                    };
+                }
+                const all = JSON.parse(localStorage.getItem('homar_user_permissions') || '{}');
+                const p = all[targetUsername] || {};
+                const fullAccess = !!p.fullAccess;
+                const noAccess = fullAccess ? false : (p.noAccess !== undefined ? !!p.noAccess : true);
                 return {
-                    fullAccess: !!p.fullAccess,
-                    noAccess: !!p.noAccess,
-                    canViewBudget: !!p.canViewBudget,
-                    canRegister: !!p.canRegister,
-                    canChangeStatus: !!p.canChangeStatus,
-                    editAnytime: !!p.editAnytime,
-                    deleteAnytime: !!p.deleteAnytime
+                    fullAccess, noAccess,
+                    canViewBudget: fullAccess ? true : (noAccess ? false : !!p.canViewBudget),
+                    canRegister: fullAccess ? true : (noAccess ? false : !!p.canRegister),
+                    canChangeStatus: fullAccess ? true : (noAccess ? false : !!p.canChangeStatus),
+                    editAnytime: fullAccess ? true : (noAccess ? false : !!p.editAnytime),
+                    deleteAnytime: fullAccess ? true : (noAccess ? false : !!p.deleteAnytime)
                 };
             } catch (_) {
                 return { fullAccess:false, noAccess:true, canViewBudget:false, canRegister:false, canChangeStatus:false, editAnytime:false, deleteAnytime:false };
@@ -3134,6 +3138,7 @@
                 nativeSetItem.call(localStorage, 'homar_api_token', result.token);
                 applyApiUser(result.user);
                 await loadServerState();
+                if (String((result.user && result.user.role) || '').toUpperCase() === 'ADMIN') await syncApiUsersToLocal();
                 errorEl.textContent = '';
                 document.getElementById('username').value = '';
                 document.getElementById('password').value = '';
@@ -3181,6 +3186,7 @@
                 const me = await apiRequest('/auth/me');
                 applyApiUser(me);
                 await loadServerState();
+                if (String((me && me.role) || '').toUpperCase() === 'ADMIN') await syncApiUsersToLocal();
                 checkAdminAccess();
                 document.getElementById('loginSection').classList.add('hidden');
                 document.getElementById('dashboardSection').classList.remove('hidden');
