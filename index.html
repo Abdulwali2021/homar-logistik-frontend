@@ -1569,11 +1569,11 @@
                 if (lager[lagerIndex].qty < 0) {
                     lager[lagerIndex].qty = 0;
                 }
-                lager[lagerIndex].date = todayStr; 
+                lager[lagerIndex].date = date || lager[lagerIndex].date || todayStr; 
             } else {
                 if (qtyDelta > 0) {
                     lager.push({
-                        date: todayStr, 
+                        date: date || todayStr, 
                         type: cleanType,
                         qty: qtyDelta,
                         price: 0,
@@ -1636,6 +1636,18 @@
             }
 
             localStorage.setItem("homar_samen", JSON.stringify(list));
+
+  // Hvis SAMEN registreres tilbake i tid, vis den valgte datoen med en gang.
+  if (date !== todayStr) {
+      const archiveMode = document.getElementById("archiveModeSelect");
+      const archiveStart = document.getElementById("archiveStartDateInput");
+      const archiveEnd = document.getElementById("archiveEndDateInput");
+      const archiveRange = document.getElementById("archiveRangeContainer");
+      if (archiveMode) archiveMode.value = "range";
+      if (archiveStart) archiveStart.value = date;
+      if (archiveEnd) archiveEnd.value = date;
+      if (archiveRange) archiveRange.classList.remove("hidden");
+  }
             resetLogisticsForm();
             loadData();
         }
@@ -2539,7 +2551,7 @@
                     `<span class="stock-badge stock-badge-red">RØDT</span>`;
 
                 tbody.innerHTML += `<tr>
-                    <td>${todayStr}</td>
+                    <td>${item.date || todayStr}</td>
                     <td>${tName}</td>
                     <td>${item.qty}</td>
                     <td>${dispPrice.toFixed(2)}</td>
