@@ -1,0 +1,57 @@
+name: Keep lager on current date
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-lager-current-date.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Keep lager date on today
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          original = text
+
+          text = text.replace(
+              'lager[lagerIndex].date = date || lager[lagerIndex].date || todayStr;',
+              'lager[lagerIndex].date = todayStr;',
+              1
+          )
+
+          text = text.replace(
+              'date: date || todayStr, \n                        type: cleanType,',
+              'date: todayStr, \n                        type: cleanType,',
+              1
+          )
+
+          # Lageroversikten er en nå-status og skal alltid vises på dagens dato.
+          text = text.replace(
+              '<td>${item.date || todayStr}</td>\n                    <td>${tName}</td>',
+              '<td>${todayStr}</td>\n                    <td>${tName}</td>',
+              1
+          )
+
+          if text == original:
+              raise SystemExit('No matching lager date lines found')
+
+          path.write_text(text, encoding='utf-8')
+
+      - name: Commit repair
+        shell: bash
+        run: |
+          git config user.name "HOMAR Repair"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html
+          git commit -m "Keep lager overview on current date" || exit 0
+          git push
