@@ -23,28 +23,37 @@ jobs:
           text = path.read_text(encoding='utf-8')
           original = text
 
-          old = 'lager[lagerIndex].date = todayStr; '
-          new = 'lager[lagerIndex].date = date || lager[lagerIndex].date || todayStr; '
-          if old not in text:
-              raise SystemExit('Expected existing-lager SAMEN date line not found')
-          text = text.replace(old, new, 1)
+          replacements = [
+              (
+                  'lager[lagerIndex].date = todayStr;',
+                  'lager[lagerIndex].date = date || lager[lagerIndex].date || todayStr;'
+              ),
+              (
+                  'date: todayStr, \n                        type: cleanType,',
+                  'date: date || todayStr, \n                        type: cleanType,'
+              ),
+              (
+                  '<td>${todayStr}</td>\n                    <td>${tName}</td>',
+                  '<td>${item.date || todayStr}</td>\n                    <td>${tName}</td>'
+              ),
+          ]
 
-          old = 'date: todayStr, \n                        type: cleanType,'
-          new = 'date: date || todayStr, \n                        type: cleanType,'
-          if old not in text:
-              raise SystemExit('Expected new-lager SAMEN date line not found')
-          text = text.replace(old, new, 1)
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit('Expected code not found: ' + old.splitlines()[0])
+              text = text.replace(old, new, 1)
 
-          old = '<td>${todayStr}</td>\n                    <td>${tName}</td>'
-          new = '<td>${item.date || todayStr}</td>\n                    <td>${tName}</td>'
-          if old not in text:
-              raise SystemExit('Expected lager rendered date line not found')
-          text = text.replace(old, new, 1)
+          function_start = text.find('function saveLogistics()')
+          if function_start < 0:
+              raise SystemExit('saveLogistics function not found')
 
-          old = '''            localStorage.setItem("homar_samen", JSON.stringify(list));
-            resetLogisticsForm();
-            loadData();'''
-          new = '''            localStorage.setItem("homar_samen", JSON.stringify(list));
+          marker = 'localStorage.setItem("homar_samen", JSON.stringify(list));'
+          save_marker = text.find(marker, function_start)
+          if save_marker < 0:
+              raise SystemExit('SAMEN save marker not found')
+
+          insert_at = save_marker + len(marker)
+          archive_fix = '''
 
             // Hvis SAMEN registreres tilbake i tid, vis den valgte datoen med en gang.
             if (date !== todayStr) {
@@ -56,13 +65,8 @@ jobs:
                 if (archiveStart) archiveStart.value = date;
                 if (archiveEnd) archiveEnd.value = date;
                 if (archiveRange) archiveRange.classList.remove("hidden");
-            }
-
-            resetLogisticsForm();
-            loadData();'''
-          if old not in text:
-              raise SystemExit('Expected SAMEN save block not found')
-          text = text.replace(old, new, 1)
+            }'''
+          text = text[:insert_at] + archive_fix + text[insert_at:]
 
           if text == original:
               raise SystemExit('No changes made')
