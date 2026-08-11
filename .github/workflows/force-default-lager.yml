@@ -1,0 +1,51 @@
+name: Force LAGER as startup view
+on:
+  push:
+    paths:
+      - '.github/workflows/force-default-lager.yml'
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Force startup view
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          # There are two startup paths: fresh API login and reload with saved token.
+          # loadData() leaves the old KUNDE section visible, so explicitly switch after it.
+          old="""                fetchLiveExchangeRate();
+                loadData();
+            } catch (err) {"""
+          new="""                fetchLiveExchangeRate();
+                loadData();
+                switchView('lager');
+            } catch (err) {"""
+          if old in s:
+              s=s.replace(old,new,1)
+          old2="""                document.getElementById('dashboardSection').classList.remove('hidden');
+                loadData();
+            } catch (_) {"""
+          new2="""                document.getElementById('dashboardSection').classList.remove('hidden');
+                loadData();
+                switchView('lager');
+            } catch (_) {"""
+          if old2 in s:
+              s=s.replace(old2,new2,1)
+          if "switchView('lager');\n            } catch (err)" not in s or "switchView('lager');\n            } catch (_)" not in s:
+              raise SystemExit('Could not patch both API startup paths')
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if ! git diff --cached --quiet; then
+            git commit -m "Force LAGER after login and page reload"
+            git push
+          fi
