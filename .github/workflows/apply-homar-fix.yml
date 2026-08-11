@@ -1,0 +1,23 @@
+name: Apply HOMAR Fix
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/apply-homar-fix.yml
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply fix
+        run: python .github/scripts/patch_homar.py
+      - name: Save fix
+        run: |
+          git config user.name "HOMAR Fix"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html
+          git commit -m "Apply HOMAR live fixes"
+          git push
