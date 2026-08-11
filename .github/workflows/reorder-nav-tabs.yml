@@ -1,0 +1,41 @@
+name: Reorder navigation tabs
+on:
+  push:
+    paths:
+      - '.github/workflows/reorder-nav-tabs.yml'
+permissions:
+  contents: write
+jobs:
+  reorder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reorder tabs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text()
+          pattern=r'(<div class="nav-tabs">)(.*?)(</div>)'
+          m=re.search(pattern,s,re.S)
+          if not m: raise SystemExit('nav-tabs not found')
+          buttons=re.findall(r'<button\s+id="(tab[^"]+)".*?</button>',m.group(2),re.S)
+          full={}
+          for bm in re.finditer(r'\s*<button\s+id="(tab[^"]+)".*?</button>',m.group(2),re.S): full[bm.group(1)]=bm.group(0).strip()
+          order=['tabKunde','tabLager','tabSamen','tabGari','tabShamito','tabDhagaxshid','tabQarash','tabUtgift','tabBudsjet','tabAdmin']
+          missing=[x for x in order if x not in full]
+          if missing: raise SystemExit('Missing: '+','.join(missing))
+          body='\n'+'\n'.join('            '+full[x] for x in order)+'\n        '
+          s=s[:m.start(2)]+body+s[m.end(2):]
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if ! git diff --cached --quiet; then
+            git commit -m "Reorder navigation tabs"
+            git push
+          fi
