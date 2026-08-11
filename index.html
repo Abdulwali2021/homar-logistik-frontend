@@ -2568,19 +2568,17 @@
             let tbody = document.getElementById("logisticsBody");
             tbody.innerHTML = "";
 
-            let sumQty = 0;
-            let sumDriver = 0;
-            let sumPrice = 0;
-            let sumTotal = 0;
+            // SAMEN-totalene skal alltid vise totalsum for ALLE datoer,
+  // uavhengig av hvilken dato som vises i tabellen.
+  let sumQty = list.reduce((acc, item) => acc + (Number(item.qty) || 0), 0);
+  let sumDriver = list.reduce((acc, item) => acc + (Number(item.driverPrice) || 0), 0);
+  let sumPrice = list.reduce((acc, item) => acc + ((Number(item.qty) || 0) * (Number(item.price) || 0)), 0);
+  let sumTotal = list.reduce((acc, item) => acc + (((Number(item.qty) || 0) * (Number(item.price) || 0)) + (Number(item.driverPrice) || 0)), 0);
 
-            list.forEach((item, index) => {
-                if (!filterByCalendar(item)) return;
+  list.forEach((item, index) => {
+      if (!filterByCalendar(item)) return;
 
-                let rowTotalNOK = (item.qty * item.price) + Number(item.driverPrice || 0);
-                sumQty += item.qty;
-                sumDriver += Number(item.driverPrice || 0);
-                sumPrice += (item.qty * item.price);
-                sumTotal += rowTotalNOK;
+      let rowTotalNOK = (item.qty * item.price) + Number(item.driverPrice || 0);
 
                 let dispDriver = convertPriceToDisplay(item.driverPrice);
                 let dispPrice = convertPriceToDisplay(item.price);
