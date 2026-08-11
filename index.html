@@ -1569,11 +1569,11 @@
                 if (lager[lagerIndex].qty < 0) {
                     lager[lagerIndex].qty = 0;
                 }
-                lager[lagerIndex].date = date || lager[lagerIndex].date || todayStr; 
+                lager[lagerIndex].date = todayStr; 
             } else {
                 if (qtyDelta > 0) {
                     lager.push({
-                        date: date || todayStr, 
+                        date: todayStr, 
                         type: cleanType,
                         qty: qtyDelta,
                         price: 0,
@@ -2539,7 +2539,7 @@
                     `<span class="stock-badge stock-badge-red">RØDT</span>`;
 
                 tbody.innerHTML += `<tr>
-                    <td>${item.date || todayStr}</td>
+                    <td>${todayStr}</td>
                     <td>${tName}</td>
                     <td>${item.qty}</td>
                     <td>${dispPrice.toFixed(2)}</td>
