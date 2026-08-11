@@ -1636,18 +1636,6 @@
             }
 
             localStorage.setItem("homar_samen", JSON.stringify(list));
-
-  // Hvis SAMEN registreres tilbake i tid, vis den valgte datoen med en gang.
-  if (date !== todayStr) {
-      const archiveMode = document.getElementById("archiveModeSelect");
-      const archiveStart = document.getElementById("archiveStartDateInput");
-      const archiveEnd = document.getElementById("archiveEndDateInput");
-      const archiveRange = document.getElementById("archiveRangeContainer");
-      if (archiveMode) archiveMode.value = "range";
-      if (archiveStart) archiveStart.value = date;
-      if (archiveEnd) archiveEnd.value = date;
-      if (archiveRange) archiveRange.classList.remove("hidden");
-  }
             resetLogisticsForm();
             loadData();
         }
