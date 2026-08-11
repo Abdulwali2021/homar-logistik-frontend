@@ -1,0 +1,243 @@
+name: HOMAR Final Fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/homar-final-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch HOMAR frontend
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          def replace_between(text, start, end, replacement):
+              a = text.find(start)
+              if a < 0:
+                  raise SystemExit(f'Mangler start: {start}')
+              b = text.find(end, a)
+              if b < 0:
+                  raise SystemExit(f'Mangler slutt: {end}')
+              return text[:a] + replacement + text[b:]
+
+          s = replace_between(s,
+              '        function canModifyOrDelete(item) {',
+              '        function canEditDetails(item) {',
+              '''        function canModifyOrDelete(item) {
+            let role = getCurrentUserRole();
+            if (role === "Admin") return true;
+            let perms = getUserPermissions(getCurrentUser());
+            if (perms.fullAccess) return true;
+            if (perms.noAccess || !perms.deleteAnytime) return false;
+            return String(item.createdBy || "admin").toUpperCase() === String(getCurrentUser() || "").toUpperCase();
+        }
+
+''')
+
+          s = replace_between(s,
+              '        function canEditDetails(item) {',
+              '        function checkInputCardVisibility() {',
+              '''        function canEditDetails(item) {
+            let role = getCurrentUserRole();
+            if (role === "Admin") return true;
+            let perms = getUserPermissions(getCurrentUser());
+            if (perms.fullAccess) return true;
+            if (perms.noAccess || !perms.editAnytime) return false;
+            return String(item.createdBy || "admin").toUpperCase() === String(getCurrentUser() || "").toUpperCase();
+        }
+
+''')
+
+          s = replace_between(s,
+              '        function normType(str) {',
+              '        // Qarash funksjoner',
+              '''        function normType(str) {
+            return String(str || "")
+                .normalize("NFD")
+                .replace(/[\\u0300-\\u036f]/g, "")
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, "");
+        }
+
+''')
+
+          s = replace_between(s,
+              '        function getStockMap() {',
+              '        function saveShamito() {',
+              '''        function getStockMap() {
+            let lager = JSON.parse(localStorage.getItem("homar_lager") || "[]");
+            let shamito = JSON.parse(localStorage.getItem("homar_shamito") || "[]");
+            let stock = {};
+            lager.forEach(item => {
+                let t = String(item.type || "").toUpperCase();
+                stock[t] = (stock[t] || 0) + (Number(item.qty) || 0);
+            });
+            // SAMEN er allerede lagt til i homar_lager. Ikke trekk den fra en gang til.
+            shamito.forEach(item => {
+                let t = String(item.type || "").toUpperCase();
+                if (stock[t] !== undefined) stock[t] -= (Number(item.qty) || 0);
+            });
+            return stock;
+        }
+
+''')
+
+          # Expose the existing API helper and add server user synchronization.
+          needle = '''            return data;\n        }\n\n        function parseStored(key) {'''
+          insert = '''            return data;\n        }\n\n        window.homarApiRequest = apiRequest;\n\n        async function syncApiUsersToLocal() {\n            const current = JSON.parse(localStorage.getItem('homar_api_user') || '{}');\n            if (String(current.role || '').toUpperCase() !== 'ADMIN') return [];\n            const users = await apiRequest('/admin/users');\n            const permissionMap = {};\n            const localUsers = users.map(u => {\n                const username = String(u.username || '').toUpperCase();\n                permissionMap[username] = u.permissions || {};\n                return { id:u.id, username, password:'', role:u.role || 'Bruker', active:u.active !== false };\n            });\n            localStorage.setItem('homar_users', JSON.stringify(localUsers));\n            localStorage.setItem('homar_user_permissions', JSON.stringify(permissionMap));\n            return users;\n        }\n        window.syncApiUsersToLocal = syncApiUsersToLocal;\n\n        function parseStored(key) {'''
+          if needle not in s:
+              raise SystemExit('Kunne ikke finne API helper-punkt')
+          s = s.replace(needle, insert, 1)
+
+          # Replace API-side permission resolver so ADMIN can view each selected user's real rights.
+          s = replace_between(s,
+              '        window.getUserPermissions = function () {',
+              '        window.handleLogin = async function () {',
+              '''        window.getUserPermissions = function (username) {
+            try {
+                const current = JSON.parse(localStorage.getItem('homar_api_user') || '{}');
+                const currentUsername = String(current.username || '').toUpperCase();
+                const targetUsername = String(username || currentUsername).toUpperCase();
+                if (targetUsername === 'ADMIN') {
+                    return { fullAccess:true, noAccess:false, canViewBudget:true, canRegister:true, canChangeStatus:true, editAnytime:true, deleteAnytime:true };
+                }
+                if (targetUsername === currentUsername && current.permissions) {
+                    const p = current.permissions || {};
+                    const fullAccess = !!p.fullAccess;
+                    const noAccess = fullAccess ? false : !!p.noAccess;
+                    return {
+                        fullAccess, noAccess,
+                        canViewBudget: fullAccess ? true : (noAccess ? false : !!p.canViewBudget),
+                        canRegister: fullAccess ? true : (noAccess ? false : !!p.canRegister),
+                        canChangeStatus: fullAccess ? true : (noAccess ? false : !!p.canChangeStatus),
+                        editAnytime: fullAccess ? true : (noAccess ? false : !!p.editAnytime),
+                        deleteAnytime: fullAccess ? true : (noAccess ? false : !!p.deleteAnytime)
+                    };
+                }
+                const all = JSON.parse(localStorage.getItem('homar_user_permissions') || '{}');
+                const p = all[targetUsername] || {};
+                const fullAccess = !!p.fullAccess;
+                const noAccess = fullAccess ? false : (p.noAccess !== undefined ? !!p.noAccess : true);
+                return {
+                    fullAccess, noAccess,
+                    canViewBudget: fullAccess ? true : (noAccess ? false : !!p.canViewBudget),
+                    canRegister: fullAccess ? true : (noAccess ? false : !!p.canRegister),
+                    canChangeStatus: fullAccess ? true : (noAccess ? false : !!p.canChangeStatus),
+                    editAnytime: fullAccess ? true : (noAccess ? false : !!p.editAnytime),
+                    deleteAnytime: fullAccess ? true : (noAccess ? false : !!p.deleteAnytime)
+                };
+            } catch (_) {
+                return { fullAccess:false, noAccess:true, canViewBudget:false, canRegister:false, canChangeStatus:false, editAnytime:false, deleteAnytime:false };
+            }
+        };
+
+''')
+
+          # After state load, refresh users/permissions for ADMIN (login and remembered session).
+          s = s.replace(
+              '                await loadServerState();\n',
+              "                await loadServerState();\n                if (String((result && result.user && result.user.role) || '').toUpperCase() === 'ADMIN') await syncApiUsersToLocal();\n",
+              1
+          )
+          # Second occurrence is inside load handler and uses me.
+          marker = '                await loadServerState();\n'
+          pos = s.find(marker, s.find("window.addEventListener('load'"))
+          if pos >= 0:
+              s = s[:pos] + "                await loadServerState();\n                if (String((me && me.role) || '').toUpperCase() === 'ADMIN') await syncApiUsersToLocal();\n" + s[pos+len(marker):]
+
+          # Make API user state preserve current user's permissions locally too.
+          old_apply = '''        function applyApiUser(user) {\n            nativeSetItem.call(localStorage, 'homar_api_user', JSON.stringify(user || {}));\n            nativeSetItem.call(localStorage, 'homar_current_user', String((user && user.username) || 'ADMIN').toLowerCase());\n            nativeSetItem.call(localStorage, 'homar_logged_in', 'true');\n        }'''
+          new_apply = '''        function applyApiUser(user) {\n            const safeUser = user || {};\n            const username = String(safeUser.username || 'ADMIN').toUpperCase();\n            nativeSetItem.call(localStorage, 'homar_api_user', JSON.stringify(safeUser));\n            nativeSetItem.call(localStorage, 'homar_current_user', username);\n            nativeSetItem.call(localStorage, 'homar_logged_in', 'true');\n            if (safeUser.permissions) {\n                let all = {};\n                try { all = JSON.parse(localStorage.getItem('homar_user_permissions') || '{}'); } catch (_) {}\n                all[username] = safeUser.permissions;\n                nativeSetItem.call(localStorage, 'homar_user_permissions', JSON.stringify(all));\n            }\n        }'''
+          if old_apply in s:
+              s = s.replace(old_apply, new_apply, 1)
+
+          # Replace local-only Admin functions with backend-backed versions.
+          s = replace_between(s,
+              '        function saveUserPermissions() {',
+              '        function saveRole() {',
+              '''        async function saveUserPermissions() {
+            let username = document.getElementById("adminUserSelect").value;
+            if (String(username || "").toUpperCase() === "ADMIN") { alert("HOVEDADMINISTRATOR HAR ALLEREDE FULLE RETTIGHETER."); return; }
+            let fullAccess = document.getElementById("userPermFullAccess").checked;
+            let noAccess = document.getElementById("userPermNoAccess").checked;
+            let perms = {
+                fullAccess, noAccess,
+                canViewBudget: fullAccess ? true : (noAccess ? false : document.getElementById("userPermViewBudget").checked),
+                canRegister: fullAccess ? true : (noAccess ? false : document.getElementById("userPermRegister").checked),
+                canChangeStatus: fullAccess ? true : (noAccess ? false : document.getElementById("userPermStatus").checked),
+                editAnytime: fullAccess ? true : (noAccess ? false : document.getElementById("userPermEditAnytime").checked),
+                deleteAnytime: fullAccess ? true : (noAccess ? false : document.getElementById("userPermDeleteAnytime").checked)
+            };
+            let msg = document.getElementById("userPermMsg");
+            try {
+                const result = await window.homarApiRequest('/admin/users/' + encodeURIComponent(username) + '/permissions', { method:'PUT', body:JSON.stringify(perms) });
+                let all = JSON.parse(localStorage.getItem("homar_user_permissions") || "{}");
+                all[String(username).toUpperCase()] = result.permissions || perms;
+                localStorage.setItem("homar_user_permissions", JSON.stringify(all));
+                await window.syncApiUsersToLocal();
+                msg.style.color = "green"; msg.textContent = "TILGANGER LAGRET FOR " + String(username).toUpperCase() + "!";
+                loadAdminData();
+            } catch (err) { msg.style.color="red"; msg.textContent="FEIL: " + (err.message || "KUNNE IKKE LAGRE TILGANGER"); }
+        }
+
+''')
+
+          s = replace_between(s,
+              '        function saveUser() {',
+              '        function editUser(username) {',
+              '''        async function saveUser() {
+            if (getCurrentUserRole() !== "Admin") { alert("KUN ADMIN KAN ADMINISTRERE BRUKERE!"); return; }
+            let u = document.getElementById("newUsername").value.trim().toUpperCase();
+            let p = document.getElementById("newPassword").value;
+            let r = document.getElementById("newRole").value;
+            let editingUser = document.getElementById("editingUsername").value;
+            let msg = document.getElementById("adminMsg");
+            if (!u || (!editingUser && !p)) { msg.style.color="red"; msg.textContent="FYLL UT BRUKERNAVN OG PASSORD!"; return; }
+            try {
+                let payload = { username:u, role:r }; if (p) payload.password = p;
+                if (editingUser) await window.homarApiRequest('/admin/users/' + encodeURIComponent(editingUser), { method:'PUT', body:JSON.stringify(payload) });
+                else await window.homarApiRequest('/admin/users', { method:'POST', body:JSON.stringify(payload) });
+                await window.syncApiUsersToLocal();
+                document.getElementById("editingUsername").value=""; document.getElementById("newUsername").value=""; document.getElementById("newPassword").value="";
+                document.getElementById("userFormTitle").textContent="OPPRETT NY BRUKER"; document.getElementById("userSubmitBtn").textContent="LEGG TIL";
+                msg.style.color="green"; msg.textContent = editingUser ? "BRUKER OPPDATERT!" : "BRUKER OPPRETTET!"; loadAdminData();
+            } catch (err) { msg.style.color="red"; msg.textContent="FEIL: " + (err.message || "KUNNE IKKE LAGRE BRUKER"); }
+        }
+
+''')
+
+          s = replace_between(s,
+              '        function deleteUser(username) {',
+              '        function loadAdminData() {',
+              '''        async function deleteUser(username) {
+            if (getCurrentUserRole() !== "Admin") { alert("KUN ADMIN KAN SLETTE BRUKERE!"); return; }
+            if (String(username || "").toUpperCase() === "ADMIN") { alert("KAN IKKE SLETTE HOVEDADMINISTRATOR!"); return; }
+            if (!confirm(`VIL DU SLETTE BRUKER ${String(username).toUpperCase()}?`)) return;
+            try {
+                await window.homarApiRequest('/admin/users/' + encodeURIComponent(username), { method:'DELETE' });
+                await window.syncApiUsersToLocal();
+                loadAdminData();
+            } catch (err) { alert("KUNNE IKKE SLETTE BRUKER: " + (err.message || "UKJENT FEIL")); }
+        }
+
+''')
+
+          p.write_text(s, encoding='utf-8')
+      - name: Commit fixed frontend
+        run: |
+          git config user.name "ChatGPT HOMAR Fix"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html
+          git rm .github/workflows/homar-final-fix.yml
+          git commit -m "Fix live admin permissions, users and stock sync"
+          git push
