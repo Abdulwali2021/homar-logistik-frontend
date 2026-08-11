@@ -1,0 +1,3201 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HORMAR LOGISTIK</title>
+    <style>
+        :root {
+            --primary-color: #28a745;
+            --success-color: #218838;
+            --bg-color: #f4f7f6; 
+            --card-bg: #ffffff;
+            --text-color: #333333;
+        }
+
+        body { font-family: Arial, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; text-transform: uppercase; }
+        .container { max-width: 1200px; margin: auto; background: var(--card-bg); padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 25px; }
+        .hidden { display: none !important; }
+        #loginSection { max-width: 400px; margin: 80px auto; text-align: center; }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; }
+        input[type="text"], input[type="password"], input[type="number"], input[type="date"], select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; text-transform: uppercase; }
+        input:disabled, select:disabled { background-color: #e9ecef; cursor: not-allowed; }
+        .input-card { background: #f8f9fa; padding: 15px; border-radius: 6px; border: 1px solid #e9ecef; margin-top: 10px; margin-bottom: 20px; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) 120px; gap: 10px; align-items: end; }
+        button { padding: 9px 15px; background-color: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 15px; text-transform: uppercase; }
+        button:hover { opacity: 0.9; }
+        .btn-success { background-color: var(--success-color); width: 100%; }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .digital-clock {
+            font-size: 18px;
+            font-weight: bold;
+            color: #28a745;
+            background: #e8f5e9;
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 1px solid #c8e6c9;
+            letter-spacing: 1px;
+        }
+
+        .live-date-badge {
+            font-size: 15px;
+            font-weight: bold;
+            color: #004085;
+            background: #e7f1ff;
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 1px solid #b8daff;
+            letter-spacing: 1px;
+        }
+
+        .archive-bar {
+            background: #e7f1ff;
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid #b8daff;
+        }
+        .archive-bar div { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .archive-bar select, .archive-bar input[type="date"] { padding: 6px; font-weight: bold; color: #004085; background: #fff; width: auto; }
+
+        .nav-tabs { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .nav-btn { background-color: #6c757d; flex: 1; text-align: center; font-weight: bold; min-width: 90px; font-size: 12px; }
+        .nav-btn.active { background-color: var(--primary-color); }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: left; font-size: 14px; }
+        th { background-color: var(--primary-color); color: white; }
+        .error-msg { color: #dc3545; margin-top: 10px; font-size: 14px; }
+
+        .summary-bar { background: #e2e3e5; padding: 12px 15px; border-radius: 6px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; font-weight: bold; border: 1px solid #d6d8db; font-size: 14px; }
+        .summary-bar span { color: #383d41; }
+
+        .currency-bar { background: #e9ecef; padding: 12px 15px; border-radius: 6px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: space-between; border: 1px solid #ced4da; }
+        .currency-bar div { display: flex; align-items: center; gap: 8px; }
+        .currency-bar input { width: 100px; padding: 5px; }
+        .currency-bar select { width: 110px; padding: 5px; }
+
+        .status-btn {
+            padding: 5px 12px;
+            font-size: 13px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+            text-align: center;
+        }
+        .status-deen { background-color: #ffc107; color: #212529; }
+        .status-betalt { background-color: #28a745; color: white; }
+
+        .stock-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .stock-badge-green { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .stock-badge-red { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        .filter-container { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; align-items: flex-end; background: #f8f9fa; padding: 12px; border-radius: 6px; border: 1px solid #e9ecef; }
+        .filter-buttons { display: flex; gap: 10px; }
+        .filter-btn { background-color: #6c757d; font-size: 13px; padding: 6px 14px; }
+        .filter-btn.active-filter { background-color: #007bff; }
+
+        .action-dropdown { position: relative; display: inline-block; }
+        .action-btn { background-color: #6c757d; color: white; padding: 5px 10px; font-size: 13px; border: none; border-radius: 4px; cursor: pointer; }
+        .action-btn:hover { background-color: #5a6268; }
+        .action-content { display: none; position: absolute; right: 0; background-color: #ffffff; min-width: 120px; box-shadow: 0px 8px 16px rgba(0,0,0,0.2); z-index: 10; border-radius: 4px; border: 1px solid #ddd; }
+        .action-content button { color: black; background: none; padding: 8px 12px; display: block; width: 100%; text-align: left; font-size: 13px; border-radius: 0; }
+        .action-content button:hover { background-color: #f1f1f1; opacity: 1; }
+        .action-dropdown.show .action-content { display: block; }
+
+        .budget-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .budget-card {
+            background: #ffffff;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+        .budget-card-clickable {
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .budget-card-clickable:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-color: var(--primary-color);
+        }
+        .budget-card-title {
+            font-size: 13px;
+            color: #555;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .budget-card-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        .modal {
+            display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background-color: white; padding: 20px; border-radius: 8px; width: 350px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 14px; }
+        .checkbox-group input { width: auto; }
+        .permissions-box { background: #e9ecef; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+    <!-- INNLOGGINGSSIDE -->
+    <div id="loginSection" class="container">
+        <h2>HORMAR LOGISTIK - LOGG INN</h2>
+        <div class="form-group">
+            <label>BRUKERNAVN</label>
+            <input type="text" id="username" placeholder="ADMIN">
+        </div>
+        <div class="form-group">
+            <label>PASSORD</label>
+            <input type="password" id="password" placeholder="1234">
+        </div>
+        <button onclick="handleLogin()" style="width: 100%;">LOGG INN</button>
+        <div style="margin-top: 15px;">
+            <button onclick="resetDefaultCredentials()" style="background-color: #6c757d; font-size: 12px; padding: 5px 10px; width: 100%;">NULLSTILL INNLOGGING TIL STANDARD (ADMIN / 123)</button>
+        </div>
+        <div id="loginError" class="error-msg"></div>
+    </div>
+
+    <!-- HOVEDSIDE -->
+    <div id="dashboardSection" class="container hidden">
+        <div class="header-bar">
+            <div>
+                <h2>HORMAR LOGISTIK</h2>
+                <span id="currentUserRoleDisplay" style="font-size: 14px; color: #555;"></span>
+            </div>
+            <div class="header-right">
+                <div id="liveDateBadge" class="live-date-badge">--.--.----</div>
+                <div id="digitalClock" class="digital-clock">00:00:00</div>
+            </div>
+            <button style="background-color: #dc3545;" onclick="handleLogout()">LOGG UT</button>
+        </div>
+
+        <!-- Kalender / Arkiv Bar med Fra og Til Dato -->
+        <div class="archive-bar">
+            <div>
+                <label style="margin:0;">VELG KALENDER / ARKIV:</label>
+                <select id="archiveModeSelect" onchange="toggleArchiveModeInputs()">
+                    <option value="today">DAGENS DATO</option>
+                    <option value="range">VELG DATO-INTERVALL (FRA - TIL)</option>
+                </select>
+            </div>
+            <div id="archiveRangeContainer" class="hidden" style="display: flex; gap: 8px; align-items: center;">
+                <label style="margin:0; font-size:12px;">FRA:</label>
+                <input type="date" id="archiveStartDateInput" onchange="renderAllTables()">
+                <label style="margin:0; font-size:12px;">TIL:</label>
+                <input type="date" id="archiveEndDateInput" onchange="renderAllTables()">
+            </div>
+            <div>
+                <button onclick="resetArchiveFilter()" style="background-color: #6c757d; padding: 6px 10px; font-size: 12px;">NULLSTILL KALENDER</button>
+            </div>
+        </div>
+
+        <!-- Faner øverst -->
+        <div class="nav-tabs">
+            <button id="tabKunde" class="nav-btn active" onclick="switchView('kunde')">KUNDE</button>
+            <button id="tabLager" class="nav-btn" onclick="switchView('lager')">LAGEROVERSIKT</button>
+            <button id="tabSamen" class="nav-btn" onclick="switchView('samen')">SAMEN</button>
+            <button id="tabGari" class="nav-btn" onclick="switchView('gari')">GARI</button>
+            <button id="tabQarash" class="nav-btn" onclick="switchView('qarash')">QARASH</button>
+            <button id="tabShamito" class="nav-btn" onclick="switchView('shamito')">SHAMITO</button>
+            <button id="tabDhagaxshid" class="nav-btn" onclick="switchView('dhagaxshid')">DHAGAX SHID</button>
+            <button id="tabUtgift" class="nav-btn" onclick="switchView('utgift')" style="background-color: #17a2b8;">UTGIFT</button>
+            <button id="tabBudsjet" class="nav-btn hidden" onclick="switchView('budsjet')">BUDSJET</button>
+            <button id="tabAdmin" class="nav-btn hidden" onclick="switchView('admin')" style="background-color: #343a40;">ADMIN PANEL</button>
+        </div>
+
+        <!-- Valutabarsystem -->
+        <div class="currency-bar">
+            <div>
+                <label style="margin:0;">VALUTA:</label>
+                <select id="activeCurrency" onchange="updateCurrencyView()">
+                    <option value="NOK">NOK</option>
+                    <option value="USD">USD</option>
+                </select>
+            </div>
+            <div>
+                <label style="margin:0;">MODUS:</label>
+                <select id="rateMode" onchange="toggleRateMode()">
+                    <option value="live">LIVE KURS</option>
+                    <option value="manual">MANUELL KURS</option>
+                </select>
+            </div>
+            <div>
+                <label style="margin:0;">KURS (1 USD I NOK):</label>
+                <input type="number" step="0.0001" id="manualRateInput" value="11.00" oninput="handleManualRateChange()" disabled>
+                <span id="rateStatusText" style="font-size: 12px; color: #555;">HENTER LIVE...</span>
+            </div>
+            <div>
+                <button onclick="fetchLiveExchangeRate()" style="padding: 5px 10px; font-size: 13px; background-color: #6c757d;">OPPDATER LIVE</button>
+            </div>
+        </div>
+
+        <!-- KUNDE SEKSJON -->
+        <div id="sectionKunde">
+            <div class="summary-bar">
+                <div>TOTALT ANTALL (QTY): <span id="sumCustQty">0</span></div>
+                <div>TOTAL PRIS: <span id="sumCustTotalSum">0.00</span></div>
+            </div>
+
+            <div class="filter-container">
+                <div class="filter-buttons">
+                    <button id="filterBtnDeen" class="filter-btn active-filter" onclick="setCustomerFilter('Deen')">DEEN</button>
+                    <button id="filterBtnBetalt" class="filter-btn" onclick="setCustomerFilter('Betalt')">BETALT</button>
+                    <button id="filterBtnAll" class="filter-btn" onclick="setCustomerFilter('ALL')">ALLE</button>
+                </div>
+                <div>
+                    <label for="searchDateInput">SØK DATO:</label>
+                    <input type="date" id="searchDateInput" onchange="renderCustomerTable()" style="padding: 6px; width: 130px;">
+                </div>
+                <div style="width: 140px;">
+                    <label for="searchTextInput">SØK NAVN/TLF:</label>
+                    <input type="text" id="searchTextInput" placeholder="SØK..." oninput="renderCustomerTable()" style="padding: 6px; width: 100%;">
+                </div>
+                <div>
+                    <button onclick="clearCustomerFilters()" style="background-color: #6c757d; padding: 7px 12px; font-size: 13px;">NULLSTILL</button>
+                </div>
+            </div>
+
+            <table id="customerTable">
+                <thead>
+                    <tr>
+                        <th>DATO</th><th>NAVN</th><th>TELEFON</th><th>VARE</th><th>QUANTY</th><th id="thCustPrice">PRICE</th><th id="thCustTotal">TOTALL PRICE</th><th>STATUS</th><th class="sjuki-col hidden">OPPRETTET AV</th><th>HANDLING</th>
+                    </tr>
+                </thead>
+                <tbody id="customerBody"></tbody>
+            </table>
+
+            <div class="input-card" id="customerInputCard">
+                <h4 id="custFormTitle">REGISTRER NY KUNDE</h4>
+                <input type="hidden" id="custEditIndex" value="-1">
+                <div class="form-row">
+                    <div><label>REGISTRERINGSDATO</label><input type="date" id="cDate"></div>
+                    <div>
+                        <label>NAVN</label>
+                        <input type="text" id="cKundeNavn" list="kundeListCust" autocomplete="on" placeholder="KUNDENAVN...">
+                        <datalist id="kundeListCust"></datalist>
+                    </div>
+                    <div>
+                        <label>TELEFON (VALGFRITT)</label>
+                        <input type="text" id="cTelefon" list="telListCust" autocomplete="on">
+                        <datalist id="telListCust"></datalist>
+                    </div>
+                    <div>
+                        <label>VARE</label>
+                        <select id="cNavnSelect" style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;" onchange="updateCustMaxQty()">
+                            <option value="">-- VELG VARE FRA LAGER --</option>
+                        </select>
+                        <input type="hidden" id="cNavn">
+                    </div>
+                    <div>
+                        <label>QUANTY (MIN 0) <span id="custStockInfo" style="font-size: 11px; color: #555;"></span></label>
+                        <input type="number" id="cQty" min="0">
+                    </div>
+                    <div><label id="lblCustPrice">PRICE</label><input type="number" step="any" id="cPrice"></div>
+                    <div>
+                        <label>STATUS</label>
+                        <button type="button" id="cStatusBtn" class="status-btn status-deen" onclick="toggleFormStatus()" style="width: 100%; height: 38px;">DEEN</button>
+                        <input type="hidden" id="cStatus" value="Deen">
+                        <input type="hidden" id="cBetaltDato" value="">
+                    </div>
+                    <button class="btn-success" id="custSubmitBtn" onclick="saveCustomer()">REGISTRER</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- LAGEROVERSIKT SEKSJON -->
+        <div id="sectionLager" class="hidden">
+            <div class="summary-bar">
+                <div>TOTALT ANTALL (QTY): <span id="sumLagerQty">0</span></div>
+                <div>TOTAL PRIS: <span id="sumLagerTotal">0.00</span></div>
+            </div>
+
+            <table id="lagerTable">
+                <thead>
+                    <tr>
+                        <th>DATO</th><th>TYPE</th><th>QUANTY</th><th id="thLagerPrice">PRICE</th><th id="thLagerTotal">TOTALL PRICE</th><th>LAGER STATUS</th><th class="sjuki-col hidden">OPPRETTET AV</th><th>HANDLING</th>
+                    </tr>
+                </thead>
+                <tbody id="lagerBody"></tbody>
+            </table>
+
+            <div class="input-card" id="lagerInputCard">
+                <h4 id="lagerFormTitle">REGISTRER NY LAGER</h4>
+                <input type="hidden" id="lagerEditIndex" value="-1">
+                <div class="form-row">
+                    <div><label>DATO</label><input type="date" id="lDate"></div>
+                    <div>
+                        <label>TYPE</label>
+                        <input type="text" id="lType" list="typeListLager" autocomplete="on" placeholder="SKRIV ELLER VELG...">
+                        <datalist id="typeListLager"></datalist>
+                    </div>
+                    <div>
+                        <label>QUANTY (MIN 0)</label>
+                        <input type="number" id="lQty" min="0">
+                    </div>
+                    <div><label id="lblLagerPrice">PRICE</label><input type="number" step="any" id="lPrice"></div>
+                    <button class="btn-success" id="lagerSubmitBtn" onclick="saveLager()">REGISTRER</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SAMEN SEKSJON -->
+        <div id="sectionSamen" class="hidden">
+            <div class="summary-bar">
+                <div>TOTALT ANTALL (QTY): <span id="sumLogQty">0</span></div>
+                <div>TOTAL DRIVER PRICE: <span id="sumLogDriver">0.00</span></div>
+                <div>TOTAL SAMEN PRICE: <span id="sumLogPrice">0.00</span></div>
+                <div>TOTALT (TOTALL PRICE): <span id="sumLogTotal">0.00</span></div>
+            </div>
+
+            <table id="logisticsTable">
+                <thead>
+                    <tr>
+                        <th>DATO</th><th>TYPE</th><th>QUANTY</th><th id="thLogDriver">DRIVER PRICE</th><th id="thLogPrice">SAMEN PRICE</th><th id="thLogTotal">TOTALL PRICE</th><th class="sjuki-col hidden">OPPRETTET AV</th><th>HANDLING</th>
+                    </tr>
+                </thead>
+                <tbody id="logisticsBody"></tbody>
+            </table>
+
+            <div class="input-card" id="logisticsInputCard">
+                <h4 id="logFormTitle">REGISTRER NY LOGISTIKK</h4>
+                <input type="hidden" id="logEditIndex" value="-1">
+                <div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) 120px;">
+                    <div><label>DATO</label><input type="date" id="logDate"></div>
+                    <div>
+                        <label>TYPE</label>
+                        <input type="text" id="logType" style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;" placeholder="SKRIV TYPE..." autocomplete="off">
+                    </div>
+                    <div>
+                        <label>QUANTY (MIN 0) <span id="logStockInfo" style="font-size: 11px; color: #555;"></span></label>
+                        <input type="number" id="logQty" min="0">
+                    </div>
+                    <div><label id="lblLogDriver">DRIVER PRICE</label><input type="number" step="any" id="logDriver" value="5"></div>
+                    <div><label id="lblLogPrice">SAMEN PRICE</label><input type="number" step="any" id="logPrice"></div>
+                    <button class="btn-success" id="logSubmitBtn" onclick="saveLogistics()">REGISTRER</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GARI SEKSJON -->
+        <div id="sectionGari" class="hidden">
+            <div class="summary-bar">
+                <div>TOTALT ANTALL (QTY): <span id="sumGariQty">0</span></div>
+                <div>TOTAL SUM: <span id="sumGariTotal">0.00</span></div>
+            </div>
+
+            <table id="gariTable">
+                <thead>
+                    <tr>
+                        <th>DATO</th><th>GARI TYPE</th><th>TYPE SHAQO</th><th>QUANTY</th><th>PRICE</th><th>TOTALL PRICE</th><th>HANDLING</th>
+                    </tr>
+                </thead>
+                <tbody id="gariBody"></tbody>
+            </table>
+
+            <div class="input-card" id="gariInputCard">
+                <h4 id="gariFormTitle">REGISTRER NY GARI</h4>
+                <input type="hidden" id="gariEditIndex" value="-1">
+                <div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) 120px;">
+                    <div><label>DATO</label><input type="date" id="gDate"></div>
+                    <div><label>GARI TYPE</label><input type="text" id="gGariType" placeholder="F.EKS. A"></div>
+                    <div><label>TYPE SHAQO</label><input type="text" id="gTypeShaqo" placeholder="F.EKS. DHAGAX"></div>
+                    <div><label>QUANTY (MIN 0)</label><input type="number" id="gQty" min="0"></div>
+                    <div><label>PRICE</label><input type="number" step="any" id="gPrice"></div>
+                    <button class="btn-success" id="gariSubmitBtn" onclick="saveGari()">REGISTRER</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- QARASH SEKSJON -->
+        <div id="sectionQarash" class="hidden">
+            <div class="summary-bar">
+                <div>TOTALT ANTALL: <span id="sumQarashQty">0</span></div>
+                <div>TOTAL SUM: <span id="sumQarashTotal">0.00</span></div>
+            </div>
+
+            <table id="qarashTable">
+                <thead>
+                    <tr>
+                        <th>DATO</th><th>NAVN</th><th>ANTALL</th><th>PRICE</th><th>TOTALL PRICE</th><th>HANDLING</th>
+                    </tr>
+                </thead>
+                <tbody id="qarashBody"></tbody>
+            </table>
+
+            <div class="input-card" id="qarashInputCard">
+                <h4 id="qarashFormTitle">REGISTRER NY QARASH</h4>
+                <input type="hidden" id="qarashEditIndex" value="-1">
+                <div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) 120px;">
+                    <div><label>DATO</label><input type="date" id="qDate"></div>
+                    <div><label>NAVN</label><input type="text" id="qNavn" placeholder="NAVN..."></div>
+                    <div><label>ANTALL (MIN 0)</label><input type="number" id="qAntall" min="0"></div>
+                    <div><label>PRICE</label><input type="number" step="any" id="qPrice"></div>
+                    <button class="btn-success" id="qarashSubmitBtn" onclick="saveQarash()">REGISTRER</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SHAMITO SEKSJON -->
+        <div id="sectionShamito" class="hidden">
+            <div class="summary-bar">
+                <div>TOTALT ANTALL (QTY): <span id="sumShamQty">0</span></div>
+                <div>TOTAL PRIS: <span id="sumShamTotalSum">0.00</span></div>
+            </div>
+
+            <table id="shamitoTable">
+                <thead>
+                    <tr>
+                        <th>DATO</th><th>NAVN</th><th>QUANTY</th><th id="thShamPrice">PRICE</th><th id="thShamTotal">TOTALL PRICE</th><th class="sjuki-col hidden">OPPRETTET AV</th><th>HANDLING</th>
+                    </tr>
+                </thead>
+                <tbody id="shamitoBody"></tbody>
+            </table>
+
+            <div class="input-card" id="shamitoInputCard">
+                <h4 id="shamFormTitle">REGISTRER NY SHAMITO</h4>
+                <input type="hidden" id="shamEditIndex" value="-1">
+                <div class="form-row">
+                    <div><label>DATO</label><input type="date" id="shamDate"></div>
+                    <div>
+                        <label>NAVN</label>
+                        <select id="shamType" style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;" onchange="updateShamMaxQty()">
+                            <option value="">-- VELG VARE FRA LAGER --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>QUANTY (MIN 0) <span id="shamStockInfo" style="font-size: 11px; color: #555;"></span></label>
+                        <input type="number" id="shamQty" min="0">
+                    </div>
+                    <div><label id="lblShamPrice">PRICE</label><input type="number" step="any" id="shamPrice"></div>
+                    <button class="btn-success" id="shamSubmitBtn" onclick="saveShamito()">REGISTRER</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- DHAGAX SHID SEKSJON -->
+        <div id="sectionDhagaxshid" class="hidden">
+            <div class="summary-bar">
+                <div>TOTALT ANTALL (QTY): <span id="sumDhagaxshidQty">0</span></div>
+                <div>TOTAL DRIVER: <span id="sumDhagaxshidDriver">0.00</span></div>
+                <div>TOTAL PRIS: <span id="sumDhagaxshidPrice">0.00</span></div>
+                <div>TOTAL SUM: <span id="sumDhagaxshidTotal">0.00</span></div>
+            </div>
+
+            <table id="dhagaxshidTable">
+                <thead>
+                    <tr>
+                        <th>DATO</th><th>TYPE</th><th>QUANTY</th><th>PRICE</th><th>DRIVER</th><th>SUM</th><th class="sjuki-col hidden">OPPRETTET AV</th><th>HANDLING</th>
+                    </tr>
+                </thead>
+                <tbody id="dhagaxshidBody"></tbody>
+            </table>
+
+            <div class="input-card" id="dhagaxshidInputCard">
+                <h4 id="dhagaxshidFormTitle">REGISTRER NY</h4>
+                <input type="hidden" id="dhagaxshidEditIndex" value="-1">
+                <div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) 120px;">
+                    <div>
+                        <label>DATO (KALENDER)</label>
+                        <input type="date" id="dsDate">
+                    </div>
+                    <div>
+                        <label>TYPE</label>
+                        <input type="text" id="dsType" value="DHAGAX SHID" style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;" autocomplete="off">
+                    </div>
+                    <div>
+                        <label>QUANTY (MIN 0)</label>
+                        <input type="number" id="dsQty" min="0">
+                    </div>
+                    <div><label>PRICE</label><input type="number" step="any" id="dsPrice" value="8"></div>
+                    <div><label>DRIVER</label><input type="number" step="any" id="dsDriver" value="5"></div>
+                    <button class="btn-success" id="dhagaxshidSubmitBtn" onclick="saveDhagaxshid()">REGISTRER</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- UTGIFT SEKSJON -->
+        <div id="sectionUtgift" class="hidden">
+            <div class="budget-grid">
+                <div class="budget-card">
+                    <div class="budget-card-title">SAMEN TOTALE PRIS</div>
+                    <div class="budget-card-value" id="boxUtgiftSamen">0.00</div>
+                </div>
+                <div class="budget-card">
+                    <div class="budget-card-title">GARI TOTALE PRIS</div>
+                    <div class="budget-card-value" id="boxUtgiftGari">0.00</div>
+                </div>
+                <div class="budget-card">
+                    <div class="budget-card-title">QARASH TOTALE PRIS</div>
+                    <div class="budget-card-value" id="boxUtgiftQarash">0.00</div>
+                </div>
+                <div class="budget-card">
+                    <div class="budget-card-title">SHAMITO TOTALE PRIS</div>
+                    <div class="budget-card-value" id="boxUtgiftShamito">0.00</div>
+                </div>
+                <div class="budget-card">
+                    <div class="budget-card-title">DHAGAX SHID TOTALE PRIS</div>
+                    <div class="budget-card-value" id="boxUtgiftDhagax">0.00</div>
+                </div>
+                <div class="budget-card" style="background-color: #e8f5e9; border-color: #28a745; grid-column: 1 / -1;">
+                    <div class="budget-card-title" style="font-size: 15px; color: #155724;">TOTAL SAMLET UTGIFT SUM (SAMEN + GARI + QARASH + SHAMITO + DHAGAX SHID)</div>
+                    <div class="budget-card-value" id="boxGrandUtgift" style="font-size: 26px; color: #28a745;">0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BUDSJET SEKSJON -->
+        <div id="sectionBudsjet" class="hidden">
+            <div class="budget-grid">
+                <div class="budget-card">
+                    <div class="budget-card-title">LAGEROVERSIKT TOTALE PRIS</div>
+                    <div class="budget-card-value" id="boxBudsjetLager">0.00</div>
+                </div>
+                <div class="budget-card">
+                    <div class="budget-card-title">DEEN TOTALE PRIS</div>
+                    <div class="budget-card-value" id="boxBudsjetDeen">0.00</div>
+                </div>
+                <div class="budget-card budget-card-clickable" onclick="openBudsjetForm('Bank')">
+                    <div class="budget-card-title">BANK PRIS (KLIKK FOR Å OPPDATERE)</div>
+                    <div class="budget-card-value" id="boxBudsjetBank">0.00</div>
+                </div>
+                <div class="budget-card budget-card-clickable" onclick="openBudsjetForm('Wafi')">
+                    <div class="budget-card-title">WAFI PRIS (KLIKK FOR Å OPPDATERE)</div>
+                    <div class="budget-card-value" id="boxBudsjetWafi">0.00</div>
+                </div>
+                <div class="budget-card" style="background-color: #e8f5e9; border-color: #28a745; grid-column: 1 / -1;">
+                    <div class="budget-card-title" style="font-size: 15px; color: #155724;">TOTAL SAMLET SUM (LAGEROVERSIKT TOTALE PRIS + DEEN TOTALE PRIS + BANK PRIS + WAFI PRIS)</div>
+                    <div class="budget-card-value" id="boxGrandTotal" style="font-size: 26px; color: #28a745;">0.00</div>
+                </div>
+                <div class="budget-card" style="background-color: #d1ecf1; border-color: #bee5eb; grid-column: 1 / -1;">
+                    <div class="budget-card-title" style="font-size: 16px; color: #0c5460;">BEDRIFTENS VERDI (BUDSJET TOTAL - UTGIFT TOTAL)</div>
+                    <div class="budget-card-value" id="boxBedriftVerdi" style="font-size: 28px; color: #0c5460;">0.00</div>
+                </div>
+            </div>
+
+            <div class="input-card hidden" id="budsjetInputCard">
+                <h4 id="budsjetFormTitle">OPPDATER BUDSJET</h4>
+                <input type="hidden" id="selectedBudsjetTarget" value="Bank">
+                <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr 120px;">
+                    <div>
+                        <label>HANDLINGSTYPE</label>
+                        <select id="bMode">
+                            <option value="add">LEGG TIL BELØP (+)</option>
+                            <option value="edit">REDIGER BELØP (SETT NY SALDO)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label id="lblBudsjetAmount">BELØP</label>
+                        <input type="number" step="any" id="bAmount" placeholder="SKRIV INN BELØP">
+                    </div>
+                    <div style="display: flex; align-items: flex-end;">
+                        <button type="button" onclick="closeBudsjetForm()" style="background-color: #6c757d; width: 100%;">AVBRYT</button>
+                    </div>
+                    <button class="btn-success" id="budsjetSubmitBtn" onclick="saveBudsjet()">LAGRE</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ADMIN PANEL SEKSJON -->
+        <div id="sectionAdmin" class="hidden">
+            <h3>ADMINISTRASJON PANEL</h3>
+            
+            <div class="input-card">
+                <h4>DETALJERT BRUKERTILGANG OG RETTIGHETER</h4>
+                <p style="font-size: 13px; color: #666;">VELG EN BRUKER FOR Å TILDELE ELLER FJERNE SPESIFIKKE REGLER:</p>
+                <div class="form-group">
+                    <label>VELG BRUKER</label>
+                    <select id="adminUserSelect" onchange="loadUserPermissions()"></select>
+                </div>
+                
+                <div class="checkbox-group" style="background: #e8f5e9; padding: 8px; border-radius: 4px; border: 1px solid #c8e6c9; margin-bottom: 12px;">
+                    <input type="checkbox" id="userPermFullAccess" onclick="toggleFullAccessCheck()">
+                    <label for="userPermFullAccess" style="margin:0; font-weight:bold; color: #155724;">FULL TILGANG (GIR ALLE RETTIGHETER SOM ADMIN)</label>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="userPermNoAccess" onclick="toggleNoAccessCheck()">
+                    <label for="userPermNoAccess" style="margin:0; font-weight:bold; color: #dc3545;">HAR INGEN TILGANG TIL Å GJØRE NOE I SYSTEMET (KUN SE ALT)</label>
+                </div>
+                <hr style="border: 0; border-top: 1px solid #ddd; margin: 12px 0;">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="userPermViewBudget">
+                    <label for="userPermViewBudget" style="margin:0; font-weight:normal;">KAN SE BUDSJET-FANEN</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="userPermRegister">
+                    <label for="userPermRegister" style="margin:0; font-weight:normal;">REGISTRERE NYE ORDRER / OPPFØRINGER</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="userPermStatus">
+                    <label for="userPermStatus" style="margin:0; font-weight:normal;">ENDRE STATUS OG DATO (DEEN / BETALT)</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="userPermEditAnytime">
+                    <label for="userPermEditAnytime" style="margin:0; font-weight:normal;">FULL REDIGERING AV EGNE ORDRER INNEN 24 TIMER</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="userPermDeleteAnytime">
+                    <label for="userPermDeleteAnytime" style="margin:0; font-weight:normal;">SLETTE EGNE ORDRER INNEN 24 TIMER</label>
+                </div>
+                <button class="btn-success" onclick="saveUserPermissions()" style="margin-top: 10px; width: auto;">LAGRE TILGANGER FOR BRUKER</button>
+                <div id="userPermMsg" style="margin-top: 5px; font-size: 13px; font-weight: bold;"></div>
+            </div>
+
+            <h4 style="margin-top: 20px;">OVERSIKT OVER ALLE BRUKERES RETTIGHETER</h4>
+            <table id="permissionsOverviewTable" style="margin-bottom: 25px;">
+                <thead>
+                    <tr>
+                        <th>BRUKERNAVN</th>
+                        <th>ROLLE</th>
+                        <th>FULL TILGANG</th>
+                        <th>KUN SE</th>
+                        <th>SE BUDSJET</th>
+                        <th>REGISTRERE</th>
+                        <th>ENDRE STATUS</th>
+                        <th>REDIGERE (24T)</th>
+                        <th>SLETTE (24T)</th>
+                    </tr>
+                </thead>
+                <tbody id="permissionsOverviewBody"></tbody>
+            </table>
+
+            <div class="input-card" style="margin-top: 20px;">
+                <h4>OPPRETT ELLER REDIGER ROLLE</h4>
+                <input type="hidden" id="editingRoleOldName" value="">
+                <div class="form-row" style="grid-template-columns: 1fr 120px;">
+                    <div><label>ROLLENAVN</label><input type="text" id="newRoleName" placeholder="F.EKS. LEDER"></div>
+                    <button class="btn-success" id="roleSubmitBtn" onclick="saveRole()">LAGRE ROLLE</button>
+                </div>
+                <div id="adminRoleMsg" style="margin-top: 10px; font-size: 14px; font-weight: bold;"></div>
+            </div>
+
+            <h4 style="margin-top: 20px;">EKSISTERENDE ROLLER</h4>
+            <table id="rolesTable" style="margin-bottom: 25px;">
+                <thead>
+                    <tr><th>ROLLE</th><th>HANDLING</th></tr>
+                </thead>
+                <tbody id="rolesBody"></tbody>
+            </table>
+
+            <div class="input-card">
+                <h4 id="userFormTitle">OPPRETT NY BRUKER</h4>
+                <input type="hidden" id="editingUsername" value="">
+                <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr 120px;">
+                    <div><label>BRUKERNAVN</label><input type="text" id="newUsername"></div>
+                    <div><label>PASSORD</label><input type="password" id="newPassword"></div>
+                    <div>
+                        <label>ROLLE</label>
+                        <select id="newRole"></select>
+                    </div>
+                    <button class="btn-success" id="userSubmitBtn" onclick="saveUser()">LEGG TIL</button>
+                </div>
+                <div id="adminMsg" style="margin-top: 10px; font-size: 14px; font-weight: bold;"></div>
+            </div>
+            
+            <h4 style="margin-top: 20px;">EKSISTERENDE BRUKERE</h4>
+            <table id="usersTable">
+                <thead>
+                    <tr><th>BRUKERNAVN</th><th>ROLLE</th><th>HANDLING</th></tr>
+                </thead>
+                <tbody id="usersBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- MODAL FOR RASK STATUS- OG DATOENDRING I TABELL -->
+    <div id="statusModal" class="modal">
+        <div class="modal-content">
+            <h3>BEHANDLE STATUS</h3>
+            <input type="hidden" id="modalIndex">
+            <div class="form-group" style="margin-top: 15px;">
+                <label>STATUS</label>
+                <select id="modalStatusSelect" onchange="toggleModalDateInput()">
+                    <option value="Deen">DEEN</option>
+                    <option value="Betalt">BETALT</option>
+                </select>
+            </div>
+            <div class="form-group" id="modalDateGroup">
+                <label>BETALINGSDATO</label>
+                <input type="date" id="modalBetaltDato">
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="button" onclick="saveModalStatus()" style="flex: 1;">LAGRE</button>
+                <button type="button" onclick="closeStatusModal()" style="background-color: #6c757d; flex: 1;">AVBRYT</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentExchangeRate = 11.00;
+        let showSjukiColumns = false;
+        let currentCustomerFilter = 'Deen';
+
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+
+        function toggleArchiveModeInputs() {
+            let mode = document.getElementById("archiveModeSelect").value;
+            let rangeCont = document.getElementById("archiveRangeContainer");
+
+            if (mode === "range") {
+                rangeCont.classList.remove("hidden");
+                let startDateInput = document.getElementById("archiveStartDateInput");
+                let endDateInput = document.getElementById("archiveEndDateInput");
+                if (!startDateInput.value) startDateInput.value = todayStr;
+                if (!endDateInput.value) endDateInput.value = todayStr;
+            } else {
+                rangeCont.classList.add("hidden");
+            }
+            renderAllTables();
+        }
+
+        function resetArchiveFilter() {
+            document.getElementById("archiveModeSelect").value = "today";
+            document.getElementById("archiveStartDateInput").value = "";
+            document.getElementById("archiveEndDateInput").value = "";
+            toggleArchiveModeInputs();
+            renderAllTables();
+        }
+
+        function filterByCalendar(item) {
+            let mode = document.getElementById("archiveModeSelect").value;
+            let itemDate = item.date || item.betaltDato || "";
+            if (!itemDate) return false;
+
+            if (mode === "today") {
+                return itemDate === todayStr;
+            } else if (mode === "range") {
+                let startDate = document.getElementById("archiveStartDateInput").value;
+                let endDate = document.getElementById("archiveEndDateInput").value;
+                if (!startDate || !endDate) return true;
+                return itemDate >= startDate && itemDate <= endDate;
+            }
+            return true;
+        }
+
+        ['lDate', 'logDate', 'shamDate', 'cDate', 'dsDate', 'gDate', 'qDate'].forEach(id => {
+            let el = document.getElementById(id);
+            if (el) {
+                el.value = todayStr;
+            }
+        });
+
+        window.onload = function() {
+            startDigitalClock();
+            setupDefaultData();
+            setupInitialDhagaxshidData();
+            
+            let startDate = document.getElementById("archiveStartDateInput");
+            let endDate = document.getElementById("archiveEndDateInput");
+            if (startDate && !startDate.value) startDate.value = "2026-08-01";
+            if (endDate && !endDate.value) endDate.value = "2026-08-10";
+            
+            toggleArchiveModeInputs();
+
+            if (localStorage.getItem("homar_logged_in") === "true") {
+                checkAdminAccess();
+                document.getElementById("loginSection").classList.add("hidden");
+                document.getElementById("dashboardSection").classList.remove("hidden");
+                fetchLiveExchangeRate();
+                loadData();
+            }
+        };
+
+        function setupInitialDhagaxshidData() {
+            if (!localStorage.getItem("homar_dhagaxshid")) {
+                let initialData = [
+                    { date: todayStr, type: "DHAGAX SHID", qty: 4, price: 8, driver: 5, createdBy: "admin", createdAt: new Date().toISOString() },
+                    { date: todayStr, type: "DHAGAX SHID", qty: 5, price: 8, driver: 5, createdBy: "admin", createdAt: new Date().toISOString() }
+                ];
+                localStorage.setItem("homar_dhagaxshid", JSON.stringify(initialData));
+            }
+        }
+
+        function startDigitalClock() {
+            setInterval(() => {
+                const now = new Date();
+                const clockEl = document.getElementById('digitalClock');
+                const dateBadgeEl = document.getElementById('liveDateBadge');
+                
+                if (clockEl) {
+                    clockEl.textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+                }
+                
+                if (dateBadgeEl) {
+                    const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
+                    dateBadgeEl.textContent = now.toLocaleDateString('no-NO', options);
+                }
+            }, 1000);
+        }
+
+        window.onclick = function(event) {
+            if (!event.target.matches('.action-btn')) {
+                let dropdowns = document.getElementsByClassName("action-dropdown");
+                for (let i = 0; i < dropdowns.length; i++) {
+                    dropdowns[i].classList.remove('show');
+                }
+            }
+        }
+
+        function toggleActionMenu(event, id) {
+            event.stopPropagation();
+            let dropdown = document.getElementById(id);
+            let dropdowns = document.getElementsByClassName("action-dropdown");
+            for (let i = 0; i < dropdowns.length; i++) {
+                if (dropdowns[i] !== dropdown.parentElement) {
+                    dropdowns[i].classList.remove('show');
+                }
+            }
+            dropdown.parentElement.classList.toggle("show");
+        }
+
+        function getUserPermissions(username) {
+            let userPerms = JSON.parse(localStorage.getItem("homar_user_permissions") || "{}");
+            if (username === "admin") {
+                return { fullAccess: true, noAccess: false, canViewBudget: true, canRegister: true, canChangeStatus: true, editAnytime: true, deleteAnytime: true };
+            }
+            return userPerms[username] || { fullAccess: false, noAccess: true, canViewBudget: false, canRegister: false, canChangeStatus: false, editAnytime: false, deleteAnytime: false };
+        }
+
+        function canUserViewBudget() {
+            let role = getCurrentUserRole();
+            if (role === "Admin") return true;
+            let perms = getUserPermissions(getCurrentUser());
+            if (perms.fullAccess) return true;
+            if (perms.noAccess) return false;
+            return perms.canViewBudget;
+        }
+
+        function canUserRegister() {
+            let role = getCurrentUserRole();
+            if (role === "Admin") return true;
+            let perms = getUserPermissions(getCurrentUser());
+            if (perms.fullAccess) return true;
+            if (perms.noAccess) return false;
+            return perms.canRegister;
+        }
+
+        function canUserChangeStatus() {
+            let role = getCurrentUserRole();
+            if (role === "Admin") return true;
+            let perms = getUserPermissions(getCurrentUser());
+            if (perms.fullAccess) return true;
+            if (perms.noAccess) return false;
+            return perms.canChangeStatus;
+        }
+
+        function canModifyOrDelete(item) {
+            let role = getCurrentUserRole();
+            if (role === "Admin") return true;
+            
+            let currentUser = getCurrentUser();
+            let creator = item.createdBy || "admin";
+            if (creator !== currentUser) return false;
+
+            let createdAt = item.createdAt ? new Date(item.createdAt).getTime() : new Date(item.date).getTime();
+            let now = new Date().getTime();
+            let hoursPassed = (now - createdAt) / (1000 * 60 * 60);
+
+            return hoursPassed <= 24;
+        }
+
+        function canEditDetails(item) {
+            let role = getCurrentUserRole();
+            if (role === "Admin") return true;
+
+            let currentUser = getCurrentUser();
+            let creator = item.createdBy || "admin";
+            if (creator !== currentUser) return false;
+
+            let createdAt = item.createdAt ? new Date(item.createdAt).getTime() : new Date(item.date).getTime();
+            let now = new Date().getTime();
+            let hoursPassed = (now - createdAt) / (1000 * 60 * 60);
+
+            return hoursPassed <= 24;
+        }
+
+        function checkInputCardVisibility() {
+            let canReg = canUserRegister();
+            ['lagerInputCard', 'logisticsInputCard', 'shamitoInputCard', 'customerInputCard', 'dhagaxshidInputCard', 'gariInputCard', 'qarashInputCard'].forEach(id => {
+                let el = document.getElementById(id);
+                if (el) {
+                    if (canReg) {
+                        el.classList.remove("hidden");
+                    } else {
+                        el.classList.add("hidden");
+                    }
+                }
+            });
+
+            let tabBudsjet = document.getElementById("tabBudsjet");
+            if (tabBudsjet) {
+                if (canUserViewBudget()) {
+                    tabBudsjet.classList.remove("hidden");
+                } else {
+                    tabBudsjet.classList.add("hidden");
+                    let activeSec = document.getElementById("sectionBudsjet");
+                    if (activeSec && !activeSec.classList.contains("hidden")) {
+                        switchView('kunde');
+                    }
+                }
+            }
+        }
+
+        function fetchLiveExchangeRate() {
+            if (document.getElementById("rateMode").value !== "live") return;
+            document.getElementById("rateStatusText").textContent = "HENTER LIVE...";
+            fetch('https://api.exchangerate-api.com/v4/latest/USD')
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.rates && data.rates.NOK) {
+                        currentExchangeRate = data.rates.NOK;
+                        document.getElementById("manualRateInput").value = currentExchangeRate.toFixed(4);
+                        document.getElementById("rateStatusText").textContent = "LIVE OK";
+                        refreshAllTablesView();
+                    }
+                })
+                .catch(() => document.getElementById("rateStatusText").textContent = "FRAKOBLET");
+        }
+
+        function toggleRateMode() {
+            let mode = document.getElementById("rateMode").value;
+            let manualInput = document.getElementById("manualRateInput");
+            if (mode === "manual") {
+                manualInput.disabled = false;
+                document.getElementById("rateStatusText").textContent = "MANUELL MODUS";
+            } else {
+                manualInput.disabled = true;
+                fetchLiveExchangeRate();
+            }
+        }
+
+        function handleManualRateChange() {
+            let val = parseFloat(document.getElementById("manualRateInput").value);
+            if (val > 0) {
+                currentExchangeRate = val;
+                refreshAllTablesView();
+            }
+        }
+
+        function updateCurrencyView() {
+            refreshAllTablesView();
+        }
+
+        function convertPriceToDisplay(priceInNOK) {
+            let currency = document.getElementById("activeCurrency").value;
+            let p = parseFloat(priceInNOK) || 0;
+            if (currency === "USD") {
+                return p / currentExchangeRate;
+            }
+            return p;
+        }
+
+        function convertInputPriceToNOK(inputPrice) {
+            let currency = document.getElementById("activeCurrency").value;
+            let p = parseFloat(inputPrice) || 0;
+            if (currency === "USD") {
+                return p * currentExchangeRate;
+            }
+            return p;
+        }
+
+        function refreshAllTablesView() {
+            renderAllTables();
+        }
+
+        function setupDefaultData() {
+            if (!localStorage.getItem("homar_users")) {
+                let defaultUsers = [
+                    { username: "admin", password: "123", role: "Admin" },
+                    { username: "user", password: "123", role: "Bruker" }
+                ];
+                localStorage.setItem("homar_users", JSON.stringify(defaultUsers));
+            }
+            if (!localStorage.getItem("homar_roles")) {
+                let defaultRoles = ["Admin", "Bruker", "Leder"];
+                localStorage.setItem("homar_roles", JSON.stringify(defaultRoles));
+            }
+        }
+
+        function resetDefaultCredentials() {
+            let defaultUsers = [
+                { username: "admin", password: "123", role: "Admin" },
+                { username: "user", password: "123", role: "Bruker" }
+            ];
+            localStorage.setItem("homar_users", JSON.stringify(defaultUsers));
+            let defaultRoles = ["Admin", "Bruker", "Leder"];
+            localStorage.setItem("homar_roles", JSON.stringify(defaultRoles));
+            document.getElementById("loginError").style.color = "green";
+            document.getElementById("loginError").textContent = "INNLOGGING TILBAKESTILT! BRUKERNAVN: ADMIN, PASSORD: 123";
+        }
+
+        function getCurrentUser() {
+            return localStorage.getItem("homar_current_user") || "admin";
+        }
+
+        function getCurrentUserRole() {
+            let username = getCurrentUser();
+            let users = JSON.parse(localStorage.getItem("homar_users") || "[]");
+            let u = users.find(x => x.username === username);
+            return u ? u.role : "Bruker";
+        }
+
+        function checkAdminAccess() {
+            let role = getCurrentUserRole();
+            let adminTab = document.getElementById("tabAdmin");
+            if (role === "Admin") {
+                if (adminTab) adminTab.classList.remove("hidden");
+            } else {
+                if (adminTab) adminTab.classList.add("hidden");
+            }
+        }
+
+        function handleLogin() {
+            let user = document.getElementById("username").value.trim();
+            let pass = document.getElementById("password").value.trim();
+            let users = JSON.parse(localStorage.getItem("homar_users") || "[]");
+            let found = users.find(x => x.username.toUpperCase() === user.toUpperCase() && x.password === pass);
+
+            if (found) {
+                localStorage.setItem("homar_logged_in", "true");
+                localStorage.setItem("homar_current_user", found.username);
+                document.getElementById("loginError").textContent = "";
+                document.getElementById("username").value = "";
+                document.getElementById("password").value = "";
+                checkAdminAccess();
+                document.getElementById("loginSection").classList.add("hidden");
+                document.getElementById("dashboardSection").classList.remove("hidden");
+                fetchLiveExchangeRate();
+                loadData();
+            } else {
+                document.getElementById("loginError").style.color = "#dc3545";
+                document.getElementById("loginError").textContent = "FEIL BRUKERNAVN ELLER PASSORD!";
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem("homar_logged_in");
+            localStorage.removeItem("homar_current_user");
+            document.getElementById("dashboardSection").classList.add("hidden");
+            document.getElementById("loginSection").classList.remove("hidden");
+        }
+
+        function switchView(viewName) {
+            if (viewName === 'budsjet' && !canUserViewBudget()) {
+                alert("DU HAR IKKE TILGANG TIL Å SE BUDSJET-FANEN.");
+                return;
+            }
+
+            ['kunde', 'lager', 'samen', 'gari', 'qarash', 'shamito', 'dhagaxshid', 'utgift', 'budsjet', 'admin'].forEach(v => {
+                let sec = document.getElementById("section" + v.charAt(0).toUpperCase() + v.slice(1));
+                let tab = document.getElementById("tab" + v.charAt(0).toUpperCase() + v.slice(1));
+                if (sec) sec.classList.add("hidden");
+                if (tab) tab.classList.remove("active");
+            });
+
+            let activeSec = document.getElementById("section" + viewName.charAt(0).toUpperCase() + viewName.slice(1));
+            let activeTab = document.getElementById("tab" + viewName.charAt(0).toUpperCase() + viewName.slice(1));
+            if (activeSec) activeSec.classList.remove("hidden");
+            if (activeTab) activeTab.classList.add("active");
+
+            if (viewName === 'admin') {
+                loadAdminData();
+            } else {
+                renderAllTables();
+            }
+        }
+
+        function toggleFormStatus() {
+            let btn = document.getElementById("cStatusBtn");
+            let input = document.getElementById("cStatus");
+            let betaltDatoInput = document.getElementById("cBetaltDato");
+
+            if (input.value === "Deen") {
+                input.value = "Betalt";
+                btn.textContent = "BETALT";
+                btn.className = "status-btn status-betalt";
+                betaltDatoInput.value = todayStr;
+            } else {
+                input.value = "Deen";
+                btn.textContent = "DEEN";
+                btn.className = "status-btn status-deen";
+                betaltDatoInput.value = "";
+            }
+        }
+
+        function setCustomerFilter(status) {
+            currentCustomerFilter = status;
+            ['Deen', 'Betalt', 'All'].forEach(s => {
+                let btn = document.getElementById("filterBtn" + s);
+                if (btn) btn.classList.remove("active-filter");
+            });
+            let activeBtn = document.getElementById("filterBtn" + (status === 'ALL' ? 'All' : status));
+            if (activeBtn) activeBtn.classList.add("active-filter");
+            renderCustomerTable();
+        }
+
+        function clearCustomerFilters() {
+            document.getElementById("searchDateInput").value = "";
+            document.getElementById("searchTextInput").value = "";
+            renderCustomerTable();
+        }
+
+        function normType(str) {
+            return String(str || "").toUpperCase().replace(/\s+/g, '');
+        }
+
+        // Qarash funksjoner
+        function saveQarash() {
+            if (!canUserRegister()) {
+                alert("DU HAR IKKE TILLATELSE TIL Å REGISTRERE OPPFØRINGER.");
+                return;
+            }
+            let index = parseInt(document.getElementById("qarashEditIndex").value);
+            let date = document.getElementById("qDate").value;
+            let navn = document.getElementById("qNavn").value.trim().toUpperCase();
+            let antall = parseInt(document.getElementById("qAntall").value);
+            let priceInput = parseFloat(document.getElementById("qPrice").value);
+
+            if (!date || !navn || isNaN(antall) || isNaN(priceInput) || antall < 0) {
+                alert("VENNLIGST FYLL UT ALLE FELT KORREKT (ANTALL KAN IKKE VÆRE UNDER 0)!");
+                return;
+            }
+
+            let priceNOK = convertInputPriceToNOK(priceInput);
+            let list = JSON.parse(localStorage.getItem("homar_qarash") || "[]");
+
+            if (index > -1) {
+                list[index].date = date;
+                list[index].navn = navn;
+                list[index].antall = antall;
+                list[index].price = priceNOK;
+            } else {
+                list.push({
+                    date: date,
+                    navn: navn,
+                    antall: antall,
+                    price: priceNOK,
+                    createdBy: getCurrentUser(),
+                    createdAt: new Date().toISOString()
+                });
+            }
+
+            localStorage.setItem("homar_qarash", JSON.stringify(list));
+            resetQarashForm();
+            loadData();
+        }
+
+        function resetQarashForm() {
+            document.getElementById("qarashEditIndex").value = "-1";
+            document.getElementById("qDate").value = todayStr;
+            document.getElementById("qNavn").value = "";
+            document.getElementById("qAntall").value = "";
+            document.getElementById("qPrice").value = "";
+            document.getElementById("qarashFormTitle").textContent = "REGISTRER NY QARASH";
+            document.getElementById("qarashSubmitBtn").textContent = "REGISTRER";
+        }
+
+        function editQarash(index) {
+            let list = JSON.parse(localStorage.getItem("homar_qarash") || "[]");
+            let item = list[index];
+            if (!item) return;
+
+            if (!canEditDetails(item)) {
+                alert("DU KAN KUN REDIGERE DINE EGNE ORDRER INNEN 24 TIMER.");
+                return;
+            }
+
+            document.getElementById("qarashEditIndex").value = index;
+            document.getElementById("qDate").value = item.date || todayStr;
+            document.getElementById("qNavn").value = item.navn || "";
+            document.getElementById("qAntall").value = item.antall || "";
+            document.getElementById("qPrice").value = convertPriceToDisplay(item.price || 0);
+            document.getElementById("qarashFormTitle").textContent = "REDIGER QARASH";
+            document.getElementById("qarashSubmitBtn").textContent = "OPPDATER";
+            window.scrollTo({ top: document.getElementById("qarashInputCard").offsetTop, behavior: 'smooth' });
+        }
+
+        function deleteQarash(index) {
+            let list = JSON.parse(localStorage.getItem("homar_qarash") || "[]");
+            let item = list[index];
+            if (!item) return;
+
+            if (!canModifyOrDelete(item)) {
+                alert("DU KAN KUN SLETTE DINE EGNE ORDRER INNEN 24 TIMER.");
+                return;
+            }
+
+            if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE?")) {
+                list.splice(index, 1);
+                localStorage.setItem("homar_qarash", JSON.stringify(list));
+                loadData();
+            }
+        }
+
+        // Gari Funksjoner
+        function saveGari() {
+            if (!canUserRegister()) {
+                alert("DU HAR IKKE TILLATELSE TIL Å REGISTRERE OPPFØRINGER.");
+                return;
+            }
+            let index = parseInt(document.getElementById("gariEditIndex").value);
+            let date = document.getElementById("gDate").value;
+            let gariType = document.getElementById("gGariType").value.trim().toUpperCase();
+            let typeShaqo = document.getElementById("gTypeShaqo").value.trim().toUpperCase();
+            let qty = parseInt(document.getElementById("gQty").value);
+            let priceInput = parseFloat(document.getElementById("gPrice").value);
+
+            if (!date || !gariType || !typeShaqo || isNaN(qty) || isNaN(priceInput) || qty < 0) {
+                alert("VENNLIGST FYLL UT ALLE FELT KORREKT (QUANTY KAN IKKE VÆRE UNDER 0)!");
+                return;
+            }
+
+            let priceNOK = convertInputPriceToNOK(priceInput);
+            let list = JSON.parse(localStorage.getItem("homar_gari") || "[]");
+
+            if (index > -1) {
+                list[index].date = date;
+                list[index].gariType = gariType;
+                list[index].typeShaqo = typeShaqo;
+                list[index].qty = qty;
+                list[index].price = priceNOK;
+            } else {
+                list.push({
+                    date: date,
+                    gariType: gariType,
+                    typeShaqo: typeShaqo,
+                    qty: qty,
+                    price: priceNOK,
+                    createdBy: getCurrentUser(),
+                    createdAt: new Date().toISOString()
+                });
+            }
+
+            localStorage.setItem("homar_gari", JSON.stringify(list));
+            resetGariForm();
+            loadData();
+        }
+
+        function resetGariForm() {
+            document.getElementById("gariEditIndex").value = "-1";
+            document.getElementById("gDate").value = todayStr;
+            document.getElementById("gGariType").value = "";
+            document.getElementById("gTypeShaqo").value = "";
+            document.getElementById("gQty").value = "";
+            document.getElementById("gPrice").value = "";
+            document.getElementById("gariFormTitle").textContent = "REGISTRER NY GARI";
+            document.getElementById("gariSubmitBtn").textContent = "REGISTRER";
+        }
+
+        function editGari(index) {
+            let list = JSON.parse(localStorage.getItem("homar_gari") || "[]");
+            let item = list[index];
+            if (!item) return;
+
+            if (!canEditDetails(item)) {
+                alert("DU KAN KUN REDIGERE DINE EGNE ORDRER INNEN 24 TIMER.");
+                return;
+            }
+
+            document.getElementById("gariEditIndex").value = index;
+            document.getElementById("gDate").value = item.date || todayStr;
+            document.getElementById("gGariType").value = item.gariType || "";
+            document.getElementById("gTypeShaqo").value = item.typeShaqo || "";
+            document.getElementById("gQty").value = item.qty || "";
+            document.getElementById("gPrice").value = convertPriceToDisplay(item.price || 0);
+            document.getElementById("gariFormTitle").textContent = "REDIGER GARI";
+            document.getElementById("gariSubmitBtn").textContent = "OPPDATER";
+            window.scrollTo({ top: document.getElementById("gariInputCard").offsetTop, behavior: 'smooth' });
+        }
+
+        function deleteGari(index) {
+            let list = JSON.parse(localStorage.getItem("homar_gari") || "[]");
+            let item = list[index];
+            if (!item) return;
+
+            if (!canModifyOrDelete(item)) {
+                alert("DU KAN KUN SLETTE DINE EGNE ORDRER INNEN 24 TIMER.");
+                return;
+            }
+
+            if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE?")) {
+                list.splice(index, 1);
+                localStorage.setItem("homar_gari", JSON.stringify(list));
+                loadData();
+            }
+        }
+
+        // Dhagax Shid funksjoner
+        function saveDhagaxshid() {
+            if (!canUserRegister()) {
+                alert("DU HAR IKKE TILLATELSE TIL Å REGISTRERE OPPFØRINGER.");
+                return;
+            }
+            let index = parseInt(document.getElementById("dhagaxshidEditIndex").value);
+            let date = document.getElementById("dsDate").value;
+            let type = "DHAGAX SHID";
+            let qty = parseInt(document.getElementById("dsQty").value) || 0;
+            let priceInput = parseFloat(document.getElementById("dsPrice").value);
+            if (isNaN(priceInput)) priceInput = 8;
+            let driverInput = parseFloat(document.getElementById("dsDriver").value) || 0;
+
+            if (qty < 0) {
+                alert("QUANTY KAN IKKE VÆRE UNDER 0!");
+                return;
+            }
+
+            let priceNOK = convertInputPriceToNOK(priceInput);
+            let driverNOK = convertInputPriceToNOK(driverInput);
+            let list = JSON.parse(localStorage.getItem("homar_dhagaxshid") || "[]");
+
+            if (index > -1) {
+                list[index].date = date;
+                list[index].type = type;
+                list[index].qty = qty;
+                list[index].price = priceNOK;
+                list[index].driver = driverNOK;
+            } else {
+                list.push({
+                    date: date,
+                    type: type,
+                    qty: qty,
+                    price: priceNOK,
+                    driver: driverNOK,
+                    createdBy: getCurrentUser(),
+                    createdAt: new Date().toISOString()
+                });
+            }
+
+            localStorage.setItem("homar_dhagaxshid", JSON.stringify(list));
+            resetDhagaxshidForm();
+            loadData();
+        }
+
+        function resetDhagaxshidForm() {
+            document.getElementById("dhagaxshidEditIndex").value = "-1";
+            document.getElementById("dsDate").value = todayStr;
+            document.getElementById("dsQty").value = "";
+            document.getElementById("dsPrice").value = "8";
+            document.getElementById("dsDriver").value = "5";
+            document.getElementById("dhagaxshidFormTitle").textContent = "REGISTRER NY";
+            document.getElementById("dhagaxshidSubmitBtn").textContent = "REGISTRER";
+        }
+
+        function editDhagaxshid(index) {
+            let list = JSON.parse(localStorage.getItem("homar_dhagaxshid") || "[]");
+            let item = list[index];
+            if (!item) return;
+
+            if (!canEditDetails(item)) {
+                alert("DU KAN KUN REDIGERE DINE EGNE ORDRER INNEN 24 TIMER.");
+                return;
+            }
+
+            document.getElementById("dhagaxshidEditIndex").value = index;
+            document.getElementById("dsDate").value = item.date || todayStr;
+            document.getElementById("dsQty").value = item.qty || "";
+            document.getElementById("dsPrice").value = convertPriceToDisplay(item.price !== undefined ? item.price : convertInputPriceToNOK(8));
+            document.getElementById("dsDriver").value = convertPriceToDisplay(item.driver || 0);
+            document.getElementById("dhagaxshidFormTitle").textContent = "REDIGER OPPFØRING";
+            document.getElementById("dhagaxshidSubmitBtn").textContent = "OPPDATER";
+            window.scrollTo({ top: document.getElementById("dhagaxshidInputCard").offsetTop, behavior: 'smooth' });
+        }
+
+        function deleteDhagaxshid(index) {
+            let list = JSON.parse(localStorage.getItem("homar_dhagaxshid") || "[]");
+            let item = list[index];
+            if (!item) return;
+
+            if (!canModifyOrDelete(item)) {
+                alert("DU KAN KUN SLETTE DINE EGNE ORDRER INNEN 24 TIMER.");
+                return;
+            }
+
+            if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE?")) {
+                list.splice(index, 1);
+                localStorage.setItem("homar_dhagaxshid", JSON.stringify(list));
+                loadData();
+            }
+        }
+
+        // Lager funksjoner (viser alltid dagens dato, sjekker >= 0)
+        function saveLager() {
+            if (!canUserRegister()) {
+                alert("DU HAR IKKE TILLATELSE TIL Å REGISTRERE OPPFØRINGER.");
+                return;
+            }
+            let index = parseInt(document.getElementById("lagerEditIndex").value);
+            let date = todayStr; 
+            let type = document.getElementById("lType").value.trim().toUpperCase();
+            let qty = parseInt(document.getElementById("lQty").value);
+            let priceInput = parseFloat(document.getElementById("lPrice").value);
+
+            if (!date || !type || isNaN(qty) || isNaN(priceInput) || qty < 0) {
+                alert("VENNLIGST FYLL UT ALLE FELT KORREKT (QUANTY KAN IKKE VÆRE UNDER 0)!");
+                return;
+            }
+
+            let priceNOK = convertInputPriceToNOK(priceInput);
+            let list = JSON.parse(localStorage.getItem("homar_lager") || "[]");
+
+            if (index > -1) {
+                let oldItem = list[index];
+                if (!canEditDetails(oldItem)) {
+                    alert("DU KAN KUN REDIGERE DINE EGNE LAGEROPPFØRINGER INNEN 24 TIMER.");
+                    return;
+                }
+                list[index].date = date;
+                list[index].type = type;
+                list[index].qty = qty;
+                list[index].price = priceNOK;
+            } else {
+                let existingIndex = list.findIndex(item => normType(item.type) === normType(type));
+
+                if (existingIndex > -1) {
+                    list[existingIndex].qty += qty;
+                    list[existingIndex].price = priceNOK;
+                    list[existingIndex].date = date;
+                } else {
+                    list.push({
+                        date: date,
+                        type: type,
+                        qty: qty,
+                        price: priceNOK,
+                        createdBy: getCurrentUser(),
+                        createdAt: new Date().toISOString()
+                    });
+                }
+            }
+
+            localStorage.setItem("homar_lager", JSON.stringify(list));
+            resetLagerForm();
+            loadData();
+        }
+
+        function resetLagerForm() {
+            document.getElementById("lagerEditIndex").value = "-1";
+            document.getElementById("lDate").value = todayStr;
+            document.getElementById("lType").value = "";
+            document.getElementById("lQty").value = "";
+            document.getElementById("lPrice").value = "";
+            document.getElementById("lagerFormTitle").textContent = "REGISTRER NY LAGER";
+            document.getElementById("lagerSubmitBtn").textContent = "REGISTRER";
+        }
+
+        function editLager(index) {
+            let list = JSON.parse(localStorage.getItem("homar_lager") || "[]");
+            let item = list[index];
+            if (!item) return;
+
+            if (!canEditDetails(item)) {
+                alert("DU KAN KUN REDIGERE DINE EGNE LAGEROPPFØRINGER INNEN 24 TIMER.");
+                return;
+            }
+
+            document.getElementById("lagerEditIndex").value = index;
+            document.getElementById("lDate").value = todayStr;
+            document.getElementById("lType").value = item.type;
+            document.getElementById("lQty").value = item.qty;
+            document.getElementById("lPrice").value = convertPriceToDisplay(item.price);
+            document.getElementById("lagerFormTitle").textContent = "REDIGER LAGER";
+            document.getElementById("lagerSubmitBtn").textContent = "OPPDATER";
+            window.scrollTo({ top: document.getElementById("lagerInputCard").offsetTop, behavior: 'smooth' });
+        }
+
+        function deleteLager(index) {
+            let list = JSON.parse(localStorage.getItem("homar_lager") || "[]");
+            let item = list[index];
+            if (!item) return;
+
+            if (!canModifyOrDelete(item)) {
+                alert("DU KAN KUN SLETTE DINE EGNE LAGEROPPFØRINGER INNEN 24 TIMER.");
+                return;
+            }
+
+            if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE?")) {
+                list.splice(index, 1);
+                localStorage.setItem("homar_lager", JSON.stringify(list));
+                loadData();
+            }
+        }
+
+        // Samen (Logistikk) funksjoner
+        function updateLogMaxQty() {
+            let type = document.getElementById("logType").value.trim().toUpperCase();
+            let stockMap = getStockMap();
+            let available = type ? (stockMap[type] || 0) : 0;
+            document.getElementById("logStockInfo").textContent = type ? `(LAGER NÅ: ${available})` : "";
+            document.getElementById("logQty").removeAttribute("max");
+        }
+
+        function updateLagerFromSamen(type, qtyDelta, date) {
+            let cleanType = String(type || "").trim().toUpperCase();
+            qtyDelta = Number(qtyDelta) || 0;
+            if (!cleanType || qtyDelta === 0) return;
+
+            let lager = JSON.parse(localStorage.getItem("homar_lager") || "[]");
+            let lagerIndex = lager.findIndex(item => normType(item.type) === normType(cleanType));
+
+            if (lagerIndex !== -1) {
+                lager[lagerIndex].qty = (Number(lager[lagerIndex].qty) || 0) + qtyDelta;
+                if (lager[lagerIndex].qty < 0) {
+                    lager[lagerIndex].qty = 0;
+                }
+                lager[lagerIndex].date = todayStr; 
+            } else {
+                if (qtyDelta > 0) {
+                    lager.push({
+                        date: todayStr, 
+                        type: cleanType,
+                        qty: qtyDelta,
+                        price: 0,
+                        createdBy: getCurrentUser(),
+                        createdAt: new Date().toISOString(),
+                        createdFromSamen: true
+                    });
+                }
+            }
+
+            localStorage.setItem("homar_lager", JSON.stringify(lager));
+        }
+
+        function saveLogistics() {
+            if (!canUserRegister()) {
+                alert("DU KAN IKKE REGISTRERE OPPFØRINGER.");
+                return;
+            }
+            let index = parseInt(document.getElementById("logEditIndex").value);
+            let date = document.getElementById("logDate").value;
+            let type = document.getElementById("logType").value.trim().toUpperCase();
+            let qty = parseInt(document.getElementById("logQty").value);
+            let driverInput = parseFloat(document.getElementById("logDriver").value);
+            let priceInput = parseFloat(document.getElementById("logPrice").value);
+
+            if (!date || !type || isNaN(qty) || qty < 0 || isNaN(driverInput) || isNaN(priceInput)) {
+                alert("VENNLIGST FYLL UT ALLE FELT KORREKT (QUANTY KAN IKKE VÆRE UNDER 0)!");
+                return;
+            }
+
+            let driverNOK = convertInputPriceToNOK(driverInput);
+            let priceNOK = convertInputPriceToNOK(priceInput);
+            let list = JSON.parse(localStorage.getItem("homar_samen") || "[]");
+
+            if (index > -1) {
+                let oldItem = list[index];
+                if (!oldItem) return;
+
+                updateLagerFromSamen(oldItem.type, -Number(oldItem.qty || 0), oldItem.date);
+
+                list[index].date = date;
+                list[index].type = type;
+                list[index].qty = qty;
+                list[index].driverPrice = driverNOK;
+                list[index].price = priceNOK;
+
+                updateLagerFromSamen(type, qty, date);
+            } else {
+                list.push({
+                    date: date,
+                    type: type,
+                    qty: qty,
+                    driverPrice: driverNOK,
+                    price: priceNOK,
+                    createdBy: getCurrentUser(),
+                    createdAt: new Date().toISOString()
+                });
+
+                updateLagerFromSamen(type, qty, date);
+            }
+
+            localStorage.setItem("homar_samen", JSON.stringify(list));
+            resetLogisticsForm();
+            loadData();
+        }
+
+        function resetLogisticsForm() {
+            document.getElementById("logEditIndex").value = "-1";
+            document.getElementById("logDate").value = todayStr;
+            document.getElementById("logType").value = "";
+            document.getElementById("logQty").value = "";
+            document.getElementById("logDriver").value = "5";
+            document.getElementById("logPrice").value = "";
+            document.getElementById("logStockInfo").textContent = "";
+            document.getElementById("logFormTitle").textContent = "REGISTRER NY LOGISTIKK";
+            document.getElementById("logSubmitBtn").textContent = "REGISTRER";
+        }
+
+        function editLogistics(index) {
+            let list = JSON.parse(localStorage.getItem("homar_samen") || "[]");
+            let item = list[index];
+            if (!item) return;
+
+            if (!canEditDetails(item)) {
+                alert("DU KAN KUN REDIGERE DINE EGNE ORDRER INNEN 24 TIMER.");
+                return;
+            }
+
+            document.getElementById("logEditIndex").value = index;
+            document.getElementById("logDate").value = item.date || todayStr;
+            populateItemDropdowns();
+            document.getElementById("logType").value = item.type;
+            updateLogMaxQty();
+            document.getElementById("logQty").value = item.qty;
+            document.getElementById("logDriver").value = convertPriceToDisplay(item.driverPrice);
+            document.getElementById("logPrice").value = convertPriceToDisplay(item.price);
+            document.getElementById("logFormTitle").textContent = "REDIGER LOGISTIKK";
+            document.getElementById("logSubmitBtn").textContent = "OPPDATER";
+            window.scrollTo({ top: document.getElementById("logisticsInputCard").offsetTop, behavior: 'smooth' });
+        }
+
+        function deleteLogistics(index) {
+            let list = JSON.parse(localStorage.getItem("homar_samen") || "[]");
+            let item = list[index];
+            if (!item) return;
+
+            if (!canModifyOrDelete(item)) {
+                alert("DU KAN KUN SLETTE DINE EGNE ORDRER INNEN 24 TIMER.");
+                return;
+            }
+
+            if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE?")) {
+                updateLagerFromSamen(item.type, -Number(item.qty || 0), item.date);
+                list.splice(index, 1);
+                localStorage.setItem("homar_samen", JSON.stringify(list));
+                loadData();
+            }
+        }
+
+        // Shamito funksjoner
+        function updateShamMaxQty() {
+            let type = document.getElementById("shamType").value;
+            let stockMap = getStockMap();
+            let available = stockMap[type] || 0;
+
+            let index = parseInt(document.getElementById("shamEditIndex").value);
+            if (index > -1) {
+                let list = JSON.parse(localStorage.getItem("homar_shamito") || "[]");
+                let oldItem = list[index];
+                if (oldItem && oldItem.type === type) {
+                    available += oldItem.qty;
+                }
+            }
+
+            document.getElementById("shamStockInfo").textContent = `(TILGJENGELIG PÅ LAGER: ${available})`;
+            document.getElementById("shamQty").max = available;
+        }
+
+        function getStockMap() {
+            let lager = JSON.parse(localStorage.getItem("homar_lager") || "[]");
+            let samen = JSON.parse(localStorage.getItem("homar_samen") || "[]");
+            let shamito = JSON.parse(localStorage.getItem("homar_shamito") || "[]");
+
+            let stock = {};
+            lager.forEach(item => {
+                let t = String(item.type || "").toUpperCase();
+                stock[t] = (stock[t] || 0) + item.qty;
+            });
+            samen.forEach(item => {
+                let t = String(item.type || "").toUpperCase();
+                if (stock[t] !== undefined) {
+                    stock[t] -= item.qty;
+                }
+            });
+            shamito.forEach(item => {
+                let t = String(item.type || "").toUpperCase();
+                if (stock[t] !== undefined) {
+                    stock[t] -= item.qty;
+                }
+            });
+            return stock;
+        }
+
+        function saveShamito() {
+            if (!canUserRegister()) {
+                alert("DU KAN IKKE REGISTRERE OPPFØRINGER.");
+                return;
+            }
+            let index = parseInt(document.getElementById("shamEditIndex").value);
+            let date = document.getElementById("shamDate").value;
+            let type = document.getElementById("shamType").value.toUpperCase();
+            let qty = parseInt(document.getElementById("shamQty").value);
+            let priceInput = parseFloat(document.getElementById("shamPrice").value);
+
+            if (!date || !type || isNaN(qty) || qty < 0 || isNaN(priceInput)) {
+                alert("VENNLIGST FYLL UT ALLE FELT KORREKT (QUANTY KAN IKKE VÆRE UNDER 0)!");
+                return;
+            }
+
+            let priceNOK = convertInputPriceToNOK(priceInput);
+            let list = JSON.parse(localStorage.getItem("homar_shamito") || "[]");
+            let stockMap = getStockMap();
+            let currentStock = stockMap[type] || 0;
+
+            if (index > -1) {
+                let oldItem = list[index];
+                if (String(oldItem.type || "").toUpperCase() === type) {
+                    currentStock += oldItem.qty;
+                }
+            }
+
+            if (currentStock - qty < 0 || qty > currentStock) {
+                alert(`LAGEROVERSIKTEN KAN IKKE REGISTERE UNDER 0, HVIS PRODUKTET KOMMER TIL 0 INGEN KAN GJØRE HANDEL. TILGJENGELIG: ${currentStock}`);
+                return;
+            }
+
+            if (index > -1) {
+                list[index].date = date;
+                list[index].type = type;
+                list[index].qty = qty;
+                list[index].price = priceNOK;
+            } else {
+                list.push({
+                    date: date,
+                    type: type,
+                    qty: qty,
+                    price: priceNOK,
+                    createdBy: getCurrentUser(),
+                    createdAt: new Date().toISOString()
+                });
+            }
+
+            localStorage.setItem("homar_shamito", JSON.stringify(list));
+            resetShamitoForm();
+            loadData();
+        }
+
+        function resetShamitoForm() {
+            document.getElementById("shamEditIndex").value = "-1";
+            document.getElementById("shamDate").value = todayStr;
+            document.getElementById("shamType").value = "";
+            document.getElementById("shamQty").value = "";
+            document.getElementById("shamPrice").value = "";
+            document.getElementById("shamStockInfo").textContent = "";
+            document.getElementById("shamFormTitle").textContent = "REGISTRER NY SHAMITO";
+            document.getElementById("shamSubmitBtn").textContent = "REGISTRER";
+        }
+
+        function editShamito(index) {
+            let list = JSON.parse(localStorage.getItem("homar_shamito") || "[]");
+            let item = list[index];
+            if (!item) return;
+
+            if (!canEditDetails(item)) {
+                alert("DU KAN KUN REDIGERE DINE EGNE ORDRER INNEN 24 TIMER.");
+                return;
+            }
+
+            document.getElementById("shamEditIndex").value = index;
+            document.getElementById("shamDate").value = item.date || todayStr;
+            populateItemDropdowns();
+            document.getElementById("shamType").value = String(item.type || "").toUpperCase();
+            updateShamMaxQty();
+            document.getElementById("shamQty").value = item.qty;
+            document.getElementById("shamPrice").value = convertPriceToDisplay(item.price);
+            document.getElementById("shamFormTitle").textContent = "REDIGER SHAMITO";
+            document.getElementById("shamSubmitBtn").textContent = "OPPDATER";
+            window.scrollTo({ top: document.getElementById("shamitoInputCard").offsetTop, behavior: 'smooth' });
+        }
+
+        function deleteShamito(index) {
+            let list = JSON.parse(localStorage.getItem("homar_shamito") || "[]");
+            let item = list[index];
+            if (!item) return;
+
+            if (!canModifyOrDelete(item)) {
+                alert("DU KAN KUN SLETTE DINE EGNE ORDRER INNEN 24 TIMER.");
+                return;
+            }
+
+            if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE?")) {
+                list.splice(index, 1);
+                localStorage.setItem("homar_shamito", JSON.stringify(list));
+                loadData();
+            }
+        }
+
+        // Kunde funksjoner
+        function updateCustMaxQty() {
+            let type = document.getElementById("cNavnSelect").value.toUpperCase();
+            document.getElementById("cNavn").value = type;
+            let index = parseInt(document.getElementById("custEditIndex").value);
+            
+            let stockMap = getStockMap();
+            let available = stockMap[type] || 0;
+
+            if (index > -1) {
+                let list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
+                let oldItem = list[index];
+                if (String(oldItem.navn || "").toUpperCase() === type) {
+                    available += oldItem.qty;
+                }
+            }
+
+            document.getElementById("custStockInfo").textContent = type ? `(TILGJENGELIG: ${available})` : "";
+            document.getElementById("cQty").max = available;
+        }
+
+        function toggleTableRowStatus(index) {
+            if (!canUserChangeStatus()) {
+                alert("DU HAR IKKE TILLATELSE TIL Å ENDRE STATUS.");
+                return;
+            }
+            let list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
+            if (!list[index]) return;
+
+            let item = list[index];
+            let isAdmin = getCurrentUserRole() === "Admin";
+            let currentStatus = String(item.status || "Deen").toUpperCase();
+
+            document.getElementById("modalIndex").value = index;
+            let statusSelect = document.getElementById("modalStatusSelect");
+            statusSelect.value = item.status || "Deen";
+            
+            if (!isAdmin && currentStatus === "BETALT") {
+                statusSelect.disabled = true;
+            } else {
+                statusSelect.disabled = false;
+                for(let i = 0; i < statusSelect.options.length; i++) {
+                    statusSelect.options[i].disabled = false;
+                }
+            }
+
+            document.getElementById("modalBetaltDato").value = item.betaltDato || todayStr;
+            toggleModalDateInput();
+            document.getElementById("statusModal").style.display = "flex";
+        }
+
+        function toggleModalDateInput() {
+            let status = document.getElementById("modalStatusSelect").value;
+            let group = document.getElementById("modalDateGroup");
+            if (status === "Betalt") {
+                group.style.display = "block";
+            } else {
+                group.style.display = "none";
+            }
+        }
+
+        function saveModalStatus() {
+            let index = parseInt(document.getElementById("modalIndex").value);
+            let list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
+            if (!list[index]) return;
+
+            let item = list[index];
+            let isAdmin = getCurrentUserRole() === "Admin";
+            let newStatus = document.getElementById("modalStatusSelect").value;
+            let newDate = document.getElementById("modalBetaltDato").value;
+
+            let currentStatus = String(item.status || "Deen").toUpperCase();
+
+            if (!isAdmin && currentStatus === "BETALT" && newStatus === "Deen") {
+                alert("DU KAN IKKE ENDRE STATUS TILBAKE TIL DEEN.");
+                return;
+            }
+
+            item.status = newStatus;
+            item.betaltDato = newStatus === "Betalt" ? (newDate || todayStr) : "";
+
+            localStorage.setItem("homar_kunde", JSON.stringify(list));
+            loadData();
+            closeStatusModal();
+        }
+
+        function closeStatusModal() {
+            document.getElementById("statusModal").style.display = "none";
+        }
+
+        function saveCustomer() {
+            if (!canUserRegister()) {
+                alert("DU KAN IKKE TILLATELSE TIL Å REGISTRERE NYE ORDRER.");
+                return;
+            }
+
+            let index = parseInt(document.getElementById("custEditIndex").value);
+            let date = document.getElementById("cDate").value;
+            let kundeNavn = document.getElementById("cKundeNavn").value.trim().toUpperCase();
+            let telefon = document.getElementById("cTelefon").value.trim().toUpperCase();
+            let vare = document.getElementById("cNavnSelect").value.toUpperCase();
+            let qty = parseInt(document.getElementById("cQty").value);
+            let priceInput = parseFloat(document.getElementById("cPrice").value);
+            let status = document.getElementById("cStatus").value;
+            let betaltDato = document.getElementById("cBetaltDato").value;
+
+            if (status === "Betalt" && !betaltDato) {
+                betaltDato = todayStr;
+            }
+
+            if (!date || !kundeNavn || !vare || isNaN(qty) || qty < 0 || isNaN(priceInput)) {
+                alert("VENNLIGST FYLL UT ALLE OBLIGATORISKE FELT (QUANTY KAN IKKE VÆRE UNDER 0)!");
+                return;
+            }
+
+            let priceNOK = convertInputPriceToNOK(priceInput);
+            let list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
+
+            if (index > -1) {
+                let oldItem = list[index];
+                if (!canEditDetails(oldItem)) {
+                    alert("DU KAN KUN REDIGERE DINE EGNE ORDRER INNEN 24 TIMER.");
+                    return;
+                }
+            }
+            
+            let stockMap = getStockMap();
+            let currentStock = stockMap[vare] || 0;
+
+            if (index > -1) {
+                let oldItem = list[index];
+                if (String(oldItem.navn || "").toUpperCase() === vare) {
+                    currentStock += oldItem.qty;
+                }
+            }
+
+            if (currentStock - qty < 0 || qty > currentStock) {
+                alert(`LAGEROVERSIKTEN KAN IKKE REGISTERE UNDER 0, HVIS PRODUKTET KOMMER TIL 0 INGEN KAN GJØRE HANDEL. TILGJENGELIG: ${currentStock}`);
+                return;
+            }
+
+            if (index > -1) {
+                let oldItem = list[index];
+                let oldQty = oldItem.qty;
+                let oldVare = String(oldItem.navn || "").toUpperCase();
+
+                if (oldVare !== vare) {
+                    updateLagerItemQty(oldVare, oldQty);
+                    updateLagerItemQty(vare, -qty);
+                } else {
+                    let qtyDiff = qty - oldQty;
+                    if (qtyDiff !== 0) {
+                        updateLagerItemQty(vare, -qtyDiff);
+                    }
+                }
+
+                list[index].date = date;
+                list[index].kundeNavn = kundeNavn;
+                list[index].telefon = telefon;
+                list[index].navn = vare;
+                list[index].qty = qty;
+                list[index].price = priceNOK;
+                list[index].status = status;
+                list[index].betaltDato = status === "Betalt" ? (betaltDato || todayStr) : "";
+            } else {
+                updateLagerItemQty(vare, -qty);
+
+                list.push({
+                    date: date,
+                    kundeNavn: kundeNavn,
+                    telefon: telefon,
+                    navn: vare,
+                    qty: qty,
+                    price: priceNOK,
+                    status: status,
+                    betaltDato: status === "Betalt" ? (betaltDato || todayStr) : "",
+                    createdBy: getCurrentUser(),
+                    createdAt: new Date().toISOString()
+                });
+            }
+
+            localStorage.setItem("homar_kunde", JSON.stringify(list));
+            resetCustomerForm();
+            loadData();
+        }
+
+        function updateLagerItemQty(vareNavn, qtyDelta) {
+            let cleanVare = String(vareNavn || "").trim().toUpperCase();
+            if (!cleanVare || qtyDelta === 0) return;
+            let lager = JSON.parse(localStorage.getItem("homar_lager") || "[]");
+            let idx = lager.findIndex(item => normType(item.type) === normType(cleanVare));
+            if (idx !== -1) {
+                lager[idx].qty = Math.max(0, (Number(lager[idx].qty) || 0) + qtyDelta);
+                lager[idx].date = todayStr; 
+                localStorage.setItem("homar_lager", JSON.stringify(lager));
+            }
+        }
+
+        function resetCustomerForm() {
+            document.getElementById("custEditIndex").value = "-1";
+            document.getElementById("cDate").value = todayStr;
+            document.getElementById("cKundeNavn").value = "";
+            document.getElementById("cTelefon").value = "";
+            document.getElementById("cNavnSelect").value = "";
+            document.getElementById("cNavnSelect").disabled = false;
+            document.getElementById("cNavn").value = "";
+            document.getElementById("cQty").value = "";
+            document.getElementById("cQty").disabled = false;
+            document.getElementById("cPrice").value = "";
+            document.getElementById("cStatus").value = "Deen";
+            document.getElementById("cBetaltDato").value = "";
+            let btn = document.getElementById("cStatusBtn");
+            btn.textContent = "DEEN";
+            btn.className = "status-btn status-deen";
+            document.getElementById("custStockInfo").textContent = "";
+            document.getElementById("custFormTitle").textContent = "REGISTRER NY KUNDE";
+            document.getElementById("custSubmitBtn").textContent = "REGISTRER";
+        }
+
+        function editCustomer(index) {
+            let list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
+            let item = list[index];
+            if (!item) return;
+
+            if (!canEditDetails(item)) {
+                alert("DU KAN KUN REDIGERE DINE EGNE ORDRER INNEN 24 TIMER.");
+                return;
+            }
+
+            document.getElementById("custEditIndex").value = index;
+            document.getElementById("cDate").value = item.date;
+            document.getElementById("cKundeNavn").value = String(item.kundeNavn || "").toUpperCase();
+            document.getElementById("cTelefon").value = String(item.telefon || "").toUpperCase();
+            
+            populateItemDropdowns();
+            
+            document.getElementById("cNavnSelect").value = String(item.navn || "").toUpperCase();
+            document.getElementById("cNavn").value = String(item.navn || "").toUpperCase();
+            
+            updateCustMaxQty();
+            
+            document.getElementById("cQty").value = item.qty;
+            document.getElementById("cPrice").value = convertPriceToDisplay(item.price);
+            document.getElementById("cStatus").value = item.status || "Deen";
+            document.getElementById("cBetaltDato").value = item.betaltDato || "";
+            
+            let btn = document.getElementById("cStatusBtn");
+            let st = String(item.status || "Deen").toUpperCase();
+            btn.textContent = st;
+            btn.className = "status-btn " + (st === "BETALT" ? "status-betalt" : "status-deen");
+
+            document.getElementById("custFormTitle").textContent = "REDIGER KUNDE";
+            document.getElementById("custSubmitBtn").textContent = "OPPDATER";
+            window.scrollTo({ top: document.getElementById("customerInputCard").offsetTop, behavior: 'smooth' });
+        }
+
+        function deleteCustomer(index) {
+            let list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
+            let item = list[index];
+            if (!item) return;
+
+            if (!canModifyOrDelete(item)) {
+                alert("DU KAN KUN SLETTE DINE EGNE ORDRER INNEN 24 TIMER.");
+                return;
+            }
+
+            if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE?")) {
+                updateLagerItemQty(item.navn, item.qty);
+
+                list.splice(index, 1);
+                localStorage.setItem("homar_kunde", JSON.stringify(list));
+                loadData();
+            }
+        }
+
+        // Budsjet funksjoner
+        function openBudsjetForm(target) {
+            document.getElementById("selectedBudsjetTarget").value = target;
+            let symbol = document.getElementById("activeCurrency").value === "USD" ? "$" : "KR";
+            let targetUpper = target.toUpperCase();
+            document.getElementById("budsjetFormTitle").textContent = `OPPDATER ${targetUpper} PRIS`;
+            document.getElementById("lblBudsjetAmount").textContent = `BELØP (${symbol})`;
+            document.getElementById("bAmount").value = "";
+            document.getElementById("budsjetInputCard").classList.remove("hidden");
+            window.scrollTo({ top: document.getElementById("budsjetInputCard").offsetTop, behavior: 'smooth' });
+        }
+
+        function closeBudsjetForm() {
+            document.getElementById("budsjetInputCard").classList.add("hidden");
+            document.getElementById("bAmount").value = "";
+        }
+
+        function saveBudsjet() {
+            let target = document.getElementById("selectedBudsjetTarget").value;
+            let mode = document.getElementById("bMode").value;
+            let amountInput = parseFloat(document.getElementById("bAmount").value);
+
+            if (isNaN(amountInput)) {
+                alert("VENNLIGST OPPGI ET GYLDIG BELØP!");
+                return;
+            }
+
+            let amountNOK = convertInputPriceToNOK(amountInput);
+            let data = JSON.parse(localStorage.getItem("homar_budsjet") || "{}");
+            let currentVal = (target === "Bank" ? data.bank : data.wafi) || 0;
+
+            if (mode === "add") {
+                if (target === "Bank") data.bank = currentVal + amountNOK;
+                else data.wafi = currentVal + amountNOK;
+            } else {
+                if (target === "Bank") data.bank = amountNOK;
+                else data.wafi = amountNOK;
+            }
+
+            localStorage.setItem("homar_budsjet", JSON.stringify(data));
+            alert(`${target.toUpperCase()} ER OPPDATERT!`);
+            closeBudsjetForm();
+            loadData();
+        }
+
+        // Admin funksjoner for Brukertilgang og Roller
+        function toggleFullAccessCheck() {
+            let fullAccess = document.getElementById("userPermFullAccess").checked;
+            if (fullAccess) {
+                document.getElementById("userPermNoAccess").checked = false;
+                document.getElementById("userPermViewBudget").checked = true;
+                document.getElementById("userPermRegister").checked = true;
+                document.getElementById("userPermStatus").checked = true;
+                document.getElementById("userPermEditAnytime").checked = true;
+                document.getElementById("userPermDeleteAnytime").checked = true;
+            }
+            toggleNoAccessCheck();
+        }
+
+        function toggleNoAccessCheck() {
+            let noAccess = document.getElementById("userPermNoAccess").checked;
+            let fullAccess = document.getElementById("userPermFullAccess").checked;
+            
+            let disabledState = noAccess || fullAccess;
+            document.getElementById("userPermViewBudget").disabled = disabledState;
+            document.getElementById("userPermRegister").disabled = disabledState;
+            document.getElementById("userPermStatus").disabled = disabledState;
+            document.getElementById("userPermEditAnytime").disabled = disabledState;
+            document.getElementById("userPermDeleteAnytime").disabled = disabledState;
+
+            if (noAccess) {
+                document.getElementById("userPermFullAccess").checked = false;
+                document.getElementById("userPermViewBudget").checked = false;
+                document.getElementById("userPermRegister").checked = false;
+                document.getElementById("userPermStatus").checked = false;
+                document.getElementById("userPermEditAnytime").checked = false;
+                document.getElementById("userPermDeleteAnytime").checked = false;
+            }
+        }
+
+        function loadUserPermissions() {
+            let username = document.getElementById("adminUserSelect").value;
+            let perms = getUserPermissions(username);
+            let fullAccess = perms.fullAccess;
+            let noAccess = perms.noAccess;
+            
+            document.getElementById("userPermFullAccess").checked = fullAccess;
+            document.getElementById("userPermNoAccess").checked = noAccess;
+            document.getElementById("userPermViewBudget").checked = perms.canViewBudget;
+            document.getElementById("userPermRegister").checked = perms.canRegister;
+            document.getElementById("userPermStatus").checked = perms.canChangeStatus;
+            document.getElementById("userPermEditAnytime").checked = perms.editAnytime;
+            document.getElementById("userPermDeleteAnytime").checked = perms.deleteAnytime;
+            toggleNoAccessCheck();
+        }
+
+        function saveUserPermissions() {
+            let username = document.getElementById("adminUserSelect").value;
+            if (username === "admin") {
+                alert("HOVEDADMINISTRATOR HAR ALLEREDE FULLE RETTIGHETER.");
+                return;
+            }
+            let fullAccess = document.getElementById("userPermFullAccess").checked;
+            let noAccess = document.getElementById("userPermNoAccess").checked;
+            let perms = {
+                fullAccess: fullAccess,
+                noAccess: noAccess,
+                canViewBudget: fullAccess ? true : (noAccess ? false : document.getElementById("userPermViewBudget").checked),
+                canRegister: fullAccess ? true : (noAccess ? false : document.getElementById("userPermRegister").checked),
+                canChangeStatus: fullAccess ? true : (noAccess ? false : document.getElementById("userPermStatus").checked),
+                editAnytime: fullAccess ? true : (noAccess ? false : document.getElementById("userPermEditAnytime").checked),
+                deleteAnytime: fullAccess ? true : (noAccess ? false : document.getElementById("userPermDeleteAnytime").checked)
+            };
+            let allPerms = JSON.parse(localStorage.getItem("homar_user_permissions") || "{}");
+            allPerms[username] = perms;
+            localStorage.setItem("homar_user_permissions", JSON.stringify(allPerms));
+            
+            let msg = document.getElementById("userPermMsg");
+            msg.style.color = "green";
+            msg.textContent = "TILGANGER LAGRET FOR BRUKER " + username.toUpperCase() + "!";
+            loadAdminData();
+            setTimeout(() => msg.textContent = "", 3000);
+        }
+
+        function saveRole() {
+            if (getCurrentUserRole() !== "Admin") {
+                alert("KUN ADMIN KAN ADMINISTRERE ROLLER!");
+                return;
+            }
+            let name = document.getElementById("newRoleName").value.trim().toUpperCase();
+            let oldName = document.getElementById("editingRoleOldName").value;
+            let msg = document.getElementById("adminRoleMsg");
+
+            if (!name) {
+                msg.style.color = "red";
+                msg.textContent = "SKRIV INN ROLLENAVN!";
+                return;
+            }
+
+            let roles = JSON.parse(localStorage.getItem("homar_roles") || "[]");
+
+            if (oldName) {
+                if (oldName === "Admin" || oldName === "Bruker") {
+                    alert("KAN IKKE ENDRE STANDARDROLLER!");
+                    return;
+                }
+                let idx = roles.indexOf(oldName);
+                if (idx > -1) roles[idx] = name;
+                
+                let users = JSON.parse(localStorage.getItem("homar_users") || "[]");
+                users.forEach(u => { if (u.role === oldName) u.role = name; });
+                localStorage.setItem("homar_users", JSON.stringify(users));
+
+                document.getElementById("editingRoleOldName").value = "";
+                document.getElementById("roleSubmitBtn").textContent = "LAGRE ROLLE";
+            } else {
+                if (roles.includes(name)) {
+                    msg.style.color = "red";
+                    msg.textContent = "ROLLEN FINNES ALLEREDE!";
+                    return;
+                }
+                roles.push(name);
+            }
+
+            localStorage.setItem("homar_roles", JSON.stringify(roles));
+            document.getElementById("newRoleName").value = "";
+            msg.style.color = "green";
+            msg.textContent = "ROLLE LAGRET!";
+            loadAdminData();
+        }
+
+        function editRole(roleName) {
+            if (getCurrentUserRole() !== "Admin") return;
+            if (roleName === "Admin" || roleName === "Bruker") {
+                alert("KAN IKKE REDIGERE STANDARDROLLER!");
+                return;
+            }
+            document.getElementById("editingRoleOldName").value = roleName;
+            document.getElementById("newRoleName").value = roleName;
+            document.getElementById("roleSubmitBtn").textContent = "OPPDATER ROLLE";
+            window.scrollTo({ top: document.getElementById("newRoleName").offsetTop, behavior: 'smooth' });
+        }
+
+        function deleteRole(roleName) {
+            if (getCurrentUserRole() !== "Admin") {
+                alert("KUN ADMIN KAN SLETTE ROLLER!");
+                return;
+            }
+            if (roleName === "Admin" || roleName === "Bruker") {
+                alert("KAN IKKE SLETTE STANDARDROLLER!");
+                return;
+            }
+            if (confirm(`VIL DU SLETTE ROLLEN ${roleName}? DETTE VIL OGSÅ SLETTE ALLE BRUKERE SOM HAR DENNE ROLLEN.`)) {
+                let roles = JSON.parse(localStorage.getItem("homar_roles") || "[]");
+                roles = roles.filter(r => r !== roleName);
+                localStorage.setItem("homar_roles", JSON.stringify(roles));
+
+                let users = JSON.parse(localStorage.getItem("homar_users") || "[]");
+                users = users.filter(u => u.role !== roleName);
+                localStorage.setItem("homar_users", JSON.stringify(users));
+
+                loadAdminData();
+            }
+        }
+
+        function saveUser() {
+            if (getCurrentUserRole() !== "Admin") {
+                alert("KUN ADMIN KAN ADMINISTRERE BRUKERE!");
+                return;
+            }
+            let u = document.getElementById("newUsername").value.trim().toUpperCase();
+            let p = document.getElementById("newPassword").value.trim();
+            let r = document.getElementById("newRole").value;
+            let editingUser = document.getElementById("editingUsername").value;
+            let msg = document.getElementById("adminMsg");
+
+            if (!u || !p) {
+                msg.style.color = "red";
+                msg.textContent = "FYLL UT BRUKERNAVN OG PASSORD!";
+                return;
+            }
+
+            let users = JSON.parse(localStorage.getItem("homar_users") || "[]");
+
+            if (editingUser) {
+                let userObj = users.find(x => x.username.toUpperCase() === editingUser.toUpperCase());
+                if (userObj) {
+                    userObj.username = u;
+                    userObj.password = p;
+                    userObj.role = r;
+                }
+                document.getElementById("editingUsername").value = "";
+                document.getElementById("userFormTitle").textContent = "OPPRETT NY BRUKER";
+                document.getElementById("userSubmitBtn").textContent = "LEGG TIL";
+            } else {
+                if (users.find(x => x.username.toUpperCase() === u)) {
+                    msg.style.color = "red";
+                    msg.textContent = "BRUKERNAVNET EKSISTERER ALLEREDE!";
+                    return;
+                }
+                users.push({ username: u, password: p, role: r });
+            }
+
+            localStorage.setItem("homar_users", JSON.stringify(users));
+            document.getElementById("newUsername").value = "";
+            document.getElementById("newPassword").value = "";
+            msg.style.color = "green";
+            msg.textContent = "BRUKER LAGRET!";
+            loadAdminData();
+        }
+
+        function editUser(username) {
+            if (getCurrentUserRole() !== "Admin") return;
+            let users = JSON.parse(localStorage.getItem("homar_users") || "[]");
+            let uObj = users.find(x => x.username.toUpperCase() === username.toUpperCase());
+            if (!uObj) return;
+
+            document.getElementById("editingUsername").value = username;
+            document.getElementById("newUsername").value = String(uObj.username || "").toUpperCase();
+            document.getElementById("newPassword").value = uObj.password;
+            document.getElementById("newRole").value = uObj.role;
+            document.getElementById("userFormTitle").textContent = "REDIGER BRUKER: " + String(username).toUpperCase();
+            document.getElementById("userSubmitBtn").textContent = "OPPDATER";
+            window.scrollTo({ top: document.getElementById("newUsername").offsetTop, behavior: 'smooth' });
+        }
+
+        function deleteUser(username) {
+            if (getCurrentUserRole() !== "Admin") {
+                alert("KUN ADMIN KAN SLETTE BRUKERE!");
+                return;
+            }
+            if (username.toUpperCase() === "ADMIN") {
+                alert("KAN IKKE SLETTE HOVEDADMINISTRATOR!");
+                return;
+            }
+            if (confirm(`VIL DU SLETTE BRUKER ${username.toUpperCase()}?`)) {
+                let users = JSON.parse(localStorage.getItem("homar_users") || "[]");
+                users = users.filter(x => x.username.toUpperCase() !== username.toUpperCase());
+                localStorage.setItem("homar_users", JSON.stringify(users));
+                loadAdminData();
+            }
+        }
+
+        function loadAdminData() {
+            let roles = JSON.parse(localStorage.getItem("homar_roles") || "[]");
+            let users = JSON.parse(localStorage.getItem("homar_users") || "[]");
+
+            let roleSelect = document.getElementById("newRole");
+            let adminUserSelect = document.getElementById("adminUserSelect");
+            
+            roleSelect.innerHTML = "";
+            adminUserSelect.innerHTML = "";
+            
+            roles.forEach(r => {
+                let rUp = String(r || "").toUpperCase();
+                roleSelect.innerHTML += `<option value="${r}">${rUp}</option>`;
+            });
+
+            users.forEach(u => {
+                let uUp = String(u.username || "").toUpperCase();
+                let rUp = String(u.role || "").toUpperCase();
+                adminUserSelect.innerHTML += `<option value="${u.username}">${uUp} (${rUp})</option>`;
+            });
+
+            loadUserPermissions();
+
+            let overviewBody = document.getElementById("permissionsOverviewBody");
+            overviewBody.innerHTML = "";
+            users.forEach(u => {
+                let p = getUserPermissions(u.username);
+                overviewBody.innerHTML += `<tr>
+                    <td>${String(u.username || "").toUpperCase()}</td>
+                    <td>${String(u.role || "").toUpperCase()}</td>
+                    <td>${p.fullAccess ? 'JA' : 'NEI'}</td>
+                    <td>${p.noAccess ? 'JA (KUN SE)' : 'NEI'}</td>
+                    <td>${p.canViewBudget ? 'JA' : 'NEI'}</td>
+                    <td>${p.canRegister ? 'JA' : 'NEI'}</td>
+                    <td>${p.canChangeStatus ? 'JA' : 'NEI'}</td>
+                    <td>${p.editAnytime ? 'JA' : 'NEI'}</td>
+                    <td>${p.deleteAnytime ? 'JA' : 'NEI'}</td>
+                </tr>`;
+            });
+
+            let rolesBody = document.getElementById("rolesBody");
+            rolesBody.innerHTML = "";
+            roles.forEach(r => {
+                let rUp = String(r || "").toUpperCase();
+                let canModify = rUp !== "ADMIN" && rUp !== "BRUKER";
+                rolesBody.innerHTML += `<tr>
+                    <td>${rUp}</td>
+                    <td>${canModify ? `
+                        <button style="background-color: #007bff; padding: 4px 8px; font-size: 12px; margin-right: 5px;" onclick="editRole('${r}')">ENDRE</button>
+                        <button style="background-color: #dc3545; padding: 4px 8px; font-size: 12px;" onclick="deleteRole('${r}')">SLETT</button>
+                    ` : 'STANDARD'}</td>
+                </tr>`;
+            });
+
+            let usersBody = document.getElementById("usersBody");
+            usersBody.innerHTML = "";
+            users.forEach(u => {
+                let uUp = String(u.username || "").toUpperCase();
+                let canModify = uUp !== "ADMIN";
+                usersBody.innerHTML += `<tr>
+                    <td>${uUp}</td>
+                    <td>${String(u.role || "").toUpperCase()}</td>
+                    <td>${canModify ? `
+                        <button style="background-color: #007bff; padding: 4px 8px; font-size: 12px; margin-right: 5px;" onclick="editUser('${u.username}')">ENDRE</button>
+                        <button style="background-color: #dc3545; padding: 4px 8px; font-size: 12px;" onclick="deleteUser('${u.username}')">SLETT</button>
+                    ` : 'BESKYTTET'}</td>
+                </tr>`;
+            });
+        }
+
+        function loadData() {
+            let userUp = String(getCurrentUser()).toUpperCase();
+            let roleUp = String(getCurrentUserRole()).toUpperCase();
+            document.getElementById("currentUserRoleDisplay").textContent = `INNLOGGET SOM: ${userUp} (${roleUp})`;
+            checkInputCardVisibility();
+            populateItemDropdowns();
+            renderAllTables();
+        }
+
+        function populateItemDropdowns() {
+            let lager = JSON.parse(localStorage.getItem("homar_lager") || "[]");
+            let types = [...new Set(lager.map(x => String(x.type || "").toUpperCase()))];
+
+            let typeListLager = document.getElementById("typeListLager");
+            typeListLager.innerHTML = "";
+            types.forEach(t => { typeListLager.innerHTML += `<option value="${t}">`; });
+
+            let shamType = document.getElementById("shamType");
+            let cNavnSelect = document.getElementById("cNavnSelect");
+            let stockMap = getStockMap();
+
+            let currentSham = String(shamType.value || "").toUpperCase();
+            let currentCust = String(cNavnSelect.value || "").toUpperCase();
+
+            shamType.innerHTML = `<option value="">-- VELG VARE FRA LAGER --</option>`;
+            cNavnSelect.innerHTML = `<option value="">-- VELG VARE FRA LAGER --</option>`;
+
+            types.forEach(t => {
+                let available = stockMap[t] || 0;
+                shamType.innerHTML += `<option value="${t}">${t} (LAGER: ${available})</option>`;
+                cNavnSelect.innerHTML += `<option value="${t}">${t} (LAGER: ${available})</option>`;
+            });
+
+            if (currentSham) shamType.value = currentSham;
+            if (currentCust) cNavnSelect.value = currentCust;
+
+            let kunde = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
+            let kNavnList = [...new Set(kunde.map(x => String(x.kundeNavn || "").toUpperCase()))];
+            let telList = [...new Set(kunde.map(x => String(x.telefon || "").toUpperCase()).filter(Boolean))];
+
+            let kundeListCust = document.getElementById("kundeListCust");
+            kundeListCust.innerHTML = "";
+            kNavnList.forEach(k => { kundeListCust.innerHTML += `<option value="${k}">`; });
+
+            let telListCust = document.getElementById("telListCust");
+            telListCust.innerHTML = "";
+            telList.forEach(tel => { telListCust.innerHTML += `<option value="${tel}">`; });
+        }
+
+        function renderAllTables() {
+            renderLagerTable();
+            renderLogisticsTable();
+            renderGariTable();
+            renderQarashTable();
+            renderShamitoTable();
+            renderCustomerTable();
+            renderDhagaxshidTable();
+            renderUtgiftValues();
+            renderBudsjetValues();
+        }
+
+        function renderLagerTable() {
+            let list = JSON.parse(localStorage.getItem("homar_lager") || "[]");
+            let tbody = document.getElementById("lagerBody");
+            tbody.innerHTML = "";
+
+            let sumQty = 0;
+            let sumTotal = 0;
+            let stockMap = getStockMap();
+            let currentUser = getCurrentUser();
+            let isAdmin = getCurrentUserRole() === "Admin";
+
+            list.forEach((item, index) => {
+                if (!filterByCalendar(item)) return;
+
+                let tName = String(item.type || "").toUpperCase();
+                let currentStockQty = stockMap[tName] !== undefined ? stockMap[tName] : item.qty;
+                
+                let totalNOK = item.qty * item.price;
+                sumQty += item.qty;
+                sumTotal += totalNOK;
+
+                let dispPrice = convertPriceToDisplay(item.price);
+                let dispTotal = convertPriceToDisplay(totalNOK);
+                let showCol = showSjukiColumns ? "" : "hidden";
+                let createdByUp = String(item.createdBy || "admin").toUpperCase();
+
+                let creator = item.createdBy || "admin";
+                let createdAt = item.createdAt ? new Date(item.createdAt).getTime() : new Date(item.date).getTime();
+                let hoursPassed = (new Date().getTime() - createdAt) / (1000 * 60 * 60);
+
+                // Vanlige brukere kan kun redigere og slette sine egne lagervarer innen 24 timer
+                let canMod = isAdmin || (creator.toUpperCase() === currentUser.toUpperCase() && hoursPassed <= 24);
+                let canEdit = isAdmin || (creator.toUpperCase() === currentUser.toUpperCase() && hoursPassed <= 24);
+
+                let isStockOk = Number(item.qty) >= 1;
+                let stockStatusHtml = isStockOk ? 
+                    `<span class="stock-badge stock-badge-green">GRØN</span>` : 
+                    `<span class="stock-badge stock-badge-red">RØDT</span>`;
+
+                tbody.innerHTML += `<tr>
+                    <td>${todayStr}</td>
+                    <td>${tName}</td>
+                    <td>${item.qty}</td>
+                    <td>${dispPrice.toFixed(2)}</td>
+                    <td>${dispTotal.toFixed(2)}</td>
+                    <td>${stockStatusHtml}</td>
+                    <td class="sjuki-col ${showCol}">${createdByUp}</td>
+                    <td>
+                         ${(canMod || canEdit) ? `
+                        <div class="action-dropdown">
+                            <button class="action-btn" onclick="toggleActionMenu(event, 'actionLager_${index}')">HANDLING ▼</button>
+                            <div id="actionLager_${index}" class="action-content">
+                                ${canEdit ? `<button onclick="editLager(${index})">ENDRE</button>` : ''}
+                                ${canMod ? `<button onclick="deleteLager(${index})" style="color:red;">SLETT</button>` : ''}
+                            </div>
+                        </div>` : '<span style="font-size:12px; color:#888;">LÅST</span>'}
+                    </td>
+                </tr>`;
+            });
+
+            document.getElementById("sumLagerQty").textContent = sumQty;
+            document.getElementById("sumLagerTotal").textContent = convertPriceToDisplay(sumTotal).toFixed(2);
+        }
+
+        function renderLogisticsTable() {
+            let list = JSON.parse(localStorage.getItem("homar_samen") || "[]");
+            let tbody = document.getElementById("logisticsBody");
+            tbody.innerHTML = "";
+
+            let sumQty = 0;
+            let sumDriver = 0;
+            let sumPrice = 0;
+            let sumTotal = 0;
+
+            list.forEach((item, index) => {
+                if (!filterByCalendar(item)) return;
+
+                let rowTotalNOK = (item.qty * item.price) + Number(item.driverPrice || 0);
+                sumQty += item.qty;
+                sumDriver += Number(item.driverPrice || 0);
+                sumPrice += (item.qty * item.price);
+                sumTotal += rowTotalNOK;
+
+                let dispDriver = convertPriceToDisplay(item.driverPrice);
+                let dispPrice = convertPriceToDisplay(item.price);
+                let dispTotal = convertPriceToDisplay(rowTotalNOK);
+                let showCol = showSjukiColumns ? "" : "hidden";
+                let canMod = canModifyOrDelete(item);
+                let canEdit = canEditDetails(item);
+                let createdByUp = String(item.createdBy || "admin").toUpperCase();
+
+                tbody.innerHTML += `<tr>
+                    <td>${item.date || ''}</td>
+                    <td>${String(item.type || '').toUpperCase()}</td>
+                    <td>${item.qty}</td>
+                    <td>${dispDriver.toFixed(2)}</td>
+                    <td>${dispPrice.toFixed(2)}</td>
+                    <td>${dispTotal.toFixed(2)}</td>
+                    <td class="sjuki-col ${showCol}">${createdByUp}</td>
+                    <td>
+                         ${(canMod || canEdit) ? `
+                        <div class="action-dropdown">
+                            <button class="action-btn" onclick="toggleActionMenu(event, 'actionLog_${index}')">HANDLING ▼</button>
+                            <div id="actionLog_${index}" class="action-content">
+                                ${canEdit ? `<button onclick="editLogistics(${index})">ENDRE</button>` : ''}
+                                ${canMod ? `<button onclick="deleteLogistics(${index})" style="color:red;">SLETT</button>` : ''}
+                            </div>
+                        </div>` : '<span style="font-size:12px; color:#888;">LÅST</span>'}
+                    </td>
+                </tr>`;
+            });
+
+            document.getElementById("sumLogQty").textContent = sumQty;
+            document.getElementById("sumLogDriver").textContent = convertPriceToDisplay(sumDriver).toFixed(2);
+            document.getElementById("sumLogPrice").textContent = convertPriceToDisplay(sumPrice).toFixed(2);
+            document.getElementById("sumLogTotal").textContent = convertPriceToDisplay(sumTotal).toFixed(2);
+        }
+
+        function renderGariTable() {
+            let list = JSON.parse(localStorage.getItem("homar_gari") || "[]");
+            let tbody = document.getElementById("gariBody");
+            if (!tbody) return;
+            tbody.innerHTML = "";
+
+            let sumQty = 0;
+            let sumTotal = 0;
+
+            list.forEach((item, index) => {
+                if (!filterByCalendar(item)) return;
+
+                let q = Number(item.qty) || 0;
+                let p = Number(item.price) || 0;
+                let rowTotalNOK = q * p;
+
+                sumQty += q;
+                sumTotal += rowTotalNOK;
+
+                let dispPrice = convertPriceToDisplay(p);
+                let dispTotal = convertPriceToDisplay(rowTotalNOK);
+                let canMod = canModifyOrDelete(item);
+                let canEdit = canEditDetails(item);
+
+                tbody.innerHTML += `<tr>
+                    <td>${item.date || ''}</td>
+                    <td>${String(item.gariType || '').toUpperCase()}</td>
+                    <td>${String(item.typeShaqo || '').toUpperCase()}</td>
+                    <td>${q}</td>
+                    <td>${dispPrice.toFixed(2)}</td>
+                    <td>${dispTotal.toFixed(2)}</td>
+                    <td>
+                         ${(canMod || canEdit) ? `
+                        <div class="action-dropdown">
+                            <button class="action-btn" onclick="toggleActionMenu(event, 'actionGari_${index}')">HANDLING ▼</button>
+                            <div id="actionGari_${index}" class="action-content">
+                                ${canEdit ? `<button onclick="editGari(${index})">ENDRE</button>` : ''}
+                                ${canMod ? `<button onclick="deleteGari(${index})" style="color:red;">SLETT</button>` : ''}
+                            </div>
+                        </div>` : '<span style="font-size:12px; color:#888;">LÅST</span>'}
+                    </td>
+                </tr>`;
+            });
+
+            document.getElementById("sumGariQty").textContent = sumQty;
+            document.getElementById("sumGariTotal").textContent = convertPriceToDisplay(sumTotal).toFixed(2);
+        }
+
+        function renderQarashTable() {
+            let list = JSON.parse(localStorage.getItem("homar_qarash") || "[]");
+            let tbody = document.getElementById("qarashBody");
+            if (!tbody) return;
+            tbody.innerHTML = "";
+
+            let sumQty = 0;
+            let sumTotal = 0;
+
+            list.forEach((item, index) => {
+                if (!filterByCalendar(item)) return;
+
+                let q = Number(item.antall) || 0;
+                let p = Number(item.price) || 0;
+                let rowTotalNOK = q * p;
+
+                sumQty += q;
+                sumTotal += rowTotalNOK;
+
+                let dispPrice = convertPriceToDisplay(p);
+                let dispTotal = convertPriceToDisplay(rowTotalNOK);
+                let canMod = canModifyOrDelete(item);
+                let canEdit = canEditDetails(item);
+
+                tbody.innerHTML += `<tr>
+                    <td>${item.date || ''}</td>
+                    <td>${String(item.navn || '').toUpperCase()}</td>
+                    <td>${q}</td>
+                    <td>${dispPrice.toFixed(2)}</td>
+                    <td>${dispTotal.toFixed(2)}</td>
+                    <td>
+                         ${(canMod || canEdit) ? `
+                        <div class="action-dropdown">
+                            <button class="action-btn" onclick="toggleActionMenu(event, 'actionQarash_${index}')">HANDLING ▼</button>
+                            <div id="actionQarash_${index}" class="action-content">
+                                ${canEdit ? `<button onclick="editQarash(${index})">ENDRE</button>` : ''}
+                                ${canMod ? `<button onclick="deleteQarash(${index})" style="color:red;">SLETT</button>` : ''}
+                            </div>
+                        </div>` : '<span style="font-size:12px; color:#888;">LÅST</span>'}
+                    </td>
+                </tr>`;
+            });
+
+            document.getElementById("sumQarashQty").textContent = sumQty;
+            document.getElementById("sumQarashTotal").textContent = convertPriceToDisplay(sumTotal).toFixed(2);
+        }
+
+        function renderShamitoTable() {
+            let list = JSON.parse(localStorage.getItem("homar_shamito") || "[]");
+            let tbody = document.getElementById("shamitoBody");
+            tbody.innerHTML = "";
+
+            let sumQty = 0;
+            let sumTotal = 0;
+
+            list.forEach((item, index) => {
+                if (!filterByCalendar(item)) return;
+
+                let totalNOK = item.qty * item.price;
+                sumQty += item.qty;
+                sumTotal += totalNOK;
+
+                let dispPrice = convertPriceToDisplay(item.price);
+                let dispTotal = convertPriceToDisplay(totalNOK);
+                let showCol = showSjukiColumns ? "" : "hidden";
+                let canMod = canModifyOrDelete(item);
+                let canEdit = canEditDetails(item);
+                let createdByUp = String(item.createdBy || "admin").toUpperCase();
+
+                tbody.innerHTML += `<tr>
+                    <td>${item.date || ''}</td>
+                    <td>${String(item.type || '').toUpperCase()}</td>
+                    <td>${item.qty}</td>
+                    <td>${dispPrice.toFixed(2)}</td>
+                    <td>${dispTotal.toFixed(2)}</td>
+                    <td class="sjuki-col ${showCol}">${createdByUp}</td>
+                    <td>
+                         ${(canMod || canEdit) ? `
+                        <div class="action-dropdown">
+                            <button class="action-btn" onclick="toggleActionMenu(event, 'actionSham_${index}')">HANDLING ▼</button>
+                            <div id="actionSham_${index}" class="action-content">
+                                ${canEdit ? `<button onclick="editShamito(${index})">ENDRE</button>` : ''}
+                                ${canMod ? `<button onclick="deleteShamito(${index})" style="color:red;">SLETT</button>` : ''}
+                            </div>
+                        </div>` : '<span style="font-size:12px; color:#888;">LÅST</span>'}
+                    </td>
+                </tr>`;
+            });
+
+            document.getElementById("sumShamQty").textContent = sumQty;
+            document.getElementById("sumShamTotalSum").textContent = convertPriceToDisplay(sumTotal).toFixed(2);
+        }
+
+        function renderDhagaxshidTable() {
+            let list = JSON.parse(localStorage.getItem("homar_dhagaxshid") || "[]");
+            let tbody = document.getElementById("dhagaxshidBody");
+            if (!tbody) return;
+            tbody.innerHTML = "";
+
+            let sumQty = 0;
+            let sumDriver = 0;
+            let sumPrice = 0;
+            let sumTotal = 0;
+
+            list.forEach((item, index) => {
+                if (!filterByCalendar(item)) return;
+
+                let q = Number(item.qty) || 0;
+                let p = item.price !== undefined ? Number(item.price) : convertInputPriceToNOK(8);
+                let d = Number(item.driver) || 0;
+                let rowSumNOK = (q * p) + d;
+
+                sumQty += q;
+                sumDriver += d;
+                sumPrice += p;
+                sumTotal += rowSumNOK;
+
+                let dispPrice = convertPriceToDisplay(p);
+                let dispDriver = convertPriceToDisplay(d);
+                let dispSum = convertPriceToDisplay(rowSumNOK);
+                let showCol = showSjukiColumns ? "" : "hidden";
+                let canMod = canModifyOrDelete(item);
+                let canEdit = canEditDetails(item);
+                let createdByUp = String(item.createdBy || "admin").toUpperCase();
+
+                tbody.innerHTML += `<tr>
+                    <td>${item.date || ''}</td>
+                    <td>${String(item.type || 'DHAGAX SHID').toUpperCase()}</td>
+                    <td>${q}</td>
+                    <td>${dispPrice.toFixed(2)}</td>
+                    <td>${dispDriver.toFixed(2)}</td>
+                    <td>${dispSum.toFixed(2)}</td>
+                    <td class="sjuki-col ${showCol}">${createdByUp}</td>
+                    <td>
+                         ${(canMod || canEdit) ? `
+                        <div class="action-dropdown">
+                            <button class="action-btn" onclick="toggleActionMenu(event, 'actionDhagaxshid_${index}')">HANDLING ▼</button>
+                            <div id="actionDhagaxshid_${index}" class="action-content">
+                                ${canEdit ? `<button onclick="editDhagaxshid(${index})">ENDRE</button>` : ''}
+                                ${canMod ? `<button onclick="deleteDhagaxshid(${index})" style="color:red;">SLETT</button>` : ''}
+                            </div>
+                        </div>` : '<span style="font-size:12px; color:#888;">LÅST</span>'}
+                    </td>
+                </tr>`;
+            });
+
+            document.getElementById("sumDhagaxshidQty").textContent = sumQty;
+            document.getElementById("sumDhagaxshidDriver").textContent = convertPriceToDisplay(sumDriver).toFixed(2);
+            document.getElementById("sumDhagaxshidPrice").textContent = convertPriceToDisplay(sumPrice).toFixed(2);
+            document.getElementById("sumDhagaxshidTotal").textContent = convertPriceToDisplay(sumTotal).toFixed(2);
+        }
+
+        function renderCustomerTable() {
+            let list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
+            let tbody = document.getElementById("customerBody");
+            tbody.innerHTML = "";
+
+            let searchDate = document.getElementById("searchDateInput").value;
+            let searchText = document.getElementById("searchTextInput").value.toUpperCase().trim();
+
+            let sumQty = 0;
+            let sumTotal = 0;
+
+            list.forEach((item, index) => {
+                if (!filterByCalendar(item)) return;
+
+                let status = String(item.status || "Deen").toUpperCase();
+                
+                if (currentCustomerFilter !== 'ALL' && status !== currentCustomerFilter.toUpperCase()) {
+                    return;
+                }
+
+                if (searchDate) {
+                    let matchDate = item.date === searchDate;
+                    let matchBetalt = (status === "BETALT" && item.betaltDato === searchDate);
+                    if (!matchDate && !matchBetalt) {
+                        return;
+                    }
+                }
+
+                if (searchText) {
+                    let combined = `${item.date || ''} ${item.kundeNavn || ''} ${item.telefon || ''} ${item.navn || ''} ${status} ${item.betaltDato || ''} ${item.createdBy || ''}`.toUpperCase();
+                    if (!combined.includes(searchText)) {
+                        return;
+                    }
+                }
+
+                let totalNOK = item.qty * item.price;
+                sumQty += item.qty;
+                sumTotal += totalNOK;
+
+                let dispPrice = convertPriceToDisplay(item.price);
+                let dispTotal = convertPriceToDisplay(totalNOK);
+                let showCol = showSjukiColumns ? "" : "hidden";
+                let statusClass = status === "BETALT" ? "status-betalt" : "status-deen";
+
+                let statusText = status;
+                if (status === "BETALT" && item.betaltDato) {
+                    statusText += ` (${item.betaltDato})`;
+                }
+
+                let canEditFull = canEditDetails(item);
+                let canDeleteFull = canModifyOrDelete(item);
+                let canChangeStatus = canUserChangeStatus();
+
+                let hasAnyAction = canChangeStatus || canEditFull || canDeleteFull;
+                let createdByUp = String(item.createdBy || "admin").toUpperCase();
+
+                tbody.innerHTML += `<tr>
+                    <td>${item.date || ''}</td>
+                    <td>${String(item.kundeNavn || '').toUpperCase()}</td>
+                    <td>${String(item.telefon || '').toUpperCase()}</td>
+                    <td>${String(item.navn || '').toUpperCase()}</td>
+                    <td>${item.qty}</td>
+                    <td>${dispPrice.toFixed(2)}</td>
+                    <td>${dispTotal.toFixed(2)}</td>
+                    <td><button type="button" class="status-btn ${statusClass}" onclick="toggleTableRowStatus(${index})">${statusText}</button></td>
+                    <td class="sjuki-col ${showCol}">${createdByUp}</td>
+                    <td>
+                         ${hasAnyAction ? `
+                        <div class="action-dropdown">
+                            <button class="action-btn" onclick="toggleActionMenu(event, 'actionCust_${index}')">HANDLING ▼</button>
+                            <div id="actionCust_${index}" class="action-content">
+                                ${canChangeStatus ? `<button onclick="toggleTableRowStatus(${index})">ENDRE STATUS/DATO</button>` : ''}
+                                ${canEditFull ? `<button onclick="editCustomer(${index})">ENDRE FULLT</button>` : ''}
+                                ${canDeleteFull ? `<button onclick="deleteCustomer(${index})" style="color:red;">SLETT</button>` : ''}
+                            </div>
+                        </div>` : '<span style="font-size:12px; color:#888;">KUN SE</span>'}
+                    </td>
+                </tr>`;
+            });
+
+            document.getElementById("sumCustQty").textContent = sumQty;
+            document.getElementById("sumCustTotalSum").textContent = convertPriceToDisplay(sumTotal).toFixed(2);
+        }
+
+        function renderUtgiftValues() {
+            let samenList = JSON.parse(localStorage.getItem("homar_samen") || "[]");
+            let samenTot = samenList.filter(filterByCalendar).reduce((acc, x) => acc + (x.qty * x.price) + Number(x.driverPrice || 0), 0);
+
+            let gariList = JSON.parse(localStorage.getItem("homar_gari") || "[]");
+            let gariTot = gariList.filter(filterByCalendar).reduce((acc, x) => acc + (Number(x.qty || 0) * Number(x.price || 0)), 0);
+
+            let qarashList = JSON.parse(localStorage.getItem("homar_qarash") || "[]");
+            let qarashTot = qarashList.filter(filterByCalendar).reduce((acc, x) => acc + (Number(x.antall || 0) * Number(x.price || 0)), 0);
+
+            let shamitoList = JSON.parse(localStorage.getItem("homar_shamito") || "[]");
+            let shamitoTot = shamitoList.filter(filterByCalendar).reduce((acc, x) => acc + (x.qty * x.price), 0);
+
+            let dhagaxList = JSON.parse(localStorage.getItem("homar_dhagaxshid") || "[]");
+            let dhagaxTot = dhagaxList.filter(filterByCalendar).reduce((acc, x) => acc + ((Number(x.qty) || 0) * (x.price !== undefined ? Number(x.price) : convertInputPriceToNOK(8))) + Number(x.driver || 0), 0);
+
+            let grandUtgift = samenTot + gariTot + qarashTot + shamitoTot + dhagaxTot;
+
+            if(document.getElementById("boxUtgiftSamen")) {
+                document.getElementById("boxUtgiftSamen").textContent = convertPriceToDisplay(samenTot).toFixed(2);
+                document.getElementById("boxUtgiftGari").textContent = convertPriceToDisplay(gariTot).toFixed(2);
+                document.getElementById("boxUtgiftQarash").textContent = convertPriceToDisplay(qarashTot).toFixed(2);
+                document.getElementById("boxUtgiftShamito").textContent = convertPriceToDisplay(shamitoTot).toFixed(2);
+                document.getElementById("boxUtgiftDhagax").textContent = convertPriceToDisplay(dhagaxTot).toFixed(2);
+                document.getElementById("boxGrandUtgift").textContent = convertPriceToDisplay(grandUtgift).toFixed(2);
+            }
+            return grandUtgift;
+        }
+
+        function renderBudsjetValues() {
+            let lagerList = JSON.parse(localStorage.getItem("homar_lager") || "[]");
+            let lagerTotalNOK = lagerList.filter(filterByCalendar).reduce((acc, x) => acc + (x.qty * x.price), 0);
+
+            let kundeList = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
+            let deenTotalNOK = kundeList
+                .filter(x => filterByCalendar(x) && String(x.status || "Deen").toUpperCase() === "DEEN")
+                .reduce((acc, x) => acc + (x.qty * x.price), 0);
+
+            let budsjetData = JSON.parse(localStorage.getItem("homar_budsjet") || "{}");
+            let bankNOK = budsjetData.bank || 0;
+            let wafiNOK = budsjetData.wafi || 0;
+
+            document.getElementById("boxBudsjetLager").textContent = convertPriceToDisplay(lagerTotalNOK).toFixed(2);
+            document.getElementById("boxBudsjetDeen").textContent = convertPriceToDisplay(deenTotalNOK).toFixed(2);
+            document.getElementById("boxBudsjetBank").textContent = convertPriceToDisplay(bankNOK).toFixed(2);
+            document.getElementById("boxBudsjetWafi").textContent = convertPriceToDisplay(wafiNOK).toFixed(2);
+
+            let grandTotalNOK = lagerTotalNOK + deenTotalNOK + bankNOK + wafiNOK;
+            document.getElementById("boxGrandTotal").textContent = convertPriceToDisplay(grandTotalNOK).toFixed(2);
+
+            let totalUtgiftNOK = renderUtgiftValues();
+            let bedriftVerdiNOK = grandTotalNOK - totalUtgiftNOK;
+            let boxBedriftEl = document.getElementById("boxBedriftVerdi");
+            if (boxBedriftEl) {
+                boxBedriftEl.textContent = convertPriceToDisplay(bedriftVerdiNOK).toFixed(2);
+            }
+        }
+    </script>
+
+    <script>
+    // ===== HOMAR API CONNECTION =====
+    // The existing UI still uses its localStorage data model, but the keys below
+    // are synchronized with PostgreSQL through the HOMAR backend.
+    (function () {
+        const HOMAR_API_BASE = 'https://homar-logistik.onrender.com/api';
+        const HOMAR_SYNC_KEYS = new Set([
+            'homar_lager', 'homar_samen', 'homar_shamito', 'homar_kunde',
+            'homar_dhagaxshid', 'homar_gari', 'homar_qarash', 'homar_budsjet',
+            'homar_roles', 'homar_user_permissions'
+        ]);
+        let serverSyncReady = false;
+        const syncTimers = new Map();
+        const nativeSetItem = Storage.prototype.setItem;
+
+        function apiToken() {
+            return localStorage.getItem('homar_api_token') || '';
+        }
+
+        async function apiRequest(path, options = {}) {
+            const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+            const token = apiToken();
+            if (token) headers.Authorization = 'Bearer ' + token;
+            const response = await fetch(HOMAR_API_BASE + path, Object.assign({}, options, { headers }));
+            let data = null;
+            try { data = await response.json(); } catch (_) {}
+            if (!response.ok) {
+                const error = new Error((data && data.error) || ('HTTP ' + response.status));
+                error.status = response.status;
+                throw error;
+            }
+            return data;
+        }
+
+        function parseStored(key) {
+            const raw = localStorage.getItem(key);
+            if (raw === null) return undefined;
+            try { return JSON.parse(raw); } catch (_) { return raw; }
+        }
+
+        async function syncOneKey(key) {
+            if (!serverSyncReady || !HOMAR_SYNC_KEYS.has(key) || !apiToken()) return;
+            const value = parseStored(key);
+            if (value === undefined) return;
+            try {
+                await apiRequest('/state', {
+                    method: 'PUT',
+                    body: JSON.stringify({ state: { [key]: value } })
+                });
+            } catch (err) {
+                console.error('HOMAR sync-feil for', key, err);
+            }
+        }
+
+        Storage.prototype.setItem = function (key, value) {
+            nativeSetItem.call(this, key, value);
+            if (this === localStorage && HOMAR_SYNC_KEYS.has(key) && serverSyncReady) {
+                clearTimeout(syncTimers.get(key));
+                syncTimers.set(key, setTimeout(() => syncOneKey(key), 180));
+            }
+        };
+
+        async function loadServerState() {
+            const payload = await apiRequest('/state');
+            const serverState = (payload && payload.state) || {};
+            const firstUpload = {};
+
+            serverSyncReady = false;
+            for (const key of HOMAR_SYNC_KEYS) {
+                if (Object.prototype.hasOwnProperty.call(serverState, key)) {
+                    nativeSetItem.call(localStorage, key, JSON.stringify(serverState[key]));
+                } else {
+                    const localValue = parseStored(key);
+                    if (localValue !== undefined) firstUpload[key] = localValue;
+                }
+            }
+
+            if (Object.keys(firstUpload).length) {
+                await apiRequest('/state', {
+                    method: 'PUT',
+                    body: JSON.stringify({ state: firstUpload })
+                });
+            }
+            serverSyncReady = true;
+        }
+
+        function applyApiUser(user) {
+            nativeSetItem.call(localStorage, 'homar_api_user', JSON.stringify(user || {}));
+            nativeSetItem.call(localStorage, 'homar_current_user', String((user && user.username) || 'ADMIN').toLowerCase());
+            nativeSetItem.call(localStorage, 'homar_logged_in', 'true');
+        }
+
+        window.getCurrentUserRole = function () {
+            try {
+                const user = JSON.parse(localStorage.getItem('homar_api_user') || '{}');
+                const role = String(user.role || '').toUpperCase();
+                return role === 'ADMIN' ? 'Admin' : (user.role || 'Bruker');
+            } catch (_) { return 'Bruker'; }
+        };
+
+        window.getUserPermissions = function () {
+            try {
+                const user = JSON.parse(localStorage.getItem('homar_api_user') || '{}');
+                if (String(user.role || '').toUpperCase() === 'ADMIN') {
+                    return { fullAccess:true, noAccess:false, canViewBudget:true, canRegister:true, canChangeStatus:true, editAnytime:true, deleteAnytime:true };
+                }
+                const p = user.permissions || {};
+                return {
+                    fullAccess: !!p.fullAccess,
+                    noAccess: !!p.noAccess,
+                    canViewBudget: !!p.canViewBudget,
+                    canRegister: !!p.canRegister,
+                    canChangeStatus: !!p.canChangeStatus,
+                    editAnytime: !!p.editAnytime,
+                    deleteAnytime: !!p.deleteAnytime
+                };
+            } catch (_) {
+                return { fullAccess:false, noAccess:true, canViewBudget:false, canRegister:false, canChangeStatus:false, editAnytime:false, deleteAnytime:false };
+            }
+        };
+
+        window.handleLogin = async function () {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const errorEl = document.getElementById('loginError');
+            errorEl.style.color = '#dc3545';
+            errorEl.textContent = 'KOBLER TIL SERVER...';
+            try {
+                const result = await apiRequest('/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ username, password })
+                });
+                nativeSetItem.call(localStorage, 'homar_api_token', result.token);
+                applyApiUser(result.user);
+                await loadServerState();
+                errorEl.textContent = '';
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
+                checkAdminAccess();
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('dashboardSection').classList.remove('hidden');
+                fetchLiveExchangeRate();
+                loadData();
+            } catch (err) {
+                serverSyncReady = false;
+                localStorage.removeItem('homar_api_token');
+                localStorage.removeItem('homar_api_user');
+                localStorage.removeItem('homar_logged_in');
+                errorEl.textContent = err.status === 401 ? 'FEIL BRUKERNAVN ELLER PASSORD!' : 'KAN IKKE KOBLE TIL HOMAR-SERVEREN. SJEKK AT BACKEND KJØRER.';
+            }
+        };
+
+        window.handleLogout = function () {
+            serverSyncReady = false;
+            localStorage.removeItem('homar_api_token');
+            localStorage.removeItem('homar_api_user');
+            localStorage.removeItem('homar_logged_in');
+            localStorage.removeItem('homar_current_user');
+            document.getElementById('dashboardSection').classList.add('hidden');
+            document.getElementById('loginSection').classList.remove('hidden');
+        };
+
+        // The old button reset local-only credentials. With API login it should not
+        // silently replace credentials, so explain where credentials now come from.
+        window.resetDefaultCredentials = function () {
+            const el = document.getElementById('loginError');
+            el.style.color = '#856404';
+            el.textContent = 'INNLOGGING STYRES NÅ AV BACKEND (.env / seed). BRUK ADMIN-PASSORDET DU OPPRETTET.';
+        };
+
+        window.addEventListener('load', async function () {
+            const token = apiToken();
+            if (!token) {
+                localStorage.removeItem('homar_logged_in');
+                document.getElementById('dashboardSection').classList.add('hidden');
+                document.getElementById('loginSection').classList.remove('hidden');
+                return;
+            }
+            try {
+                const me = await apiRequest('/auth/me');
+                applyApiUser(me);
+                await loadServerState();
+                checkAdminAccess();
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('dashboardSection').classList.remove('hidden');
+                loadData();
+            } catch (_) {
+                serverSyncReady = false;
+                localStorage.removeItem('homar_api_token');
+                localStorage.removeItem('homar_api_user');
+                localStorage.removeItem('homar_logged_in');
+                document.getElementById('dashboardSection').classList.add('hidden');
+                document.getElementById('loginSection').classList.remove('hidden');
+            }
+        });
+    })();
+    </script>
+
+</body>
+</html>
