@@ -174,22 +174,22 @@
 <body>
 
     <!-- INNLOGGINGSSIDE -->
-    <div id="loginSection" class="container">
+    <form id="loginSection" class="container" autocomplete="on" onsubmit="event.preventDefault(); handleLogin();">
         <h2>HORMAR LOGISTIK - LOGG INN</h2>
         <div class="form-group">
             <label>BRUKERNAVN</label>
-            <input type="text" id="username" placeholder="ADMIN">
+            <input type="text" id="username" name="username" placeholder="ADMIN" autocomplete="username" autocapitalize="characters">
         </div>
         <div class="form-group">
             <label>PASSORD</label>
-            <input type="password" id="password" placeholder="1234">
+            <input type="password" id="password" name="password" placeholder="1234" autocomplete="current-password">
         </div>
-        <button onclick="handleLogin()" style="width: 100%;">LOGG INN</button>
+        <button type="submit" style="width: 100%;">LOGG INN</button>
         <div style="margin-top: 15px;">
-            <button onclick="resetDefaultCredentials()" style="background-color: #6c757d; font-size: 12px; padding: 5px 10px; width: 100%;">NULLSTILL INNLOGGING TIL STANDARD (ADMIN / 123)</button>
+            <button type="button" onclick="resetDefaultCredentials()" style="background-color: #6c757d; font-size: 12px; padding: 5px 10px; width: 100%;">NULLSTILL INNLOGGING TIL STANDARD (ADMIN / 123)</button>
         </div>
         <div id="loginError" class="error-msg"></div>
-    </div>
+    </form>
 
     <!-- HOVEDSIDE -->
     <div id="dashboardSection" class="container hidden">
@@ -713,20 +713,20 @@
                 <tbody id="rolesBody"></tbody>
             </table>
 
-            <div class="input-card">
+            <form id="userAccountForm" class="input-card" autocomplete="off" onsubmit="event.preventDefault(); saveUser();">
                 <h4 id="userFormTitle">OPPRETT NY BRUKER</h4>
                 <input type="hidden" id="editingUsername" value="">
                 <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr 120px;">
-                    <div><label>BRUKERNAVN</label><input type="text" id="newUsername"></div>
-                    <div><label>PASSORD</label><input type="password" id="newPassword"></div>
+                    <div><label>BRUKERNAVN</label><input type="text" id="newUsername" name="homar-new-username" autocomplete="off" autocapitalize="characters"></div>
+                    <div><label>PASSORD</label><input type="password" id="newPassword" name="homar-new-password" autocomplete="new-password"></div>
                     <div>
                         <label>ROLLE</label>
                         <select id="newRole"></select>
                     </div>
-                    <button class="btn-success" id="userSubmitBtn" onclick="saveUser()">LEGG TIL</button>
+                    <button type="submit" class="btn-success" id="userSubmitBtn">LEGG TIL</button>
                 </div>
                 <div id="adminMsg" style="margin-top: 10px; font-size: 14px; font-weight: bold;"></div>
-            </div>
+            </form>
             
             <h4 style="margin-top: 20px;">EKSISTERENDE BRUKERE</h4>
             <table id="usersTable">
@@ -2314,12 +2314,16 @@
 
         async function saveUser() {
             if (getCurrentUserRole() !== "Admin") { alert("KUN ADMIN KAN ADMINISTRERE BRUKERE!"); return; }
+            const submitButton = document.getElementById("userSubmitBtn");
+            if (submitButton.disabled) return;
             let u = document.getElementById("newUsername").value.trim().toUpperCase();
             let p = document.getElementById("newPassword").value;
             let r = document.getElementById("newRole").value;
             let editingUser = document.getElementById("editingUsername").value;
             let msg = document.getElementById("adminMsg");
             if (!u || (!editingUser && !p)) { msg.style.color = "red"; msg.textContent = "FYLL UT BRUKERNAVN OG PASSORD!"; return; }
+            submitButton.disabled = true;
+            submitButton.textContent = "LAGRER...";
             try {
                 let payload = { username:u, role:r };
                 if (p) payload.password = p;
@@ -2337,6 +2341,9 @@
             } catch (err) {
                 msg.style.color = "red";
                 msg.textContent = "FEIL: " + (err.message || "KUNNE IKKE LAGRE BRUKER");
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = document.getElementById("editingUsername").value ? "OPPDATER" : "LEGG TIL";
             }
         }
 
