@@ -258,6 +258,22 @@
             <input type="password" id="password" name="homar-login-password" placeholder="PASSWORD" autocomplete="new-password">
         </div>
         <button type="submit" style="width: 100%;">LOGG INN</button>
+        <button type="button" onclick="openForgotPassword()" style="width:100%; margin-top:10px; background:#0b63ce;">GLEMT BRUKERNAVN ELLER PASSORD?</button>
+        <div id="forgotPasswordBox" class="hidden" style="margin-top:15px; padding:15px; background:#f8f9fa; border:1px solid #d9e2ec; border-radius:8px; text-align:left;">
+            <h3 style="margin-top:0;">GJENOPPRETT INNLOGGING</h3>
+            <div class="form-group">
+                <label for="forgotEmail">E-POST</label>
+                <input type="email" id="forgotEmail" autocomplete="email" placeholder="DIN E-POST">
+            </div>
+            <button type="button" id="sendResetCodeBtn" onclick="sendPasswordResetCode()" style="width:100%;">SEND ENGANGSKODE</button>
+            <div id="resetCodeFields" class="hidden" style="margin-top:12px;">
+                <div class="form-group"><label for="forgotCode">ENGANGSKODE</label><input type="text" id="forgotCode" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></div>
+                <div class="form-group"><label for="forgotNewPassword">NYTT PASSORD</label><input type="password" id="forgotNewPassword" minlength="8" autocomplete="new-password"></div>
+                <button type="button" onclick="completePasswordReset()" style="width:100%;">LAGRE NYTT PASSORD</button>
+            </div>
+            <div id="forgotPasswordMsg" class="error-msg" role="status" aria-live="polite"></div>
+            <button type="button" onclick="closeForgotPassword()" style="width:100%; margin-top:8px; background:#6c757d;">AVBRYT</button>
+        </div>
         <div style="margin-top: 15px;">
             <button type="button" onclick="resetDefaultCredentials()" style="background-color: #6c757d; font-size: 12px; padding: 5px 10px; width: 100%;">NULLSTILL INNLOGGING TIL STANDARD (ADMIN / 123)</button>
         </div>
@@ -789,8 +805,9 @@
             <form id="userAccountForm" class="input-card" autocomplete="off" onsubmit="event.preventDefault(); saveUser();">
                 <h4 id="userFormTitle">OPPRETT NY BRUKER</h4>
                 <input type="hidden" id="editingUsername" value="">
-                <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr 120px;">
+                <div class="form-row" style="grid-template-columns: 1fr 1.4fr 1fr 1fr 120px;">
                     <div><label>BRUKERNAVN</label><input type="text" id="newUsername" name="homar-new-username" autocomplete="off" autocapitalize="characters"></div>
+                    <div><label>E-POST</label><input type="email" id="newEmail" name="homar-new-email" autocomplete="email" placeholder="NAVN@EPOST.NO"></div>
                     <div><label>PASSORD</label><input type="password" id="newPassword" name="homar-new-password" autocomplete="new-password"></div>
                     <div>
                         <label>ROLLE</label>
@@ -804,7 +821,7 @@
             <h4 style="margin-top: 20px;">EKSISTERENDE BRUKERE</h4>
             <table id="usersTable">
                 <thead>
-                    <tr><th>BRUKERNAVN</th><th>ROLLE</th><th>HANDLING</th></tr>
+                    <tr><th>BRUKERNAVN</th><th>E-POST</th><th>ROLLE</th><th>HANDLING</th></tr>
                 </thead>
                 <tbody id="usersBody"></tbody>
             </table>
@@ -2390,21 +2407,23 @@
             const submitButton = document.getElementById("userSubmitBtn");
             if (submitButton.disabled) return;
             let u = document.getElementById("newUsername").value.trim().toUpperCase();
+            let email = document.getElementById("newEmail").value.trim().toLowerCase();
             let p = document.getElementById("newPassword").value;
             let r = document.getElementById("newRole").value;
             let editingUser = document.getElementById("editingUsername").value;
             let msg = document.getElementById("adminMsg");
-            if (!u || (!editingUser && !p)) { msg.style.color = "red"; msg.textContent = "FYLL UT BRUKERNAVN OG PASSORD!"; return; }
+            if (!u || !email || (!editingUser && !p)) { msg.style.color = "red"; msg.textContent = "FYLL UT BRUKERNAVN, E-POST OG PASSORD!"; return; }
             submitButton.disabled = true;
             submitButton.textContent = "LAGRER...";
             try {
-                let payload = { username:u, role:r };
+                let payload = { username:u, email, role:r };
                 if (p) payload.password = p;
                 if (editingUser) await window.homarApiRequest('/admin/users/' + encodeURIComponent(editingUser), { method:'PUT', body:JSON.stringify(payload) });
                 else await window.homarApiRequest('/admin/users', { method:'POST', body:JSON.stringify(payload) });
                 await window.syncApiUsersToLocal();
                 document.getElementById("editingUsername").value = "";
                 document.getElementById("newUsername").value = "";
+                document.getElementById("newEmail").value = "";
                 document.getElementById("newPassword").value = "";
                 document.getElementById("userFormTitle").textContent = "OPPRETT NY BRUKER";
                 document.getElementById("userSubmitBtn").textContent = "LEGG TIL";
@@ -2428,6 +2447,7 @@
 
             document.getElementById("editingUsername").value = username;
             document.getElementById("newUsername").value = String(uObj.username || "").toUpperCase();
+            document.getElementById("newEmail").value = String(uObj.email || "").toLowerCase();
             document.getElementById("newPassword").value = uObj.password;
             document.getElementById("newRole").value = uObj.role;
             document.getElementById("userFormTitle").textContent = "REDIGER BRUKER: " + String(username).toUpperCase();
@@ -2509,6 +2529,7 @@
                 let canModify = uUp !== "ADMIN";
                 usersBody.innerHTML += `<tr>
                     <td>${uUp}</td>
+                    <td>${String(u.email || 'IKKE REGISTRERT').toLowerCase()}</td>
                     <td>${String(u.role || "").toUpperCase()}</td>
                     <td>${canModify ? `
                         <button style="background-color: #007bff; padding: 4px 8px; font-size: 12px; margin-right: 5px;" onclick="editUser('${u.username}')">ENDRE</button>
@@ -3152,7 +3173,7 @@
             const localUsers = users.map(u => {
                 const username = String(u.username || '').toUpperCase();
                 permissionMap[username] = u.permissions || {};
-                return { id:u.id, username, password:'', role:u.role || 'Bruker', active:u.active !== false };
+                return { id:u.id, username, email:u.email || '', password:'', role:u.role || 'Bruker', active:u.active !== false };
             });
             localStorage.setItem('homar_users', JSON.stringify(localUsers));
             localStorage.setItem('homar_user_permissions', JSON.stringify(permissionMap));
@@ -3355,6 +3376,57 @@
     <script>
     // Responsiv tabellvisning og grunnleggende tilgjengelighet, uten å endre data/logikk.
     (function () {
+        window.openForgotPassword = function () {
+            document.getElementById('forgotPasswordBox').classList.remove('hidden');
+            document.getElementById('forgotEmail').focus();
+        };
+
+        window.closeForgotPassword = function () {
+            document.getElementById('forgotPasswordBox').classList.add('hidden');
+            document.getElementById('resetCodeFields').classList.add('hidden');
+            document.getElementById('forgotPasswordMsg').textContent = '';
+        };
+
+        window.sendPasswordResetCode = async function () {
+            const email = document.getElementById('forgotEmail').value.trim().toLowerCase();
+            const msg = document.getElementById('forgotPasswordMsg');
+            const btn = document.getElementById('sendResetCodeBtn');
+            if (!email) { msg.style.color = '#dc3545'; msg.textContent = 'SKRIV E-POSTADRESSEN DIN.'; return; }
+            btn.disabled = true;
+            msg.style.color = '#555';
+            msg.textContent = 'SENDER KODE...';
+            try {
+                const result = await window.homarApiRequest('/auth/forgot-password', { method:'POST', body:JSON.stringify({ email }) });
+                msg.style.color = '#155724';
+                msg.textContent = result.message || 'HVIS E-POSTEN ER REGISTRERT, ER EN KODE SENDT.';
+                document.getElementById('resetCodeFields').classList.remove('hidden');
+                document.getElementById('forgotCode').focus();
+            } catch (err) {
+                msg.style.color = '#dc3545';
+                msg.textContent = err.message || 'KUNNE IKKE SENDE E-POST. PRØV IGJEN.';
+            } finally { btn.disabled = false; }
+        };
+
+        window.completePasswordReset = async function () {
+            const email = document.getElementById('forgotEmail').value.trim().toLowerCase();
+            const code = document.getElementById('forgotCode').value.trim();
+            const newPassword = document.getElementById('forgotNewPassword').value;
+            const msg = document.getElementById('forgotPasswordMsg');
+            if (!/^\d{6}$/.test(code)) { msg.style.color='#dc3545'; msg.textContent='SKRIV DEN 6-SIFREDE KODEN.'; return; }
+            if (newPassword.length < 8) { msg.style.color='#dc3545'; msg.textContent='PASSORDET MÅ HA MINST 8 TEGN.'; return; }
+            try {
+                const result = await window.homarApiRequest('/auth/reset-password', { method:'POST', body:JSON.stringify({ email, code, newPassword }) });
+                msg.style.color = '#155724';
+                msg.textContent = (result.message || 'PASSORDET ER ENDRET.') + ' BRUKERNAVN: ' + (result.username || '');
+                document.getElementById('username').value = result.username || '';
+                document.getElementById('password').value = '';
+                document.getElementById('resetCodeFields').classList.add('hidden');
+            } catch (err) {
+                msg.style.color = '#dc3545';
+                msg.textContent = err.message || 'FEIL ELLER UTLØPT KODE.';
+            }
+        };
+
         function forbedreGrensesnitt() {
             document.querySelectorAll('table').forEach(function (table) {
                 if (table.parentElement && table.parentElement.classList.contains('table-scroll')) return;
