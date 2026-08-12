@@ -976,8 +976,8 @@
                 checkAdminAccess();
                 document.getElementById("loginSection").classList.add("hidden");
                 document.getElementById("dashboardSection").classList.remove("hidden");
-                sessionStorage.removeItem('homar_active_tab');
-                switchView('lager');
+                // Behold aktiv fane ved vanlig oppdatering.
+                // Token-kontrollen nedenfor gjenoppretter riktig fane.
                 fetchLiveExchangeRate();
                 loadData();
                 startPresence();
@@ -3505,8 +3505,12 @@
                 checkAdminAccess();
                 document.getElementById('loginSection').classList.add('hidden');
                 document.getElementById('dashboardSection').classList.remove('hidden');
+                // Ny innlogging skal alltid starte på LAGER.
+                sessionStorage.removeItem('homar_active_tab');
+                switchView('lager');
                 fetchLiveExchangeRate();
                 loadData();
+                startPresence();
             } catch (err) {
                 serverSyncReady = false;
                 localStorage.removeItem('homar_api_token');
