@@ -1269,9 +1269,6 @@
             if (activeTab) activeTab.classList.add("active");
 
             localStorage.setItem('homar_active_tab', viewName);
-            if (location.hash !== '#' + viewName) {
-                history.replaceState(null, '', location.pathname + location.search + '#' + viewName);
-            }
             if (viewName === 'admin') {
                 loadAdminData();
             } else {
@@ -3558,13 +3555,13 @@
             }
 
             const allowedTabs = ['lager','samen','gari','shamito','dhagaxshid','kunde','qarash','utgift','budsjet','admin'];
-            const hashTab = location.hash.replace(/^#/, '').toLowerCase();
             const rememberedTab = localStorage.getItem('homar_active_tab');
-            const requestedTab = allowedTabs.includes(hashTab)
-                ? hashTab
-                : (allowedTabs.includes(rememberedTab) ? rememberedTab : 'lager');
+            const requestedTab = allowedTabs.includes(rememberedTab) ? rememberedTab : 'lager';
 
-            // Vis riktig fane straks. Serverkontrollen skjer etterpå uten sideskifte.
+            // Fjern eventuelt gammelt fanenavn fra adressen én gang.
+            if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+
+            // Vis husket fane straks, uten å endre nettadressen.
             document.getElementById('loginSection').classList.add('hidden');
             document.getElementById('dashboardSection').classList.remove('hidden');
             switchView(requestedTab);
