@@ -268,7 +268,7 @@
             <button type="button" id="sendResetCodeBtn" onclick="sendPasswordResetCode()" style="width:100%;">SEND ENGANGSKODE</button>
             <div id="resetCodeFields" class="hidden" style="margin-top:12px;">
                 <div class="form-group"><label for="forgotCode">ENGANGSKODE</label><input type="text" id="forgotCode" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></div>
-                <div class="form-group"><label for="forgotNewPassword">NYTT PASSORD</label><input type="password" id="forgotNewPassword" minlength="8" autocomplete="new-password"></div>
+                <div class="form-group"><label for="forgotNewPassword">NYTT PASSORD</label><input type="password" id="forgotNewPassword" minlength="4" autocomplete="new-password"></div>
                 <button type="button" onclick="completePasswordReset()" style="width:100%;">LAGRE NYTT PASSORD</button>
             </div>
             <div id="forgotPasswordMsg" class="error-msg" role="status" aria-live="polite"></div>
@@ -3413,7 +3413,7 @@
             const newPassword = document.getElementById('forgotNewPassword').value;
             const msg = document.getElementById('forgotPasswordMsg');
             if (!/^\d{6}$/.test(code)) { msg.style.color='#dc3545'; msg.textContent='SKRIV DEN 6-SIFREDE KODEN.'; return; }
-            if (newPassword.length < 8) { msg.style.color='#dc3545'; msg.textContent='PASSORDET MÅ HA MINST 8 TEGN.'; return; }
+            if (newPassword.length < 4) { msg.style.color='#dc3545'; msg.textContent='PASSORDET MÅ HA MINST 4 TEGN.'; return; }
             try {
                 const result = await window.homarApiRequest('/auth/reset-password', { method:'POST', body:JSON.stringify({ email, code, newPassword }) });
                 msg.style.color = '#155724';
