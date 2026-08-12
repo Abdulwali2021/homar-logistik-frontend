@@ -1229,9 +1229,11 @@
         }
 
         function checkAdminAccess() {
-            let role = getCurrentUserRole();
-            let adminTab = document.getElementById("tabAdmin");
-            if (role === "Admin") {
+            const role = getCurrentUserRole();
+            const permissions = getUserPermissions(getCurrentUser());
+            const hasAdminAccess = role === "Admin" || !!permissions.fullAccess;
+            const adminTab = document.getElementById("tabAdmin");
+            if (hasAdminAccess) {
                 if (adminTab) adminTab.classList.remove("hidden");
             } else {
                 if (adminTab) adminTab.classList.add("hidden");
@@ -3508,7 +3510,7 @@
                 nativeSetItem.call(localStorage, 'homar_api_token', result.token);
                 applyApiUser(result.user);
                 await loadServerState();
-                if (String((result.user && result.user.role) || '').toUpperCase() === 'ADMIN') await syncApiUsersToLocal();
+                if (String((result.user && result.user.role) || '').toUpperCase() === 'ADMIN' || !!(result.user && result.user.permissions && result.user.permissions.fullAccess)) await syncApiUsersToLocal();
                 errorEl.textContent = '';
                 document.getElementById('username').value = '';
                 document.getElementById('password').value = '';
@@ -3618,10 +3620,10 @@
                 const me = await apiRequest('/auth/me');
                 applyApiUser(me);
                 await loadServerState();
-                if (String((me && me.role) || '').toUpperCase() === 'ADMIN') await syncApiUsersToLocal();
+                if (String((me && me.role) || '').toUpperCase() === 'ADMIN' || !!(me && me.permissions && me.permissions.fullAccess)) await syncApiUsersToLocal();
                 checkAdminAccess();
 
-                if (requestedTab === 'admin' && String((me && me.role) || '').toUpperCase() !== 'ADMIN') {
+                if (requestedTab === 'admin' && String((me && me.role) || '').toUpperCase() !== 'ADMIN' && !(me && me.permissions && me.permissions.fullAccess)) {
                     switchView('lager');
                 } else if (requestedTab === 'budsjet' && !canUserViewBudget()) {
                     switchView('lager');
