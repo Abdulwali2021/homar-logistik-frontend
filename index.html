@@ -116,13 +116,40 @@
         .filter-btn { background-color: #6c757d; font-size: 13px; padding: 6px 14px; }
         .filter-btn.active-filter { background-color: #007bff; }
 
-        .action-dropdown { position: relative; display: inline-block; }
-        .action-btn { background-color: #6c757d; color: white; padding: 5px 10px; font-size: 13px; border: none; border-radius: 4px; cursor: pointer; }
-        .action-btn:hover { background-color: #5a6268; }
-        .action-content { display: none; position: absolute; right: 0; background-color: #ffffff; min-width: 120px; box-shadow: 0px 8px 16px rgba(0,0,0,0.2); z-index: 10; border-radius: 4px; border: 1px solid #ddd; }
-        .action-content button { color: black; background: none; padding: 8px 12px; display: block; width: 100%; text-align: left; font-size: 13px; border-radius: 0; }
-        .action-content button:hover { background-color: #f1f1f1; opacity: 1; }
-        .action-dropdown.show .action-content { display: block; }
+        .action-dropdown { position: static; display: block; min-width: 165px; }
+        .action-btn { display: none !important; }
+        .action-content,
+        .action-dropdown.show .action-content {
+            display: flex !important;
+            position: static;
+            align-items: center;
+            gap: 7px;
+            min-width: 0;
+            background: transparent;
+            box-shadow: none;
+            border: 0;
+        }
+        .action-content button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: auto;
+            min-width: 72px;
+            min-height: 40px;
+            padding: 8px 12px;
+            color: white;
+            background: #007bff;
+            text-align: center;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 5px;
+        }
+        .action-content button[style*="color:red"],
+        .action-content button[style*="color: red"] {
+            color: white !important;
+            background: #dc3545 !important;
+        }
+        .action-content button:hover { filter: brightness(.92); opacity: 1; }
 
         .budget-grid {
             display: grid;
