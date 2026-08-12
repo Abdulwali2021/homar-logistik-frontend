@@ -3633,15 +3633,28 @@
                 window.scrollTo(savedPosition.x, savedPosition.y);
                 requestAnimationFrame(() => window.scrollTo(savedPosition.x, savedPosition.y));
                 startPresence();
-            } catch (_) {
+            } catch (err) {
                 serverSyncReady = false;
-                localStorage.removeItem('homar_api_token');
-                localStorage.removeItem('homar_api_user');
-                localStorage.removeItem('homar_logged_in');
-                localStorage.removeItem('homar_active_tab');
-                history.replaceState(null, '', location.pathname + location.search);
-                document.getElementById('dashboardSection').classList.add('hidden');
-                document.getElementById('loginSection').classList.remove('hidden');
+
+                // Logg bare ut når serveren faktisk sier at økten er ugyldig.
+                if (err && err.status === 401) {
+                    localStorage.removeItem('homar_api_token');
+                    localStorage.removeItem('homar_api_user');
+                    localStorage.removeItem('homar_logged_in');
+                    localStorage.removeItem('homar_active_tab');
+                    history.replaceState(null, '', location.pathname + location.search);
+                    document.getElementById('dashboardSection').classList.add('hidden');
+                    document.getElementById('loginSection').classList.remove('hidden');
+                    return;
+                }
+
+                // Ved treg server eller nettverksfeil: behold bruker, fane og posisjon.
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('dashboardSection').classList.remove('hidden');
+                renderAllTables();
+                loadData();
+                window.scrollTo(savedPosition.x, savedPosition.y);
+                requestAnimationFrame(() => window.scrollTo(savedPosition.x, savedPosition.y));
             }
         });
     })();
