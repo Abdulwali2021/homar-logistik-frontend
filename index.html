@@ -75,6 +75,9 @@
         .nav-btn { background-color: #6c757d; flex: 1; text-align: center; font-weight: bold; min-width: 90px; font-size: 12px; }
         .nav-btn.active { background-color: var(--primary-color); }
 
+        .editable-system-label { cursor: alias; }
+        .editable-system-label:hover { outline: 2px dashed #28a745; outline-offset: 2px; }
+
         table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
         th, td { padding: 10px; border: 1px solid #ddd; text-align: left; font-size: 14px; }
         th { background-color: var(--primary-color); color: white; }
@@ -2974,11 +2977,68 @@
         const HOMAR_SYNC_KEYS = new Set([
             'homar_lager', 'homar_samen', 'homar_shamito', 'homar_kunde',
             'homar_dhagaxshid', 'homar_gari', 'homar_qarash', 'homar_budsjet',
-            'homar_roles', 'homar_user_permissions'
+            'homar_roles', 'homar_user_permissions', 'homar_custom_labels'
         ]);
         let serverSyncReady = false;
         const syncTimers = new Map();
         const nativeSetItem = Storage.prototype.setItem;
+
+        function editableLabelKey(element) {
+            if (element.id) return '#' + element.id;
+            const parts = [];
+            let node = element;
+            while (node && node !== document.body) {
+                let part = node.tagName.toLowerCase();
+                if (node.id) {
+                    parts.unshift('#' + node.id);
+                    break;
+                }
+                const siblings = node.parentElement ? Array.from(node.parentElement.children).filter(x => x.tagName === node.tagName) : [];
+                part += ':nth-of-type(' + (siblings.indexOf(node) + 1) + ')';
+                parts.unshift(part);
+                node = node.parentElement;
+            }
+            return parts.join('>');
+        }
+
+        function storedCustomLabels() {
+            try {
+                const value = JSON.parse(localStorage.getItem('homar_custom_labels') || '{}');
+                return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+            } catch (_) { return {}; }
+        }
+
+        function applyCustomLabels() {
+            const labels = storedCustomLabels();
+            document.querySelectorAll('#dashboardSection .nav-btn, #dashboardSection label, #dashboardSection th, #dashboardSection h3, #dashboardSection h4').forEach(element => {
+                if (element.childElementCount) return;
+                element.classList.add('editable-system-label');
+                const saved = labels[editableLabelKey(element)];
+                if (typeof saved === 'string' && saved.trim()) element.textContent = saved;
+            });
+        }
+
+        window.refreshEditableLabels = applyCustomLabels;
+
+        document.addEventListener('dblclick', function (event) {
+            const element = event.target.closest('.editable-system-label');
+            if (!element || !document.getElementById('dashboardSection').contains(element)) return;
+            if (window.getCurrentUserRole && window.getCurrentUserRole() !== 'Admin') {
+                alert('KUN ADMIN KAN ENDRE FASTE NAVN.');
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            const oldName = element.textContent.trim();
+            const newName = prompt('SKRIV NYTT NAVN:', oldName);
+            if (newName === null || !newName.trim() || newName.trim() === oldName) return;
+            const labels = storedCustomLabels();
+            labels[editableLabelKey(element)] = newName.trim().toUpperCase();
+            localStorage.setItem('homar_custom_labels', JSON.stringify(labels));
+            element.textContent = newName.trim().toUpperCase();
+        }, true);
+
+        applyCustomLabels();
 
         function apiToken() {
             return localStorage.getItem('homar_api_token') || '';
@@ -3067,6 +3127,7 @@
                 });
             }
             serverSyncReady = true;
+            applyCustomLabels();
         }
 
         function applyApiUser(user) {
