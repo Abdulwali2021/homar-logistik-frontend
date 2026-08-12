@@ -1081,22 +1081,52 @@
             return perms.canChangeStatus;
         }
 
+        function isWithin24Hours(value) {
+            const time = value ? new Date(value).getTime() : NaN;
+            return Number.isFinite(time) && (Date.now() - time) <= 24 * 60 * 60 * 1000;
+        }
+
+        function hasRecentSamenContribution(item, username) {
+            if (!item || !item.type) return false;
+            const targetType = normType(item.type);
+            const targetUser = String(username || '').toUpperCase();
+            const samen = JSON.parse(localStorage.getItem("homar_samen") || "[]");
+            return samen.some(entry => {
+                const actor = String(entry.updatedBy || entry.createdBy || "admin").toUpperCase();
+                const time = entry.updatedAt || entry.createdAt || entry.date;
+                return normType(entry.type) === targetType && actor === targetUser && isWithin24Hours(time);
+            });
+        }
+
+        function isOwnRecentRecord(item) {
+            if (!item) return false;
+            const currentUser = String(getCurrentUser() || "").toUpperCase();
+            const creator = String(item.createdBy || "admin").toUpperCase();
+            const updater = String(item.updatedBy || "").toUpperCase();
+            const createdTime = item.createdAt || item.date;
+            const updatedTime = item.updatedAt || item.createdAt || item.date;
+
+            if (creator === currentUser && isWithin24Hours(createdTime)) return true;
+            if (updater === currentUser && isWithin24Hours(updatedTime)) return true;
+            return hasRecentSamenContribution(item, currentUser);
+        }
+
         function canModifyOrDelete(item) {
-            let role = getCurrentUserRole();
+            const role = getCurrentUserRole();
             if (role === "Admin") return true;
-            let perms = getUserPermissions(getCurrentUser());
+            const perms = getUserPermissions(getCurrentUser());
             if (perms.fullAccess) return true;
             if (perms.noAccess || !perms.deleteAnytime) return false;
-            return String(item.createdBy || "admin").toUpperCase() === String(getCurrentUser() || "").toUpperCase();
+            return isOwnRecentRecord(item);
         }
 
         function canEditDetails(item) {
-            let role = getCurrentUserRole();
+            const role = getCurrentUserRole();
             if (role === "Admin") return true;
-            let perms = getUserPermissions(getCurrentUser());
+            const perms = getUserPermissions(getCurrentUser());
             if (perms.fullAccess) return true;
             if (perms.noAccess || !perms.editAnytime) return false;
-            return String(item.createdBy || "admin").toUpperCase() === String(getCurrentUser() || "").toUpperCase();
+            return isOwnRecentRecord(item);
         }
 
         function checkInputCardVisibility() {
@@ -1451,6 +1481,8 @@
                 list[index].typeShaqo = typeShaqo;
                 list[index].qty = qty;
                 list[index].price = priceNOK;
+                list[index].updatedBy = getCurrentUser();
+                list[index].updatedAt = new Date().toISOString();
             } else {
                 list.push({
                     date: date,
@@ -1647,6 +1679,10 @@
                     list[existingIndex].qty += qty;
                     list[existingIndex].price = priceNOK;
                     list[existingIndex].date = date;
+                    list[existingIndex].updatedBy = getCurrentUser();
+                    list[existingIndex].updatedAt = new Date().toISOString();
+                    list[existingIndex].lastAddedQty = qty;
+                    list[existingIndex].lastAddedFrom = "LAGER";
                 } else {
                     list.push({
                         date: date,
@@ -1733,7 +1769,11 @@
                 if (lager[lagerIndex].qty < 0) {
                     lager[lagerIndex].qty = 0;
                 }
-                lager[lagerIndex].date = todayStr; 
+                lager[lagerIndex].date = todayStr;
+                lager[lagerIndex].updatedBy = getCurrentUser();
+                lager[lagerIndex].updatedAt = new Date().toISOString();
+                lager[lagerIndex].lastAddedQty = qtyDelta;
+                lager[lagerIndex].lastAddedFrom = "SAMEN"; 
             } else {
                 if (qtyDelta > 0) {
                     lager.push({
@@ -1783,6 +1823,8 @@
                 list[index].qty = qty;
                 list[index].driverPrice = driverNOK;
                 list[index].price = priceNOK;
+                list[index].updatedBy = getCurrentUser();
+                list[index].updatedAt = new Date().toISOString();
 
                 updateLagerFromSamen(type, qty, date);
             } else {
@@ -2760,9 +2802,9 @@
                 let createdAt = item.createdAt ? new Date(item.createdAt).getTime() : new Date(item.date).getTime();
                 let hoursPassed = (new Date().getTime() - createdAt) / (1000 * 60 * 60);
 
-                // Vanlige brukere kan kun redigere og slette sine egne lagervarer innen 24 timer
-                let canMod = isAdmin || (creator.toUpperCase() === currentUser.toUpperCase() && hoursPassed <= 24);
-                let canEdit = isAdmin || (creator.toUpperCase() === currentUser.toUpperCase() && hoursPassed <= 24);
+                // Brukeren kan også håndtere en eksisterende rad som de selv nylig har økt via LAGER eller SAMEN.
+                let canMod = canModifyOrDelete(item);
+                let canEdit = canEditDetails(item);
 
                 let isStockOk = Number(item.qty) >= 1;
                 let stockStatusHtml = isStockOk ? 
