@@ -825,6 +825,29 @@
                 </thead>
                 <tbody id="usersBody"></tbody>
             </table>
+
+            <div class="input-card" style="margin-top:25px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                    <div>
+                        <h4 style="margin:0 0 5px;">AKTIVE BRUKERE AKKURAT NÅ</h4>
+                        <p style="margin:0; font-size:12px; color:#666;">VISER BRUKERE SOM HAR HATT KONTAKT MED NETTSIDEN DE SISTE 2 MINUTTENE.</p>
+                    </div>
+                    <button type="button" onclick="loadSecurityOverview()" style="background:#0b63ce;">OPPDATER</button>
+                </div>
+                <table id="onlineUsersTable" style="margin-top:15px;">
+                    <thead><tr><th>BRUKERNAVN</th><th>ROLLE</th><th>INNLOGGET</th><th>SIST AKTIV</th></tr></thead>
+                    <tbody id="onlineUsersBody"><tr><td colspan="4">LASTER...</td></tr></tbody>
+                </table>
+            </div>
+
+            <div class="input-card" style="margin-top:20px;">
+                <h4 style="margin-top:0;">INNLOGGING OG GLEMT PASSORD</h4>
+                <p style="font-size:12px; color:#666;">PASSORD OG ENGANGSKODER VISES ALDRI.</p>
+                <table id="securityActivityTable">
+                    <thead><tr><th>TIDSPUNKT</th><th>BRUKER</th><th>E-POST</th><th>HENDELSE</th><th>STATUS</th></tr></thead>
+                    <tbody id="securityActivityBody"><tr><td colspan="5">LASTER...</td></tr></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -924,6 +947,7 @@
                 document.getElementById("dashboardSection").classList.remove("hidden");
                 fetchLiveExchangeRate();
                 loadData();
+                startPresence();
             }
         };
 
@@ -2539,7 +2563,47 @@
                     </td>
                 </tr>`;
             });
+            if (window.homarApiRequest) loadSecurityOverview();
         }
+
+        async function loadSecurityOverview() {
+            if (getCurrentUserRole() !== "Admin" || !window.homarApiRequest) return;
+            const onlineBody = document.getElementById("onlineUsersBody");
+            const activityBody = document.getElementById("securityActivityBody");
+            if (!onlineBody || !activityBody) return;
+            const eventNames = {
+                LOGIN_SUCCESS: 'INNLOGGING',
+                LOGIN_FAILED: 'MISLYKKET INNLOGGING',
+                PASSWORD_RESET_REQUEST: 'GLEMT PASSORD – E-POST IKKE FUNNET',
+                PASSWORD_RESET_EMAIL_SENT: 'GJENOPPRETTINGSKODE SENDT',
+                PASSWORD_RESET_EMAIL_FAILED: 'E-POSTSENDING FEILET',
+                PASSWORD_RESET_COMPLETED: 'PASSORD ENDRET'
+            };
+            const formatTime = value => value ? new Date(value).toLocaleString('nb-NO') : '-';
+            try {
+                const [online, logs] = await Promise.all([
+                    window.homarApiRequest('/admin/online-users'),
+                    window.homarApiRequest('/admin/activity?limit=150')
+                ]);
+                onlineBody.innerHTML = online.length ? online.map(row => `<tr>
+                    <td><span style="display:inline-block;width:10px;height:10px;background:#28a745;border-radius:50%;margin-right:7px;"></span>${String(row.username || '').toUpperCase()}</td>
+                    <td>${String(row.role || '').toUpperCase()}</td>
+                    <td>${formatTime(row.loggedInAt)}</td>
+                    <td>${formatTime(row.lastSeenAt)}</td>
+                </tr>`).join('') : '<tr><td colspan="4">INGEN AKTIVE BRUKERE AKKURAT NÅ.</td></tr>';
+                activityBody.innerHTML = logs.length ? logs.map(row => `<tr>
+                    <td>${formatTime(row.createdAt)}</td>
+                    <td>${String(row.username || 'UKJENT').toUpperCase()}</td>
+                    <td>${row.emailMasked || '-'}</td>
+                    <td>${eventNames[row.eventType] || row.eventType}</td>
+                    <td style="font-weight:bold;color:${row.success ? '#155724' : '#dc3545'};">${row.success ? 'OK' : 'FEILET'}</td>
+                </tr>`).join('') : '<tr><td colspan="5">INGEN HENDELSER ENNÅ.</td></tr>';
+            } catch (err) {
+                onlineBody.innerHTML = '<tr><td colspan="4">KUNNE IKKE HENTE AKTIVE BRUKERE.</td></tr>';
+                activityBody.innerHTML = '<tr><td colspan="5">KUNNE IKKE HENTE LOGGEN.</td></tr>';
+            }
+        }
+        window.loadSecurityOverview = loadSecurityOverview;
 
         function loadData() {
             let userUp = String(getCurrentUser()).toUpperCase();
@@ -3328,7 +3392,20 @@
             }
         };
 
-        window.handleLogout = function () {
+        let presenceTimer = null;
+        async function sendPresence() {
+            if (!apiToken()) return;
+            try { await apiRequest('/auth/presence', { method:'POST', body:'{}' }); } catch (_) {}
+        }
+        function startPresence() {
+            clearInterval(presenceTimer);
+            sendPresence();
+            presenceTimer = setInterval(sendPresence, 60000);
+        }
+
+        window.handleLogout = async function () {
+            clearInterval(presenceTimer);
+            try { if (apiToken()) await apiRequest('/auth/logout', { method:'POST', body:'{}' }); } catch (_) {}
             serverSyncReady = false;
             localStorage.removeItem('homar_api_token');
             localStorage.removeItem('homar_api_user');
@@ -3363,6 +3440,7 @@
                 document.getElementById('loginSection').classList.add('hidden');
                 document.getElementById('dashboardSection').classList.remove('hidden');
                 loadData();
+                startPresence();
             } catch (_) {
                 serverSyncReady = false;
                 localStorage.removeItem('homar_api_token');
