@@ -976,6 +976,8 @@
                 checkAdminAccess();
                 document.getElementById("loginSection").classList.add("hidden");
                 document.getElementById("dashboardSection").classList.remove("hidden");
+                sessionStorage.removeItem('homar_active_tab');
+                switchView('lager');
                 fetchLiveExchangeRate();
                 loadData();
                 startPresence();
@@ -1274,6 +1276,7 @@
             if (activeSec) activeSec.classList.remove("hidden");
             if (activeTab) activeTab.classList.add("active");
 
+            sessionStorage.setItem('homar_active_tab', viewName);
             if (viewName === 'admin') {
                 loadAdminData();
             } else {
@@ -3532,6 +3535,7 @@
             localStorage.removeItem('homar_api_user');
             localStorage.removeItem('homar_logged_in');
             localStorage.removeItem('homar_current_user');
+            sessionStorage.removeItem('homar_active_tab');
             document.getElementById('dashboardSection').classList.add('hidden');
             document.getElementById('loginSection').classList.remove('hidden');
         };
@@ -3560,6 +3564,12 @@
                 checkAdminAccess();
                 document.getElementById('loginSection').classList.add('hidden');
                 document.getElementById('dashboardSection').classList.remove('hidden');
+                const savedTab = sessionStorage.getItem('homar_active_tab') || 'lager';
+                const allowedTabs = ['lager','samen','gari','shamito','dhagaxshid','kunde','qarash','utgift','budsjet','admin'];
+                const safeTab = allowedTabs.includes(savedTab) ? savedTab : 'lager';
+                if (safeTab === 'admin' && String((me && me.role) || '').toUpperCase() !== 'ADMIN') switchView('lager');
+                else if (safeTab === 'budsjet' && !canUserViewBudget()) switchView('lager');
+                else switchView(safeTab);
                 loadData();
                 startPresence();
             } catch (_) {
