@@ -3545,54 +3545,6 @@
             el.textContent = 'INNLOGGING STYRES NÅ AV BACKEND (.env / seed). BRUK ADMIN-PASSORDET DU OPPRETTET.';
         };
 
-        if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
-
-        function scrollKeyFor(tabName) {
-            return 'homar_scroll_' + (tabName || localStorage.getItem('homar_active_tab') || 'lager');
-        }
-
-        function saveCurrentScroll() {
-            if (!apiToken()) return;
-            const tabName = localStorage.getItem('homar_active_tab') || 'lager';
-            sessionStorage.setItem(scrollKeyFor(tabName), JSON.stringify({
-                x: Math.max(0, window.scrollX || 0),
-                y: Math.max(0, window.scrollY || 0)
-            }));
-        }
-
-        function readSavedScroll(tabName) {
-            try {
-                const value = JSON.parse(sessionStorage.getItem(scrollKeyFor(tabName)) || '{}');
-                return {
-                    x: Number.isFinite(value.x) ? value.x : 0,
-                    y: Number.isFinite(value.y) ? value.y : 0
-                };
-            } catch (_) {
-                return { x: 0, y: 0 };
-            }
-        }
-
-        function holdAndRestoreScroll(tabName) {
-            const position = readSavedScroll(tabName);
-            document.documentElement.style.minHeight = Math.max(
-                document.documentElement.scrollHeight,
-                position.y + window.innerHeight
-            ) + 'px';
-            window.scrollTo(position.x, position.y);
-            requestAnimationFrame(() => window.scrollTo(position.x, position.y));
-            return position;
-        }
-
-        let scrollSaveFrame = 0;
-        window.addEventListener('scroll', function () {
-            if (scrollSaveFrame) return;
-            scrollSaveFrame = requestAnimationFrame(function () {
-                scrollSaveFrame = 0;
-                saveCurrentScroll();
-            });
-        }, { passive: true });
-        window.addEventListener('pagehide', saveCurrentScroll);
-
         window.addEventListener('load', async function () {
             const token = apiToken();
             if (!token) {
@@ -3613,7 +3565,6 @@
             document.getElementById('loginSection').classList.add('hidden');
             document.getElementById('dashboardSection').classList.remove('hidden');
             switchView(requestedTab);
-            const savedPosition = holdAndRestoreScroll(requestedTab);
 
             try {
                 const me = await apiRequest('/auth/me');
@@ -3630,8 +3581,6 @@
                     renderAllTables();
                 }
                 loadData();
-                window.scrollTo(savedPosition.x, savedPosition.y);
-                requestAnimationFrame(() => window.scrollTo(savedPosition.x, savedPosition.y));
                 startPresence();
             } catch (err) {
                 serverSyncReady = false;
@@ -3653,8 +3602,6 @@
                 document.getElementById('dashboardSection').classList.remove('hidden');
                 renderAllTables();
                 loadData();
-                window.scrollTo(savedPosition.x, savedPosition.y);
-                requestAnimationFrame(() => window.scrollTo(savedPosition.x, savedPosition.y));
             }
         });
     })();
