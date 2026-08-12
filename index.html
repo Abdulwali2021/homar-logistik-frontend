@@ -972,16 +972,8 @@
             
             toggleArchiveModeInputs();
 
-            if (localStorage.getItem("homar_logged_in") === "true") {
-                checkAdminAccess();
-                document.getElementById("loginSection").classList.add("hidden");
-                document.getElementById("dashboardSection").classList.remove("hidden");
-                // Behold aktiv fane ved vanlig oppdatering.
-                // Token-kontrollen nedenfor gjenoppretter riktig fane.
-                fetchLiveExchangeRate();
-                loadData();
-                startPresence();
-            }
+            // Innlogget visning åpnes først etter at API-tokenet er kontrollert
+            // og riktig lagret fane er gjenopprettet. Dette hindrer blinking via LAGER.
         };
 
         function setupInitialDhagaxshidData() {
