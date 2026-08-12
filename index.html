@@ -9,7 +9,7 @@
         try {
             if (localStorage.getItem('homar_api_token')) {
                 const allowed = ['lager','samen','gari','shamito','dhagaxshid','kunde','qarash','utgift','budsjet','admin'];
-                const saved = sessionStorage.getItem('homar_active_tab') || 'lager';
+                const saved = localStorage.getItem('homar_active_tab') || 'lager';
                 const tab = allowed.includes(saved) ? saved : 'lager';
                 document.documentElement.classList.add('restoring-session', 'restoring-tab-' + tab);
             }
@@ -1301,7 +1301,7 @@
             if (activeSec) activeSec.classList.remove("hidden");
             if (activeTab) activeTab.classList.add("active");
 
-            sessionStorage.setItem('homar_active_tab', viewName);
+            localStorage.setItem('homar_active_tab', viewName);
             if (viewName === 'admin') {
                 loadAdminData();
             } else {
@@ -3532,7 +3532,7 @@
                 document.getElementById('loginSection').classList.add('hidden');
                 document.getElementById('dashboardSection').classList.remove('hidden');
                 // Ny innlogging skal alltid starte på LAGER.
-                sessionStorage.removeItem('homar_active_tab');
+                localStorage.removeItem('homar_active_tab');
                 switchView('lager');
                 fetchLiveExchangeRate();
                 loadData();
@@ -3565,7 +3565,7 @@
             localStorage.removeItem('homar_api_user');
             localStorage.removeItem('homar_logged_in');
             localStorage.removeItem('homar_current_user');
-            sessionStorage.removeItem('homar_active_tab');
+            localStorage.removeItem('homar_active_tab');
             document.documentElement.classList.remove('restoring-session');
             document.getElementById('dashboardSection').classList.add('hidden');
             document.getElementById('loginSection').classList.remove('hidden');
@@ -3597,7 +3597,7 @@
                 checkAdminAccess();
                 document.getElementById('loginSection').classList.add('hidden');
                 document.getElementById('dashboardSection').classList.remove('hidden');
-                const savedTab = sessionStorage.getItem('homar_active_tab') || 'lager';
+                const savedTab = localStorage.getItem('homar_active_tab') || 'lager';
                 const allowedTabs = ['lager','samen','gari','shamito','dhagaxshid','kunde','qarash','utgift','budsjet','admin'];
                 const safeTab = allowedTabs.includes(savedTab) ? savedTab : 'lager';
                 if (safeTab === 'admin' && String((me && me.role) || '').toUpperCase() !== 'ADMIN') switchView('lager');
