@@ -3569,6 +3569,17 @@
             document.getElementById('dashboardSection').classList.remove('hidden');
             switchView(requestedTab);
 
+            // Vis lagret brukernavn og rolle umiddelbart, uten å vente på serveren.
+            try {
+                const cachedUser = JSON.parse(localStorage.getItem('homar_api_user') || '{}');
+                const cachedName = String(cachedUser.username || getCurrentUser() || '').toUpperCase();
+                const cachedRole = String(cachedUser.role || getCurrentUserRole() || '').toUpperCase();
+                if (cachedName) {
+                    document.getElementById('currentUserRoleDisplay').textContent =
+                        'INNLOGGET SOM: ' + cachedName + ' (' + cachedRole + ')';
+                }
+            } catch (_) {}
+
             try {
                 const me = await apiRequest('/auth/me');
                 applyApiUser(me);
