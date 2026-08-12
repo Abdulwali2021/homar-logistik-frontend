@@ -5,10 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HORMAR LOGISTIK</title>
     <script>
-        // Skjul innloggingen mens en eksisterende økt kontrolleres ved oppdatering.
+        // Vis sist brukte fane med én gang mens eksisterende økt kontrolleres.
         try {
             if (localStorage.getItem('homar_api_token')) {
-                document.documentElement.classList.add('restoring-session');
+                const allowed = ['lager','samen','gari','shamito','dhagaxshid','kunde','qarash','utgift','budsjet','admin'];
+                const saved = sessionStorage.getItem('homar_active_tab') || 'lager';
+                const tab = allowed.includes(saved) ? saved : 'lager';
+                document.documentElement.classList.add('restoring-session', 'restoring-tab-' + tab);
             }
         } catch (_) {}
     </script>
@@ -26,6 +29,27 @@
         .hidden { display: none !important; }
         #loginSection { max-width: 400px; margin: 80px auto; text-align: center; }
         html.restoring-session #loginSection { display: none !important; }
+        html.restoring-session #dashboardSection { display: block !important; }
+        html.restoring-session #sectionKunde,
+        html.restoring-session #sectionLager,
+        html.restoring-session #sectionSamen,
+        html.restoring-session #sectionGari,
+        html.restoring-session #sectionShamito,
+        html.restoring-session #sectionDhagaxshid,
+        html.restoring-session #sectionQarash,
+        html.restoring-session #sectionUtgift,
+        html.restoring-session #sectionBudsjet,
+        html.restoring-session #sectionAdmin { display: none !important; }
+        html.restoring-session.restoring-tab-kunde #sectionKunde,
+        html.restoring-session.restoring-tab-lager #sectionLager,
+        html.restoring-session.restoring-tab-samen #sectionSamen,
+        html.restoring-session.restoring-tab-gari #sectionGari,
+        html.restoring-session.restoring-tab-shamito #sectionShamito,
+        html.restoring-session.restoring-tab-dhagaxshid #sectionDhagaxshid,
+        html.restoring-session.restoring-tab-qarash #sectionQarash,
+        html.restoring-session.restoring-tab-utgift #sectionUtgift,
+        html.restoring-session.restoring-tab-budsjet #sectionBudsjet,
+        html.restoring-session.restoring-tab-admin #sectionAdmin { display: block !important; }
         .form-group { margin-bottom: 15px; text-align: left; }
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; }
         input[type="text"], input[type="password"], input[type="number"], input[type="date"], select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; text-transform: uppercase; }
@@ -3579,6 +3603,10 @@
                 if (safeTab === 'admin' && String((me && me.role) || '').toUpperCase() !== 'ADMIN') switchView('lager');
                 else if (safeTab === 'budsjet' && !canUserViewBudget()) switchView('lager');
                 else switchView(safeTab);
+                document.documentElement.className = document.documentElement.className
+                    .replace(/\brestoring-session\b|\brestoring-tab-[a-z]+\b/g, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
                 loadData();
                 startPresence();
             } catch (_) {
@@ -3586,6 +3614,10 @@
                 localStorage.removeItem('homar_api_token');
                 localStorage.removeItem('homar_api_user');
                 localStorage.removeItem('homar_logged_in');
+                document.documentElement.className = document.documentElement.className
+                    .replace(/\brestoring-session\b|\brestoring-tab-[a-z]+\b/g, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
                 document.getElementById('dashboardSection').classList.add('hidden');
                 document.getElementById('loginSection').classList.remove('hidden');
             }
