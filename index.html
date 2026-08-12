@@ -318,6 +318,18 @@
             </div>
             <button style="background-color: #dc3545;" onclick="handleLogout()">LOGG UT</button>
         </div>
+        <script>
+            // Fyll dato og klokke straks elementene finnes, før resten av siden lastes.
+            (function () {
+                const now = new Date();
+                document.getElementById('digitalClock').textContent =
+                    String(now.getHours()).padStart(2, '0') + ':' +
+                    String(now.getMinutes()).padStart(2, '0') + ':' +
+                    String(now.getSeconds()).padStart(2, '0');
+                document.getElementById('liveDateBadge').textContent =
+                    now.toLocaleDateString('no-NO', { day:'2-digit', month:'2-digit', year:'numeric' });
+            })();
+        </script>
 
         <!-- Kalender / Arkiv Bar med Fra og Til Dato -->
         <div class="archive-bar">
@@ -989,21 +1001,24 @@
             }
         }
 
+        function updateDigitalClock() {
+            const now = new Date();
+            const clockEl = document.getElementById('digitalClock');
+            const dateBadgeEl = document.getElementById('liveDateBadge');
+
+            if (clockEl) {
+                clockEl.textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+            }
+
+            if (dateBadgeEl) {
+                const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
+                dateBadgeEl.textContent = now.toLocaleDateString('no-NO', options);
+            }
+        }
+
         function startDigitalClock() {
-            setInterval(() => {
-                const now = new Date();
-                const clockEl = document.getElementById('digitalClock');
-                const dateBadgeEl = document.getElementById('liveDateBadge');
-                
-                if (clockEl) {
-                    clockEl.textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-                }
-                
-                if (dateBadgeEl) {
-                    const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
-                    dateBadgeEl.textContent = now.toLocaleDateString('no-NO', options);
-                }
-            }, 1000);
+            updateDigitalClock();
+            setInterval(updateDigitalClock, 1000);
         }
 
         window.onclick = function(event) {
