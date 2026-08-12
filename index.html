@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HORMAR LOGISTIK</title>
+    <script>
+        // Skjul innloggingen mens en eksisterende økt kontrolleres ved oppdatering.
+        try {
+            if (localStorage.getItem('homar_api_token')) {
+                document.documentElement.classList.add('restoring-session');
+            }
+        } catch (_) {}
+    </script>
     <style>
         :root {
             --primary-color: #28a745;
@@ -17,6 +25,7 @@
         .container { max-width: 1200px; margin: auto; background: var(--card-bg); padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 25px; }
         .hidden { display: none !important; }
         #loginSection { max-width: 400px; margin: 80px auto; text-align: center; }
+        html.restoring-session #loginSection { display: none !important; }
         .form-group { margin-bottom: 15px; text-align: left; }
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; }
         input[type="text"], input[type="password"], input[type="number"], input[type="date"], select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; text-transform: uppercase; }
@@ -3495,6 +3504,7 @@
                 document.getElementById('username').value = '';
                 document.getElementById('password').value = '';
                 checkAdminAccess();
+                document.documentElement.classList.remove('restoring-session');
                 document.getElementById('loginSection').classList.add('hidden');
                 document.getElementById('dashboardSection').classList.remove('hidden');
                 // Ny innlogging skal alltid starte på LAGER.
@@ -3532,6 +3542,7 @@
             localStorage.removeItem('homar_logged_in');
             localStorage.removeItem('homar_current_user');
             sessionStorage.removeItem('homar_active_tab');
+            document.documentElement.classList.remove('restoring-session');
             document.getElementById('dashboardSection').classList.add('hidden');
             document.getElementById('loginSection').classList.remove('hidden');
         };
@@ -3547,7 +3558,9 @@
         window.addEventListener('load', async function () {
             const token = apiToken();
             if (!token) {
+                document.documentElement.classList.remove('restoring-session');
                 localStorage.removeItem('homar_logged_in');
+                document.documentElement.classList.remove('restoring-session');
                 document.getElementById('dashboardSection').classList.add('hidden');
                 document.getElementById('loginSection').classList.remove('hidden');
                 return;
