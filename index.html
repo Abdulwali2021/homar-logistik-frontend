@@ -848,6 +848,15 @@
                     <tbody id="securityActivityBody"><tr><td colspan="5">LASTER...</td></tr></tbody>
                 </table>
             </div>
+
+            <div class="input-card" style="margin-top:20px;">
+                <h4 style="margin-top:0;">BRUKERHANDLINGER I SYSTEMET</h4>
+                <p style="font-size:12px; color:#666;">VISER HVOR BRUKEREN VAR, OG OM NOE BLE REGISTRERT, ENDRET ELLER SLETTET.</p>
+                <table id="userActionsTable">
+                    <thead><tr><th>TIDSPUNKT</th><th>BRUKER</th><th>OMRÅDE</th><th>HANDLING</th><th>REGISTRERING</th></tr></thead>
+                    <tbody id="userActionsBody"><tr><td colspan="5">LASTER...</td></tr></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -2570,7 +2579,8 @@
             if (getCurrentUserRole() !== "Admin" || !window.homarApiRequest) return;
             const onlineBody = document.getElementById("onlineUsersBody");
             const activityBody = document.getElementById("securityActivityBody");
-            if (!onlineBody || !activityBody) return;
+            const actionsBody = document.getElementById("userActionsBody");
+            if (!onlineBody || !activityBody || !actionsBody) return;
             const eventNames = {
                 LOGIN_SUCCESS: 'INNLOGGING',
                 LOGIN_FAILED: 'MISLYKKET INNLOGGING',
@@ -2581,9 +2591,10 @@
             };
             const formatTime = value => value ? new Date(value).toLocaleString('nb-NO') : '-';
             try {
-                const [online, logs] = await Promise.all([
+                const [online, logs, actions] = await Promise.all([
                     window.homarApiRequest('/admin/online-users'),
-                    window.homarApiRequest('/admin/activity?limit=150')
+                    window.homarApiRequest('/admin/activity?limit=150'),
+                    window.homarApiRequest('/admin/activity?category=actions&limit=250')
                 ]);
                 onlineBody.innerHTML = online.length ? online.map(row => `<tr>
                     <td><span style="display:inline-block;width:10px;height:10px;background:#28a745;border-radius:50%;margin-right:7px;"></span>${String(row.username || '').toUpperCase()}</td>
@@ -2598,9 +2609,20 @@
                     <td>${eventNames[row.eventType] || row.eventType}</td>
                     <td style="font-weight:bold;color:${row.success ? '#155724' : '#dc3545'};">${row.success ? 'OK' : 'FEILET'}</td>
                 </tr>`).join('') : '<tr><td colspan="5">INGEN HENDELSER ENNÅ.</td></tr>';
+                actionsBody.innerHTML = actions.length ? actions.map(row => {
+                    const parts = String(row.eventType || '').split(':');
+                    return `<tr>
+                        <td>${formatTime(row.createdAt)}</td>
+                        <td>${String(row.username || 'UKJENT').toUpperCase()}</td>
+                        <td>${parts[1] || '-'}</td>
+                        <td>${parts[2] || '-'}</td>
+                        <td>${row.details || '-'}</td>
+                    </tr>`;
+                }).join('') : '<tr><td colspan="5">INGEN BRUKERHANDLINGER ENNÅ.</td></tr>';
             } catch (err) {
                 onlineBody.innerHTML = '<tr><td colspan="4">KUNNE IKKE HENTE AKTIVE BRUKERE.</td></tr>';
                 activityBody.innerHTML = '<tr><td colspan="5">KUNNE IKKE HENTE LOGGEN.</td></tr>';
+                actionsBody.innerHTML = '<tr><td colspan="5">KUNNE IKKE HENTE HANDLINGENE.</td></tr>';
             }
         }
         window.loadSecurityOverview = loadSecurityOverview;
@@ -3267,13 +3289,82 @@
             }
         }
 
+        const activityAreas = {
+            homar_lager:'LAGER', homar_samen:'SAMEN', homar_gari:'GARI',
+            homar_shamito:'SHAMITO', homar_dhagaxshid:'DHAGAX SHID',
+            homar_kunde:'KUNDE', homar_qarash:'QARASH', homar_budsjet:'BUDSJET',
+            homar_roles:'ADMIN PANEL', homar_user_permissions:'ADMIN PANEL',
+            homar_custom_labels:'ADMIN PANEL'
+        };
+        const visitLogTimes = {};
+
+        function summarizeLogItem(item) {
+            if (!item || typeof item !== 'object') return '';
+            const date = item.date || item.dato || '';
+            const name = item.type || item.navn || item.kundeNavn || item.gariType || item.name || '';
+            return [date ? 'DATO: ' + date : '', name ? 'NAVN/TYPE: ' + String(name).slice(0, 80) : ''].filter(Boolean).join(' / ');
+        }
+
+        async function logUserAction(area, action, details) {
+            if (!apiToken() || !serverSyncReady || !area) return;
+            try {
+                await apiRequest('/activity', {
+                    method:'POST',
+                    body:JSON.stringify({ area, action, details: String(details || '').slice(0, 200) })
+                });
+            } catch (_) {}
+        }
+
+        function changedItemDetails(oldValue, newValue, action) {
+            if (!Array.isArray(oldValue) || !Array.isArray(newValue)) return '';
+            let item = null;
+            if (action === 'REGISTRERTE') item = newValue.find(x => !oldValue.some(y => JSON.stringify(y) === JSON.stringify(x))) || newValue[newValue.length - 1];
+            else if (action === 'SLETTET') item = oldValue.find(x => !newValue.some(y => JSON.stringify(y) === JSON.stringify(x))) || oldValue[oldValue.length - 1];
+            else {
+                const length = Math.max(oldValue.length, newValue.length);
+                for (let i = 0; i < length; i++) {
+                    if (JSON.stringify(oldValue[i]) !== JSON.stringify(newValue[i])) { item = newValue[i] || oldValue[i]; break; }
+                }
+            }
+            return summarizeLogItem(item);
+        }
+
         Storage.prototype.setItem = function (key, value) {
+            const previousRaw = this === localStorage ? this.getItem(key) : null;
             nativeSetItem.call(this, key, value);
             if (this === localStorage && HOMAR_SYNC_KEYS.has(key) && serverSyncReady) {
                 clearTimeout(syncTimers.get(key));
                 syncTimers.set(key, setTimeout(() => syncOneKey(key), 180));
+                const area = activityAreas[key];
+                if (area && previousRaw !== value) {
+                    let oldValue, newValue;
+                    try { oldValue = JSON.parse(previousRaw || 'null'); } catch (_) { oldValue = previousRaw; }
+                    try { newValue = JSON.parse(value); } catch (_) { newValue = value; }
+                    let action = 'ENDRET';
+                    if (Array.isArray(oldValue) && Array.isArray(newValue)) {
+                        if (newValue.length > oldValue.length) action = 'REGISTRERTE';
+                        else if (newValue.length < oldValue.length) action = 'SLETTET';
+                    }
+                    logUserAction(area, action, changedItemDetails(oldValue, newValue, action));
+                }
             }
         };
+
+        document.addEventListener('click', function (event) {
+            const button = event.target.closest('.nav-btn');
+            if (!button || !button.id || !apiToken() || !serverSyncReady) return;
+            const areaByButton = {
+                tabLager:'LAGER', tabSamen:'SAMEN', tabGari:'GARI', tabShamito:'SHAMITO',
+                tabDhagaxshid:'DHAGAX SHID', tabKunde:'KUNDE', tabQarash:'QARASH',
+                tabUtgift:'UTGIFT', tabBudsjet:'BUDSJET', tabAdmin:'ADMIN PANEL'
+            };
+            const area = areaByButton[button.id];
+            if (!area) return;
+            const now = Date.now();
+            if (now - (visitLogTimes[area] || 0) < 15000) return;
+            visitLogTimes[area] = now;
+            logUserAction(area, 'BESØKTE', '');
+        }, true);
 
         async function loadServerState() {
             const payload = await apiRequest('/state');
