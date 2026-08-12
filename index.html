@@ -174,15 +174,15 @@
 <body>
 
     <!-- INNLOGGINGSSIDE -->
-    <form id="loginSection" class="container" autocomplete="on" onsubmit="event.preventDefault(); handleLogin();">
+    <form id="loginSection" class="container" autocomplete="off" onsubmit="event.preventDefault(); handleLogin();">
         <h2>HORMAR LOGISTIK - LOGG INN</h2>
         <div class="form-group">
             <label>BRUKERNAVN</label>
-            <input type="text" id="username" name="username" placeholder="USERNAME" autocomplete="username" autocapitalize="characters">
+            <input type="text" id="username" name="homar-login-username" placeholder="USERNAME" autocomplete="off" autocapitalize="characters">
         </div>
         <div class="form-group">
             <label>PASSORD</label>
-            <input type="password" id="password" name="password" placeholder="PASSWORD" autocomplete="current-password">
+            <input type="password" id="password" name="homar-login-password" placeholder="PASSWORD" autocomplete="new-password">
         </div>
         <button type="submit" style="width: 100%;">LOGG INN</button>
         <div style="margin-top: 15px;">
@@ -2979,6 +2979,19 @@
         let serverSyncReady = false;
         const syncTimers = new Map();
         const nativeSetItem = Storage.prototype.setItem;
+
+        function clearLoginFields() {
+            const usernameField = document.getElementById('username');
+            const passwordField = document.getElementById('password');
+            if (usernameField) usernameField.value = '';
+            if (passwordField) passwordField.value = '';
+        }
+
+        window.addEventListener('pageshow', function () {
+            clearLoginFields();
+            setTimeout(clearLoginFields, 100);
+            setTimeout(clearLoginFields, 500);
+        });
 
         function editableLabelKey(element) {
             if (element.id) return '#' + element.id;
