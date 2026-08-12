@@ -3580,9 +3580,24 @@
                 }
             } catch (_) {}
 
+            // Vis riktig ADMIN-tilgang umiddelbart fra lagret rolle.
+            checkAdminAccess();
+
             // Bygg hele den lagrede visningen før første skjermtegning.
             // Da endrer ikke felter og tabeller høyde mens serveren svarer.
             loadData();
+
+            // Behold høyden under fanene mens ferske data lastes.
+            // Dette hindrer at innholdet trekkes opp når en tabell blir tegnet på nytt.
+            const requestedSection = document.getElementById(
+                'section' + requestedTab.charAt(0).toUpperCase() + requestedTab.slice(1)
+            );
+            if (requestedSection) {
+                const currentHeight = Math.ceil(requestedSection.getBoundingClientRect().height);
+                const savedHeight = Number(localStorage.getItem('homar_section_height_' + requestedTab) || 0);
+                const stableHeight = Math.max(currentHeight, savedHeight);
+                if (stableHeight > 0) requestedSection.style.minHeight = stableHeight + 'px';
+            }
 
             try {
                 const me = await apiRequest('/auth/me');
@@ -3599,6 +3614,13 @@
                     renderAllTables();
                 }
                 loadData();
+                if (requestedSection) {
+                    const finalHeight = Math.ceil(requestedSection.getBoundingClientRect().height);
+                    const minimumHeight = Number.parseFloat(requestedSection.style.minHeight) || 0;
+                    const stableHeight = Math.max(finalHeight, minimumHeight);
+                    requestedSection.style.minHeight = stableHeight + 'px';
+                    localStorage.setItem('homar_section_height_' + requestedTab, String(stableHeight));
+                }
                 startPresence();
             } catch (err) {
                 serverSyncReady = false;
@@ -3620,6 +3642,17 @@
                 document.getElementById('dashboardSection').classList.remove('hidden');
                 renderAllTables();
                 loadData();
+            }
+        });
+
+        window.addEventListener('pagehide', function () {
+            const tabName = localStorage.getItem('homar_active_tab') || 'lager';
+            const section = document.getElementById(
+                'section' + tabName.charAt(0).toUpperCase() + tabName.slice(1)
+            );
+            if (section && !section.classList.contains('hidden')) {
+                const height = Math.ceil(section.getBoundingClientRect().height);
+                if (height > 0) localStorage.setItem('homar_section_height_' + tabName, String(height));
             }
         });
     })();
