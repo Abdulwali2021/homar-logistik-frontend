@@ -4,17 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HORMAR LOGISTIK</title>
-    <script>
-        // Vis sist brukte fane med én gang mens eksisterende økt kontrolleres.
-        try {
-            if (localStorage.getItem('homar_api_token')) {
-                const allowed = ['lager','samen','gari','shamito','dhagaxshid','kunde','qarash','utgift','budsjet','admin'];
-                const saved = localStorage.getItem('homar_active_tab') || 'lager';
-                const tab = allowed.includes(saved) ? saved : 'lager';
-                document.documentElement.classList.add('restoring-session', 'restoring-tab-' + tab);
-            }
-        } catch (_) {}
-    </script>
     <style>
         :root {
             --primary-color: #28a745;
@@ -28,28 +17,6 @@
         .container { max-width: 1200px; margin: auto; background: var(--card-bg); padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 25px; }
         .hidden { display: none !important; }
         #loginSection { max-width: 400px; margin: 80px auto; text-align: center; }
-        html.restoring-session #loginSection { display: none !important; }
-        html.restoring-session #dashboardSection { display: block !important; }
-        html.restoring-session #sectionKunde,
-        html.restoring-session #sectionLager,
-        html.restoring-session #sectionSamen,
-        html.restoring-session #sectionGari,
-        html.restoring-session #sectionShamito,
-        html.restoring-session #sectionDhagaxshid,
-        html.restoring-session #sectionQarash,
-        html.restoring-session #sectionUtgift,
-        html.restoring-session #sectionBudsjet,
-        html.restoring-session #sectionAdmin { display: none !important; }
-        html.restoring-session.restoring-tab-kunde #sectionKunde,
-        html.restoring-session.restoring-tab-lager #sectionLager,
-        html.restoring-session.restoring-tab-samen #sectionSamen,
-        html.restoring-session.restoring-tab-gari #sectionGari,
-        html.restoring-session.restoring-tab-shamito #sectionShamito,
-        html.restoring-session.restoring-tab-dhagaxshid #sectionDhagaxshid,
-        html.restoring-session.restoring-tab-qarash #sectionQarash,
-        html.restoring-session.restoring-tab-utgift #sectionUtgift,
-        html.restoring-session.restoring-tab-budsjet #sectionBudsjet,
-        html.restoring-session.restoring-tab-admin #sectionAdmin { display: block !important; }
         .form-group { margin-bottom: 15px; text-align: left; }
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; }
         input[type="text"], input[type="password"], input[type="number"], input[type="date"], select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; text-transform: uppercase; }
@@ -1302,6 +1269,9 @@
             if (activeTab) activeTab.classList.add("active");
 
             localStorage.setItem('homar_active_tab', viewName);
+            if (location.hash !== '#' + viewName) {
+                history.replaceState(null, '', location.pathname + location.search + '#' + viewName);
+            }
             if (viewName === 'admin') {
                 loadAdminData();
             } else {
@@ -3528,7 +3498,6 @@
                 document.getElementById('username').value = '';
                 document.getElementById('password').value = '';
                 checkAdminAccess();
-                document.documentElement.classList.remove('restoring-session');
                 document.getElementById('loginSection').classList.add('hidden');
                 document.getElementById('dashboardSection').classList.remove('hidden');
                 // Ny innlogging skal alltid starte på LAGER.
@@ -3566,7 +3535,7 @@
             localStorage.removeItem('homar_logged_in');
             localStorage.removeItem('homar_current_user');
             localStorage.removeItem('homar_active_tab');
-            document.documentElement.classList.remove('restoring-session');
+            history.replaceState(null, '', location.pathname + location.search);
             document.getElementById('dashboardSection').classList.add('hidden');
             document.getElementById('loginSection').classList.remove('hidden');
         };
@@ -3582,31 +3551,38 @@
         window.addEventListener('load', async function () {
             const token = apiToken();
             if (!token) {
-                document.documentElement.classList.remove('restoring-session');
                 localStorage.removeItem('homar_logged_in');
-                document.documentElement.classList.remove('restoring-session');
                 document.getElementById('dashboardSection').classList.add('hidden');
                 document.getElementById('loginSection').classList.remove('hidden');
                 return;
             }
+
+            const allowedTabs = ['lager','samen','gari','shamito','dhagaxshid','kunde','qarash','utgift','budsjet','admin'];
+            const hashTab = location.hash.replace(/^#/, '').toLowerCase();
+            const rememberedTab = localStorage.getItem('homar_active_tab');
+            const requestedTab = allowedTabs.includes(hashTab)
+                ? hashTab
+                : (allowedTabs.includes(rememberedTab) ? rememberedTab : 'lager');
+
+            // Vis riktig fane straks. Serverkontrollen skjer etterpå uten sideskifte.
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.remove('hidden');
+            switchView(requestedTab);
+
             try {
                 const me = await apiRequest('/auth/me');
                 applyApiUser(me);
                 await loadServerState();
                 if (String((me && me.role) || '').toUpperCase() === 'ADMIN') await syncApiUsersToLocal();
                 checkAdminAccess();
-                document.getElementById('loginSection').classList.add('hidden');
-                document.getElementById('dashboardSection').classList.remove('hidden');
-                const savedTab = localStorage.getItem('homar_active_tab') || 'lager';
-                const allowedTabs = ['lager','samen','gari','shamito','dhagaxshid','kunde','qarash','utgift','budsjet','admin'];
-                const safeTab = allowedTabs.includes(savedTab) ? savedTab : 'lager';
-                if (safeTab === 'admin' && String((me && me.role) || '').toUpperCase() !== 'ADMIN') switchView('lager');
-                else if (safeTab === 'budsjet' && !canUserViewBudget()) switchView('lager');
-                else switchView(safeTab);
-                document.documentElement.className = document.documentElement.className
-                    .replace(/\brestoring-session\b|\brestoring-tab-[a-z]+\b/g, '')
-                    .replace(/\s+/g, ' ')
-                    .trim();
+
+                if (requestedTab === 'admin' && String((me && me.role) || '').toUpperCase() !== 'ADMIN') {
+                    switchView('lager');
+                } else if (requestedTab === 'budsjet' && !canUserViewBudget()) {
+                    switchView('lager');
+                } else {
+                    renderAllTables();
+                }
                 loadData();
                 startPresence();
             } catch (_) {
@@ -3614,10 +3590,8 @@
                 localStorage.removeItem('homar_api_token');
                 localStorage.removeItem('homar_api_user');
                 localStorage.removeItem('homar_logged_in');
-                document.documentElement.className = document.documentElement.className
-                    .replace(/\brestoring-session\b|\brestoring-tab-[a-z]+\b/g, '')
-                    .replace(/\s+/g, ' ')
-                    .trim();
+                localStorage.removeItem('homar_active_tab');
+                history.replaceState(null, '', location.pathname + location.search);
                 document.getElementById('dashboardSection').classList.add('hidden');
                 document.getElementById('loginSection').classList.remove('hidden');
             }
