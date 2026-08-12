@@ -3580,6 +3580,10 @@
                 }
             } catch (_) {}
 
+            // Bygg hele den lagrede visningen før første skjermtegning.
+            // Da endrer ikke felter og tabeller høyde mens serveren svarer.
+            loadData();
+
             try {
                 const me = await apiRequest('/auth/me');
                 applyApiUser(me);
