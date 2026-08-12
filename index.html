@@ -267,6 +267,248 @@
             html { scroll-behavior: auto; }
             *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
         }
+
+        /* Profesjonell, kompakt HOMAR-design */
+        :root {
+            --primary-color: #168344;
+            --success-color: #116b38;
+            --bg-color: #f3f6f5;
+            --card-bg: #ffffff;
+            --text-color: #17221c;
+            --line-color: #dce5e0;
+            --muted-color: #66736c;
+            --soft-green: #edf7f1;
+            --navy: #243b32;
+        }
+
+        body {
+            background: linear-gradient(180deg, #eef4f1 0, #f7f9f8 240px);
+            color: var(--text-color);
+            font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            letter-spacing: -.01em;
+        }
+
+        #dashboardSection.container {
+            max-width: 1500px;
+            padding: 22px;
+            border: 1px solid rgba(24, 74, 49, .08);
+            border-radius: 14px;
+            box-shadow: 0 12px 34px rgba(27, 61, 43, .09);
+        }
+
+        .header-bar {
+            min-height: 70px;
+            padding: 0 0 16px;
+            margin-bottom: 14px;
+            border-bottom: 1px solid var(--line-color);
+        }
+
+        .header-identity h2 { color: #143b27; font-size: 24px; letter-spacing: .02em; }
+        #currentUserRoleDisplay { color: var(--muted-color) !important; font-size: 12px !important; }
+        .live-date-badge, .digital-clock {
+            background: #f3f7f5;
+            border-color: var(--line-color);
+            color: #193d2a;
+            border-radius: 9px;
+            min-height: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button, input, select {
+            min-height: 40px;
+            border-radius: 8px;
+        }
+
+        button {
+            font-weight: 700;
+            letter-spacing: .01em;
+            box-shadow: none;
+            transition: background-color .16s ease, transform .16s ease, box-shadow .16s ease;
+        }
+
+        button:hover {
+            opacity: 1;
+            transform: translateY(-1px);
+            box-shadow: 0 5px 14px rgba(20, 72, 44, .14);
+        }
+
+        input, select {
+            border: 1px solid #cfdad4;
+            background-color: #fff;
+            color: #17221c;
+        }
+
+        input:focus, select:focus {
+            border-color: #29915a;
+            box-shadow: 0 0 0 3px rgba(41, 145, 90, .12);
+            outline: none;
+        }
+
+        .nav-tabs {
+            gap: 6px;
+            margin-bottom: 12px;
+            padding: 3px 2px 7px;
+            scrollbar-width: none;
+        }
+        .nav-tabs::-webkit-scrollbar { display: none; }
+        .nav-btn {
+            min-width: auto;
+            min-height: 40px;
+            padding: 9px 14px;
+            border-radius: 8px;
+            background: #e7eee9;
+            color: #294337;
+            font-size: 13px;
+        }
+        .nav-btn.active {
+            background: var(--primary-color);
+            color: #fff;
+            box-shadow: 0 5px 13px rgba(22, 131, 68, .22);
+        }
+        #tabAdmin { background: var(--navy) !important; color: #fff; }
+
+        .archive-bar, .currency-bar, .filter-container {
+            display: flex;
+            justify-content: flex-start;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            gap: 10px 16px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+            background: #f8faf9;
+            border: 1px solid var(--line-color);
+            border-radius: 10px;
+            box-shadow: none;
+        }
+
+        .currency-bar > div,
+        .archive-bar > div {
+            flex: 0 1 auto;
+            gap: 7px;
+        }
+
+        .currency-bar label, .archive-bar label, .filter-container label {
+            color: #526158;
+            font-size: 11px;
+            letter-spacing: .035em;
+        }
+
+        .currency-bar select { width: 125px; }
+        .currency-bar input { width: 120px; }
+        .currency-bar button { min-height: 40px; padding: 8px 14px !important; }
+        #rateStatusText {
+            padding: 5px 8px;
+            background: var(--soft-green);
+            color: #287149 !important;
+            border-radius: 999px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .summary-bar {
+            display: flex;
+            gap: 8px;
+            padding: 0;
+            margin-bottom: 12px;
+            background: transparent;
+            border: 0;
+        }
+
+        .summary-bar > div {
+            flex: 0 1 auto;
+            min-width: 190px;
+            padding: 10px 13px;
+            background: var(--soft-green);
+            border: 1px solid #d8eadf;
+            border-radius: 9px;
+            color: #476052;
+            font-size: 12px;
+        }
+
+        .summary-bar span {
+            margin-left: 5px;
+            color: #126c39;
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .filter-container {
+            padding: 10px 12px;
+            align-items: flex-end;
+        }
+
+        .filter-container > div { flex: 0 0 auto; }
+        .filter-container input { min-height: 40px; }
+        #searchDateInput { width: 155px !important; }
+        #searchTextInput { width: 210px !important; }
+        .filter-buttons { gap: 6px; }
+        .filter-btn {
+            min-height: 40px;
+            padding: 8px 13px;
+            border-radius: 8px;
+            background: #e5ebe7;
+            color: #3d5146;
+        }
+        .filter-btn.active-filter {
+            background: var(--primary-color);
+            color: #fff;
+        }
+
+        .input-card {
+            background: #f8faf9;
+            border-color: var(--line-color);
+            border-radius: 10px;
+            box-shadow: none;
+        }
+
+        .table-scroll {
+            border: 1px solid var(--line-color);
+            border-radius: 10px;
+            background: #fff;
+        }
+
+        table { background: #fff; }
+        th {
+            background: var(--navy);
+            border-color: #385348;
+            font-size: 12px;
+            letter-spacing: .025em;
+        }
+        td {
+            border-color: #e4ebe7;
+            color: #28362f;
+        }
+        tbody tr:nth-child(even) { background: #f8faf9; }
+        tbody tr:hover { background: #eff7f2; }
+
+        @media (max-width: 900px) {
+            #dashboardSection.container { padding: 14px; border-radius: 10px; }
+            .currency-bar > div, .archive-bar > div { flex: 1 1 260px; }
+            .currency-bar > div:last-child { flex: 0 0 auto; }
+            .summary-bar > div { flex: 1 1 190px; }
+        }
+
+        @media (max-width: 600px) {
+            #dashboardSection.container { padding: 10px; }
+            .header-bar { gap: 10px; }
+            .nav-tabs { margin-left: -10px; margin-right: -10px; padding-left: 10px; padding-right: 10px; }
+            .nav-btn { min-width: auto; padding: 8px 12px; }
+            .archive-bar, .currency-bar, .filter-container { padding: 10px; gap: 9px; }
+            .currency-bar > div, .archive-bar > div, .filter-container > div {
+                width: 100% !important;
+                flex: 1 1 100%;
+            }
+            .currency-bar > div { flex-direction: row; align-items: center; }
+            .currency-bar label { min-width: 74px; }
+            .currency-bar select, .currency-bar input { width: 100% !important; flex: 1; }
+            .currency-bar > div:last-child button { width: 100%; }
+            .summary-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+            .summary-bar > div { min-width: 0; padding: 9px 10px; }
+            .filter-buttons { width: 100%; }
+            #searchDateInput, #searchTextInput { width: 100% !important; }
+        }
     </style>
 </head>
 <body>
@@ -3678,6 +3920,12 @@
     <script>
     // Responsiv tabellvisning og grunnleggende tilgjengelighet, uten å endre data/logikk.
     (function () {
+        if (localStorage.getItem('homar_design_version') !== 'professional-v1') {
+            Object.keys(localStorage).forEach(function (key) {
+                if (key.indexOf('homar_section_height_') === 0) localStorage.removeItem(key);
+            });
+            localStorage.setItem('homar_design_version', 'professional-v1');
+        }
         window.openForgotPassword = function () {
             document.getElementById('forgotPasswordBox').classList.remove('hidden');
             document.getElementById('forgotEmail').focus();
