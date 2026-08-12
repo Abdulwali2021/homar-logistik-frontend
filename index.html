@@ -3502,8 +3502,6 @@
                 switchView('lager');
                 fetchLiveExchangeRate();
                 loadData();
-                window.scrollTo(savedPosition.x, savedPosition.y);
-                requestAnimationFrame(() => window.scrollTo(savedPosition.x, savedPosition.y));
                 startPresence();
             } catch (err) {
                 serverSyncReady = false;
@@ -3632,6 +3630,8 @@
                     renderAllTables();
                 }
                 loadData();
+                window.scrollTo(savedPosition.x, savedPosition.y);
+                requestAnimationFrame(() => window.scrollTo(savedPosition.x, savedPosition.y));
                 startPresence();
             } catch (_) {
                 serverSyncReady = false;
