@@ -635,7 +635,7 @@
                 <div id="adminDataIntegritySummary" style="margin-top:12px;font-weight:bold;">DATASJEKK IKKE KJØRT.</div>
                 <div class="table-scroll" style="margin-top:10px;">
                     <table id="adminDataIntegrityTable" class="hidden">
-                        <thead><tr><th>FANE</th><th>RAD</th><th>VARE / NAVN</th><th>PROBLEM</th><th>DATO</th></tr></thead>
+                        <thead><tr><th>FANE</th><th>RAD</th><th>VARE / NAVN</th><th>PROBLEM</th><th>DATO</th><th>HANDLING</th></tr></thead>
                         <tbody id="adminDataIntegrityBody"></tbody>
                     </table>
                 </div>
@@ -3328,23 +3328,23 @@
                 try {
                     rows = JSON.parse(localStorage.getItem(key) || "[]");
                 } catch (_) {
-                    findings.push({ area, index: "-", name: "-", problem: "SKADET LAGRINGSFORMAT", date: "-" });
+                    findings.push({ area, key, index: null, rowNumber: "-", name: "-", problem: "SKADET LAGRINGSFORMAT", date: "-", canDelete: false });
                     return;
                 }
                 if (!Array.isArray(rows)) {
-                    findings.push({ area, index: "-", name: "-", problem: "UGYLDIG LISTEFORMAT", date: "-" });
+                    findings.push({ area, key, index: null, rowNumber: "-", name: "-", problem: "UGYLDIG LISTEFORMAT", date: "-", canDelete: false });
                     return;
                 }
                 rows.forEach((row, index) => {
                     if (!row || typeof row !== "object" || Array.isArray(row)) {
-                        findings.push({ area, index: index + 1, name: "-", problem: "UGYLDIG RADFORMAT", date: "-" });
+                        findings.push({ area, key, index, rowNumber: index + 1, name: "-", problem: "UGYLDIG RADFORMAT", date: "-", canDelete: true });
                         return;
                     }
                     const name = String(
                         row.type || row.navn || row.name || row.gariType ||
                         row.vare || row.customerName || "UKJENT"
                     ).toUpperCase();
-                    const date = String(row.date || row.betaltDato || "");
+                    const date = String(row.date || row.betaltDato || "").trim();
                     const problems = [];
                     if (!date) problems.push("MANGLER DATO");
                     if (row.deleted || row.deletedAt) problems.push("SLETTEMARKERT");
@@ -3356,10 +3356,13 @@
                     if (problems.length) {
                         findings.push({
                             area,
-                            index: index + 1,
+                            key,
+                            index,
+                            rowNumber: index + 1,
                             name,
                             problem: problems.join(" / "),
-                            date: date || "MANGLER DATO"
+                            date: date || "MANGLER DATO",
+                            canDelete: !date
                         });
                     }
                 });
@@ -3377,10 +3380,10 @@
                 return;
             }
             summary.style.color = "#b45309";
-            summary.textContent = "DATASJEKK FANT " + findings.length + " RAD(ER) SOM ADMIN MÅ KONTROLLERE.";
+            summary.textContent = "DATASJEKK FANT " + findings.length + " RAD(ER) SOM ADMIN ELLER LEDER MÅ KONTROLLERE.";
             findings.forEach(finding => {
                 const tr = document.createElement("tr");
-                [finding.area, finding.index, finding.name, finding.problem, finding.date].forEach((value, columnIndex) => {
+                [finding.area, finding.rowNumber, finding.name, finding.problem, finding.date].forEach((value, columnIndex) => {
                     const td = document.createElement("td");
                     td.textContent = String(value);
                     if (columnIndex === 3 || (columnIndex === 4 && value === "MANGLER DATO")) {
@@ -3389,11 +3392,70 @@
                     }
                     tr.appendChild(td);
                 });
+                const actionTd = document.createElement("td");
+                if (finding.canDelete && finding.index !== null) {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.textContent = "SLETT RAD UTEN DATO";
+                    button.style.cssText = "background:#dc3545;padding:7px 9px;font-size:11px;";
+                    button.addEventListener("click", () =>
+                        deleteDatelessIntegrityRow(finding.area, finding.key, finding.index)
+                    );
+                    actionTd.appendChild(button);
+                } else {
+                    actionTd.textContent = "KONTROLLER";
+                }
+                tr.appendChild(actionTd);
                 body.appendChild(tr);
             });
             table.classList.remove("hidden");
         }
         window.renderAdminDataIntegrityAudit = renderAdminDataIntegrityAudit;
+
+        window.deleteDatelessIntegrityRow = async function (area, key, index) {
+            const role = String(getCurrentUserRole() || "").toUpperCase();
+            const allowedKeys = new Set([
+                "homar_lager", "homar_samen", "homar_gari", "homar_shamito",
+                "homar_dhagaxshid", "homar_kunde", "homar_qarash"
+            ]);
+            if (!["ADMIN", "LEDER"].includes(role) || !allowedKeys.has(key)) {
+                alert("DU HAR IKKE TILGANG TIL DENNE HANDLINGEN.");
+                return;
+            }
+            let rows;
+            try { rows = JSON.parse(localStorage.getItem(key) || "[]"); }
+            catch (_) { alert("LISTEN HAR UGYLDIG FORMAT OG KAN IKKE SLETTES HER."); return; }
+            if (!Array.isArray(rows) || !Number.isInteger(index) || index < 0 || index >= rows.length) {
+                alert("RADEN FINNES IKKE LENGER.");
+                return;
+            }
+            const row = rows[index];
+            const hasDate = row && typeof row === "object" &&
+                String(row.date || row.betaltDato || "").trim();
+            if (hasDate) {
+                alert("LEDER KAN BARE SLETTE UGYLDIGE RADER UTEN DATO.");
+                return;
+            }
+            if (!confirm("VIL DU SLETTE DEN UGYLDIGE RADEN UTEN DATO FRA " + area + "?")) return;
+            const updatedRows = rows.slice();
+            updatedRows.splice(index, 1);
+            try {
+                if (window.homarApiRequest) {
+                    await window.homarApiRequest("/state", {
+                        method: "PUT",
+                        body: JSON.stringify({ state: { [key]: updatedRows } })
+                    });
+                }
+                localStorage.setItem(key, JSON.stringify(updatedRows));
+                if (window.logUserAction) {
+                    window.logUserAction(area, "SLETTET", "UGYLDIG RAD UTEN DATO");
+                }
+                loadData();
+                alert("RADEN UTEN DATO ER SLETTET.");
+            } catch (err) {
+                alert("KUNNE IKKE SLETTE RADEN: " + (err.message || "UKJENT FEIL"));
+            }
+        };
 
         function loadAdminData() {
             let roles = JSON.parse(localStorage.getItem("homar_roles") || "[]");
