@@ -1185,15 +1185,15 @@
             </div>
 
             <div class="input-card" style="margin-top:20px;">
-                <h4 style="margin-top:0;">BRUKERAKTIVITET</h4>
-                <p style="font-size:12px; color:#666;">VELG ÉN BRUKER FOR Å SE INNLOGGING, AKTIV STATUS OG GLEMT PASSORD. PASSORD OG ENGANGSKODER VISES ALDRI.</p>
+                <h4 style="margin-top:0;">SAMLET INNLOGGINGSOVERSIKT</h4>
+                <p style="font-size:12px; color:#666;">VELG ÉN BRUKER FOR Å SE INNLOGGING OG HVILKEN AKTIVITET BRUKEREN HAR UTFØRT. PASSORD OG ENGANGSKODER VISES ALDRI.</p>
                 <div class="login-summary-picker">
                     <label for="securityActivityUserSelect">VELG BRUKER</label>
                     <select id="securityActivityUserSelect" onchange="showSelectedSecurityActivity()">
                         <option value="">-- VELG BRUKER --</option>
                     </select>
                     <div id="selectedSecurityActivity" class="login-summary-result">
-                        VELG EN BRUKER FOR Å SE BRUKERAKTIVITET.
+                        VELG EN BRUKER FOR Å SE SAMLET INNLOGGINGSOVERSIKT.
                     </div>
                 </div>
                 <div id="securityActivityBody" class="hidden"></div>
@@ -3155,7 +3155,7 @@
                 String(row.username || '').toUpperCase() === username
             );
             if (!username || (!rows.length && !summary)) {
-                result.textContent = "VELG EN BRUKER FOR Å SE BRUKERAKTIVITET.";
+                result.textContent = "VELG EN BRUKER FOR Å SE SAMLET INNLOGGINGSOVERSIKT.";
                 return;
             }
             const latest = rows[0] || {};
@@ -3183,7 +3183,7 @@
                 <div><small>STATUS NÅ</small><strong style="color:${active ? '#155724' : '#6c757d'};">${active ? '● AKTIV NÅ' : 'IKKE AKTIV'}</strong></div>
                 <div><small>MISLYKKEDE INNLOGGINGER</small><strong>${failedLogins}</strong></div>
                 <div><small>GLEMT PASSORD</small><strong>${resetEvents}</strong></div>
-                <div><small>SISTE HENDELSE</small><strong>${eventLabel}</strong></div>
+                <div><small>SISTE AKTIVITET UTFØRT</small><strong>${eventLabel}</strong></div>
                 <div><small>E-POST</small><strong>${latest.emailMasked || '-'}</strong></div>
             `;
         }
