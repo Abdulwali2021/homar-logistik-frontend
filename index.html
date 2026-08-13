@@ -3864,7 +3864,7 @@
             list
                 .map((item, index) => ({ item, index }))
                 .filter(row => filterByCalendar(row.item))
-                .sort((a, b) => (Number(b.item.qty) || 0) - (Number(a.item.qty) || 0))
+                .sort((a, b) => (Number(a.item.qty) || 0) - (Number(b.item.qty) || 0))
                 .forEach(({ item, index }) => {
                 let totalNOK = item.qty * item.price;
                 sumQty += item.qty;
