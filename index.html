@@ -275,6 +275,26 @@
         }
 
 
+
+        /* Kompakt KUNDE-filterlinje */
+        #sectionKunde .filter-container {
+            padding: 7px 9px;
+            gap: 7px;
+            align-items: flex-end;
+        }
+        #sectionKunde .filter-container label {
+            margin-bottom: 2px;
+            font-size: 11px;
+        }
+        #sectionKunde .filter-container input,
+        #sectionKunde .filter-container button {
+            min-height: 34px;
+            height: 34px;
+            padding: 4px 9px !important;
+            font-size: 12px !important;
+        }
+        #sectionKunde .filter-buttons { gap: 5px; }
+        #showAllRegisteredBtn { white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -413,6 +433,10 @@
                 <div>
                     <label for="searchDateInput">SØK DATO:</label>
                     <input type="date" id="searchDateInput" onchange="renderCustomerTable()" style="padding: 6px; width: 130px;">
+                </div>
+                <div>
+                    <label>&nbsp;</label>
+                    <button type="button" id="showAllRegisteredBtn" onclick="showAllRegistered()" style="background-color:#28a745;">VIS ALT</button>
                 </div>
                 <div style="width: 140px;">
                     <label for="searchTextInput">SØK NAVN/TLF:</label>
@@ -1367,6 +1391,15 @@
             });
             let activeBtn = document.getElementById("filterBtn" + (status === 'ALL' ? 'All' : status));
             if (activeBtn) activeBtn.classList.add("active-filter");
+            renderCustomerTable();
+        }
+
+        function showAllRegistered() {
+            const archiveSelect = document.getElementById("archiveModeSelect");
+            archiveSelect.value = "all";
+            document.getElementById("searchDateInput").value = "";
+            document.getElementById("searchTextInput").value = "";
+            toggleArchiveModeInputs();
             renderCustomerTable();
         }
 
