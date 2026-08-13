@@ -624,7 +624,12 @@
             </div>
         </div>
 
-            <!-- Faner øverst -->
+            <div id="undoDeleteBar" class="hidden" style="position:sticky;top:8px;z-index:500;background:#fff3cd;border:2px solid #f0ad4e;border-radius:8px;padding:10px 12px;margin-bottom:12px;box-shadow:0 3px 10px rgba(0,0,0,.14);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <strong id="undoDeleteText">SLETTET REGISTRERING KAN ANGRES.</strong>
+            <button type="button" id="undoDeleteButton" onclick="undoLatestDeletion()" style="background:#0b63ce;">ANGRE</button>
+        </div>
+
+        <!-- Faner øverst -->
         <div class="nav-tabs">
             <button id="tabLager" class="nav-btn active" onclick="switchView('lager')">LAGER</button>
             <button id="tabSamen" class="nav-btn" onclick="switchView('samen')">SAMEN</button>
@@ -1817,6 +1822,102 @@
             window.scrollTo({ top: document.getElementById("qarashInputCard").offsetTop, behavior: 'smooth' });
         }
 
+        const DELETE_UNDO_MS = 10 * 60 * 1000;
+        let undoTrashTimer = null;
+
+        function canUseDeleteUndo() {
+            return ["ADMIN", "LEDER"].includes(String(getCurrentUserRole() || "").toUpperCase());
+        }
+
+        function readDeletionTrash() {
+            try {
+                const rows = JSON.parse(localStorage.getItem("homar_trash") || "[]");
+                return Array.isArray(rows) ? rows : [];
+            } catch (_) { return []; }
+        }
+
+        function purgeExpiredDeletionTrash() {
+            const now = Date.now();
+            const rows = readDeletionTrash();
+            const active = rows.filter(entry => Number(entry.expiresAt) > now);
+            if (active.length !== rows.length) {
+                localStorage.setItem("homar_trash", JSON.stringify(active));
+            }
+            renderUndoDeleteBar();
+        }
+
+        function moveDeletedRowToTrash(key, index, item, label, mode) {
+            if (!canUseDeleteUndo()) return;
+            const trash = readDeletionTrash();
+            trash.push({
+                id: Date.now() + "-" + Math.random().toString(36).slice(2),
+                key,
+                index,
+                item,
+                label: String(label || "REGISTRERING").toUpperCase(),
+                mode: mode || "standard",
+                deletedBy: getCurrentUser(),
+                deletedAt: new Date().toISOString(),
+                expiresAt: Date.now() + DELETE_UNDO_MS
+            });
+            localStorage.setItem("homar_trash", JSON.stringify(trash));
+            renderUndoDeleteBar();
+        }
+
+        function renderUndoDeleteBar() {
+            const bar = document.getElementById("undoDeleteBar");
+            const text = document.getElementById("undoDeleteText");
+            if (!bar || !text) return;
+            clearTimeout(undoTrashTimer);
+            if (!canUseDeleteUndo()) {
+                bar.classList.add("hidden");
+                return;
+            }
+            const active = readDeletionTrash()
+                .filter(entry => Number(entry.expiresAt) > Date.now())
+                .sort((a, b) => Number(b.deletedAt ? new Date(b.deletedAt) : 0) - Number(a.deletedAt ? new Date(a.deletedAt) : 0));
+            if (!active.length) {
+                bar.classList.add("hidden");
+                return;
+            }
+            const latest = active[0];
+            const seconds = Math.max(0, Math.ceil((Number(latest.expiresAt) - Date.now()) / 1000));
+            const minutes = Math.floor(seconds / 60);
+            const rest = String(seconds % 60).padStart(2, "0");
+            text.textContent = latest.label + " ER SLETTET – ANGRE INNEN " + minutes + ":" + rest;
+            bar.classList.remove("hidden");
+            undoTrashTimer = setTimeout(renderUndoDeleteBar, 1000);
+        }
+
+        window.undoLatestDeletion = function () {
+            if (!canUseDeleteUndo()) return;
+            const trash = readDeletionTrash();
+            const available = trash
+                .map((entry, index) => ({ entry, index }))
+                .filter(row => Number(row.entry.expiresAt) > Date.now())
+                .sort((a, b) => new Date(b.entry.deletedAt || 0) - new Date(a.entry.deletedAt || 0));
+            if (!available.length) {
+                purgeExpiredDeletionTrash();
+                return;
+            }
+            const selected = available[0];
+            const entry = selected.entry;
+            const list = JSON.parse(localStorage.getItem(entry.key) || "[]");
+            const insertAt = Math.max(0, Math.min(Number(entry.index) || 0, list.length));
+            list.splice(insertAt, 0, entry.item);
+            if (entry.mode === "samen") {
+                updateLagerFromSamen(entry.item.type, Number(entry.item.qty || 0), entry.item.date);
+            } else if (entry.mode === "customer") {
+                updateLagerItemQty(entry.item.navn, -Number(entry.item.qty || 0));
+            }
+            localStorage.setItem(entry.key, JSON.stringify(list));
+            trash.splice(selected.index, 1);
+            localStorage.setItem("homar_trash", JSON.stringify(trash));
+            loadData();
+            renderUndoDeleteBar();
+            alert("SLETTINGEN ER ANGRET.");
+        };
+
         function deleteQarash(index) {
             let list = JSON.parse(localStorage.getItem("homar_qarash") || "[]");
             let item = list[index];
@@ -1828,6 +1929,7 @@
             }
 
             if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE?")) {
+                if (canUseDeleteUndo()) moveDeletedRowToTrash("homar_qarash", index, item, "QARASH", "standard");
                 list.splice(index, 1);
                 localStorage.setItem("homar_qarash", JSON.stringify(list));
                 loadData();
@@ -1923,6 +2025,7 @@
             }
 
             if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE?")) {
+                if (canUseDeleteUndo()) moveDeletedRowToTrash("homar_gari", index, item, "GARI", "standard");
                 list.splice(index, 1);
                 localStorage.setItem("homar_gari", JSON.stringify(list));
                 loadData();
@@ -2016,6 +2119,7 @@
             }
 
             if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE?")) {
+                if (canUseDeleteUndo()) moveDeletedRowToTrash("homar_dhagaxshid", index, item, "DHAGAX SHID", "standard");
                 list.splice(index, 1);
                 localStorage.setItem("homar_dhagaxshid", JSON.stringify(list));
                 loadData();
@@ -2435,8 +2539,7 @@
 
             if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE SAMEN-REGISTRERINGEN?")) {
                 updateLagerFromSamen(item.type, -Number(item.qty || 0), item.date);
-                // Raden fjernes fysisk fra den aktive listen. Aktivitetshistorikken
-                // lagres separat og beholdes for kontroll.
+                if (canUseDeleteUndo()) moveDeletedRowToTrash("homar_samen", index, item, "SAMEN", "samen");
                 list.splice(index, 1);
                 localStorage.setItem("homar_samen", JSON.stringify(list));
                 loadData();
@@ -2575,6 +2678,7 @@
             }
 
             if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE?")) {
+                if (canUseDeleteUndo()) moveDeletedRowToTrash("homar_shamito", index, item, "SHAMITO", "standard");
                 list.splice(index, 1);
                 localStorage.setItem("homar_shamito", JSON.stringify(list));
                 loadData();
@@ -2981,7 +3085,7 @@
 
             if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE?")) {
                 updateLagerItemQty(item.navn, item.qty);
-
+                if (canUseDeleteUndo()) moveDeletedRowToTrash("homar_kunde", index, item, "KUNDEORDRE", "customer");
                 list.splice(index, 1);
                 localStorage.setItem("homar_kunde", JSON.stringify(list));
                 loadData();
@@ -3590,6 +3694,7 @@
             checkInputCardVisibility();
             populateItemDropdowns();
             renderAllTables();
+            purgeExpiredDeletionTrash();
         }
 
         function populateItemDropdowns() {
@@ -4143,7 +4248,7 @@
         const HOMAR_SYNC_KEYS = new Set([
             'homar_lager', 'homar_samen', 'homar_shamito', 'homar_kunde',
             'homar_dhagaxshid', 'homar_gari', 'homar_qarash', 'homar_budsjet',
-            'homar_roles', 'homar_user_permissions', 'homar_custom_labels'
+            'homar_roles', 'homar_user_permissions', 'homar_custom_labels', 'homar_trash'
         ]);
         let serverSyncReady = false;
         const syncTimers = new Map();
@@ -4338,7 +4443,7 @@
             homar_shamito:'SHAMITO', homar_dhagaxshid:'DHAGAX SHID',
             homar_kunde:'KUNDE', homar_qarash:'QARASH', homar_budsjet:'BUDSJET',
             homar_roles:'ADMIN PANEL', homar_user_permissions:'ADMIN PANEL',
-            homar_custom_labels:'ADMIN PANEL'
+            homar_custom_labels:'ADMIN PANEL', homar_trash:'ADMIN PANEL'
         };
         const visitLogTimes = {};
 
