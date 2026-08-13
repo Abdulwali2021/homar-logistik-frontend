@@ -624,6 +624,24 @@
             </div>
         </div>
 
+            <div class="input-card hidden" id="adminDataIntegrityCard" style="margin-top:25px;border-left:6px solid #f0ad4e;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                    <div>
+                        <h4 style="margin:0 0 5px;">ADMIN / LEDER DATASJEKK – SKJULTE OG UGYLDIGE RADER</h4>
+                        <p style="margin:0;font-size:12px;color:#666;">FINNER RADER MED MANGLENDE DATO, UGYLDIG FORMAT ELLER SLETTEMARKERING I ALLE FANER.</p>
+                    </div>
+                    <button type="button" onclick="renderAdminDataIntegrityAudit()" style="background:#d98200;">KJØR DATASJEKK</button>
+                </div>
+                <div id="adminDataIntegritySummary" style="margin-top:12px;font-weight:bold;">DATASJEKK IKKE KJØRT.</div>
+                <div class="table-scroll" style="margin-top:10px;">
+                    <table id="adminDataIntegrityTable" class="hidden">
+                        <thead><tr><th>FANE</th><th>RAD</th><th>VARE / NAVN</th><th>PROBLEM</th><th>DATO</th></tr></thead>
+                        <tbody id="adminDataIntegrityBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+
         <!-- Faner øverst -->
         <div class="nav-tabs">
             <button id="tabLager" class="nav-btn active" onclick="switchView('lager')">LAGER</button>
@@ -1188,23 +1206,6 @@
                 <tbody id="usersBody"></tbody>
             </table>
 
-            <div class="input-card" id="adminDataIntegrityCard" style="margin-top:25px;border-left:6px solid #f0ad4e;">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-                    <div>
-                        <h4 style="margin:0 0 5px;">ADMIN DATASJEKK – SKJULTE OG UGYLDIGE RADER</h4>
-                        <p style="margin:0;font-size:12px;color:#666;">FINNER RADER MED MANGLENDE DATO, UGYLDIG FORMAT ELLER SLETTEMARKERING I ALLE FANER.</p>
-                    </div>
-                    <button type="button" onclick="renderAdminDataIntegrityAudit()" style="background:#d98200;">KJØR DATASJEKK</button>
-                </div>
-                <div id="adminDataIntegritySummary" style="margin-top:12px;font-weight:bold;">DATASJEKK IKKE KJØRT.</div>
-                <div class="table-scroll" style="margin-top:10px;">
-                    <table id="adminDataIntegrityTable" class="hidden">
-                        <thead><tr><th>FANE</th><th>RAD</th><th>VARE / NAVN</th><th>PROBLEM</th><th>DATO</th></tr></thead>
-                        <tbody id="adminDataIntegrityBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
             <div class="input-card" style="margin-top:25px;">
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
                     <div>
@@ -1305,7 +1306,7 @@
             // VIS ALLE skal også avsløre gamle/ugyldige rader uten dato,
             // slik at admin kan rydde dem i stedet for at de forblir skjult.
             if (mode === "all") {
-                return !!itemDate || getCurrentUserRole() === "Admin";
+                return !!itemDate || ["ADMIN", "LEDER"].includes(String(getCurrentUserRole() || "").toUpperCase());
             }
             if (!itemDate) return false;
 
@@ -3305,7 +3306,13 @@
         }
 
         function renderAdminDataIntegrityAudit() {
-            if (getCurrentUserRole() !== "Admin") return;
+            const role = String(getCurrentUserRole() || "").toUpperCase();
+            const card = document.getElementById("adminDataIntegrityCard");
+            if (!["ADMIN", "LEDER"].includes(role)) {
+                if (card) card.classList.add("hidden");
+                return;
+            }
+            if (card) card.classList.remove("hidden");
             const sources = [
                 ["LAGER", "homar_lager"],
                 ["SAMEN", "homar_samen"],
@@ -3700,6 +3707,7 @@
             checkInputCardVisibility();
             populateItemDropdowns();
             renderAllTables();
+            renderAdminDataIntegrityAudit();
         }
 
         function populateItemDropdowns() {
