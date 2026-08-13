@@ -999,7 +999,7 @@
                     <div class="budget-card-value" id="boxBudsjetBank">0.00</div>
                 </div>
                 <div class="budget-card budget-card-clickable" onclick="openBudsjetForm('Wafi')">
-                    <div class="budget-card-title">WAFI PRIS (KLIKK FOR Å OPPDATERE)</div>
+                    <div class="budget-card-title">WAFI TILGJENGELIG (INNSKUDD − ALLE UTGIFTER)</div>
                     <div class="budget-card-value" id="boxBudsjetWafi">0.00</div>
                 </div>
                 <div class="budget-card" style="background-color: #e8f5e9; border-color: #28a745; grid-column: 1 / -1;">
@@ -4188,6 +4188,33 @@
             document.getElementById("sumCustTotalSum").textContent = convertPriceToDisplay(sumTotal).toFixed(2);
         }
 
+        function calculateAllActiveUtgiftNOK() {
+            const active = row => row && !row.deleted && !row.deletedAt;
+            const samen = JSON.parse(localStorage.getItem("homar_samen") || "[]")
+                .filter(active)
+                .reduce((sum, row) => sum +
+                    (Number(row.qty || 0) * Number(row.price || 0)) +
+                    Number(row.driverPrice || 0), 0);
+            const gari = JSON.parse(localStorage.getItem("homar_gari") || "[]")
+                .filter(active)
+                .reduce((sum, row) => sum +
+                    (Number(row.qty || 0) * Number(row.price || 0)), 0);
+            const qarash = JSON.parse(localStorage.getItem("homar_qarash") || "[]")
+                .filter(active)
+                .reduce((sum, row) => sum +
+                    (Number(row.antall || 0) * Number(row.price || 0)), 0);
+            const shamito = JSON.parse(localStorage.getItem("homar_shamito") || "[]")
+                .filter(active)
+                .reduce((sum, row) => sum +
+                    (Number(row.qty || 0) * Number(row.price || 0)), 0);
+            const dhagax = JSON.parse(localStorage.getItem("homar_dhagaxshid") || "[]")
+                .filter(active)
+                .reduce((sum, row) => sum +
+                    (Number(row.qty || 0) * Number(row.price || 0)) +
+                    Number(row.driver || 0), 0);
+            return samen + gari + qarash + shamito + dhagax;
+        }
+
         function renderUtgiftValues() {
             let samenList = JSON.parse(localStorage.getItem("homar_samen") || "[]");
             let samenTot = samenList
@@ -4230,8 +4257,10 @@
                 .reduce((acc, x) => acc + (x.qty * x.price), 0);
 
             let budsjetData = JSON.parse(localStorage.getItem("homar_budsjet") || "{}");
-            let bankNOK = budsjetData.bank || 0;
-            let wafiNOK = budsjetData.wafi || 0;
+            let bankNOK = Number(budsjetData.bank) || 0;
+            const wafiBeforeExpensesNOK = Number(budsjetData.wafi) || 0;
+            const allActiveExpensesNOK = calculateAllActiveUtgiftNOK();
+            const wafiNOK = wafiBeforeExpensesNOK - allActiveExpensesNOK;
 
             document.getElementById("boxBudsjetLager").textContent = convertPriceToDisplay(lagerTotalNOK).toFixed(2);
             document.getElementById("boxBudsjetDeen").textContent = convertPriceToDisplay(deenTotalNOK).toFixed(2);
@@ -4241,8 +4270,9 @@
             let grandTotalNOK = lagerTotalNOK + deenTotalNOK + bankNOK + wafiNOK;
             document.getElementById("boxGrandTotal").textContent = convertPriceToDisplay(grandTotalNOK).toFixed(2);
 
-            let totalUtgiftNOK = renderUtgiftValues();
-            let bedriftVerdiNOK = grandTotalNOK - totalUtgiftNOK;
+            renderUtgiftValues();
+            // Utgiftene er allerede trukket fra WAFI. Ikke trekk dem én gang til.
+            let bedriftVerdiNOK = grandTotalNOK;
             let boxBedriftEl = document.getElementById("boxBedriftVerdi");
             if (boxBedriftEl) {
                 boxBedriftEl.textContent = convertPriceToDisplay(bedriftVerdiNOK).toFixed(2);
