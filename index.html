@@ -1185,13 +1185,13 @@
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
                     <div>
                         <h4 style="margin:0 0 5px;">AKTIVE BRUKERE AKKURAT NÅ</h4>
-                        <p style="margin:0; font-size:12px; color:#666;">VISER BRUKERE SOM HAR HATT KONTAKT MED NETTSIDEN DE SISTE 2 MINUTTENE.</p>
+                        <p style="margin:0; font-size:12px; color:#666;">BRUKERE LOGGES AUTOMATISK UT ETTER 30 MINUTTER UTEN AKTIVITET. ADMIN KAN AVSLUTTE EN AKTIV ØKT.</p>
                     </div>
                     <button type="button" onclick="loadSecurityOverview()" style="background:#0b63ce;">OPPDATER</button>
                 </div>
                 <table id="onlineUsersTable" style="margin-top:15px;">
-                    <thead><tr><th>BRUKERNAVN</th><th>ROLLE</th><th>INNLOGGET</th><th>SIST AKTIV</th></tr></thead>
-                    <tbody id="onlineUsersBody"><tr><td colspan="4">LASTER...</td></tr></tbody>
+                    <thead><tr><th>BRUKERNAVN</th><th>ROLLE</th><th>INNLOGGET</th><th>SIST AKTIV</th><th>HANDLING</th></tr></thead>
+                    <tbody id="onlineUsersBody"><tr><td colspan="5">LASTER...</td></tr></tbody>
                 </table>
             </div>
 
@@ -3530,7 +3530,8 @@
                     <td>${String(row.role || '').toUpperCase()}</td>
                     <td>${formatTime(row.loggedInAt)}</td>
                     <td>${formatTime(row.lastSeenAt)}</td>
-                </tr>`).join('') : '<tr><td colspan="4">INGEN AKTIVE BRUKERE AKKURAT NÅ.</td></tr>';
+                    <td>${Number(row.userId) === Number((JSON.parse(localStorage.getItem('homar_api_user') || '{}')).id) ? 'DIN ØKT' : '<button type="button" onclick="forceLogoutUser(' + Number(row.userId) + ')" style="background:#dc3545;padding:7px 10px;font-size:12px;">LOGG UT</button>'}</td>
+                </tr>`).join('') : '<tr><td colspan="5">INGEN AKTIVE BRUKERE AKKURAT NÅ.</td></tr>';
                 activityBody.innerHTML = '';
                 cachedSecurityLogs = Array.isArray(logs) ? logs : [];
                 const securitySelect = document.getElementById("securityActivityUserSelect");
@@ -3565,7 +3566,7 @@
                 }
                 showSelectedLoginSummary();
             } catch (err) {
-                onlineBody.innerHTML = '<tr><td colspan="4">KUNNE IKKE HENTE AKTIVE BRUKERE.</td></tr>';
+                onlineBody.innerHTML = '<tr><td colspan="5">KUNNE IKKE HENTE AKTIVE BRUKERE.</td></tr>';
                 activityBody.innerHTML = '';
                 const selectedSecurityActivity = document.getElementById("selectedSecurityActivity");
                 if (selectedSecurityActivity) selectedSecurityActivity.textContent = "KUNNE IKKE HENTE INNLOGGING OG GLEMT PASSORD.";
@@ -4254,6 +4255,11 @@
             if (!response.ok) {
                 const error = new Error((data && data.error) || ('HTTP ' + response.status));
                 error.status = response.status;
+                if (response.status === 401 && token && !path.includes('/auth/login')) {
+                    setTimeout(() => {
+                        if (window.forceLocalLogout) window.forceLocalLogout(error.message || 'ØKTEN ER AVSLUTTET.');
+                    }, 0);
+                }
                 throw error;
             }
             return data;
@@ -4523,28 +4529,22 @@
             }
         };
 
+        const INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
         let presenceTimer = null;
         let adminAlertTimer = null;
-        async function sendPresence() {
-            if (!apiToken()) return;
-            try { await apiRequest('/auth/presence', { method:'POST', body:'{}' }); } catch (_) {}
-        }
-        function startPresence() {
+        let inactivityTimer = null;
+        let lastUserActivityAt = Date.now();
+        let lastPresenceSentAt = 0;
+        let activityListenersInstalled = false;
+
+        function clearSessionTimers() {
             clearInterval(presenceTimer);
             clearInterval(adminAlertTimer);
-            sendPresence();
-            presenceTimer = setInterval(sendPresence, 60000);
-            if (getCurrentUserRole() === "Admin") {
-                adminAlertTimer = setInterval(() => {
-                    if (window.loadSecurityOverview) window.loadSecurityOverview();
-                }, 60000);
-            }
+            clearTimeout(inactivityTimer);
         }
 
-        window.handleLogout = async function () {
-            clearInterval(presenceTimer);
-            clearInterval(adminAlertTimer);
-            try { if (apiToken()) await apiRequest('/auth/logout', { method:'POST', body:'{}' }); } catch (_) {}
+        window.forceLocalLogout = function (reason) {
+            clearSessionTimers();
             serverSyncReady = false;
             localStorage.removeItem('homar_api_token');
             localStorage.removeItem('homar_api_user');
@@ -4554,6 +4554,82 @@
             history.replaceState(null, '', location.pathname + location.search);
             document.getElementById('dashboardSection').classList.add('hidden');
             document.getElementById('loginSection').classList.remove('hidden');
+            const errorEl = document.getElementById('loginError');
+            if (errorEl && reason) {
+                errorEl.style.color = '#856404';
+                errorEl.textContent = String(reason).toUpperCase();
+            }
+        };
+
+        async function sendPresence() {
+            if (!apiToken()) return;
+            if (Date.now() - lastUserActivityAt >= INACTIVITY_LIMIT_MS) {
+                window.forceLocalLogout('DU BLE AUTOMATISK LOGGET UT ETTER 30 MINUTTER UTEN AKTIVITET.');
+                return;
+            }
+            try {
+                await apiRequest('/auth/presence', { method:'POST', body:'{}' });
+                lastPresenceSentAt = Date.now();
+            } catch (err) {
+                if (err && err.status === 401) {
+                    window.forceLocalLogout(err.message || 'ØKTEN BLE AVSLUTTET.');
+                }
+            }
+        }
+
+        function scheduleInactivityLogout() {
+            clearTimeout(inactivityTimer);
+            const remaining = Math.max(0, INACTIVITY_LIMIT_MS - (Date.now() - lastUserActivityAt));
+            inactivityTimer = setTimeout(() => {
+                window.handleLogout('DU BLE AUTOMATISK LOGGET UT ETTER 30 MINUTTER UTEN AKTIVITET.');
+            }, remaining);
+        }
+
+        function recordUserActivity() {
+            if (!apiToken()) return;
+            lastUserActivityAt = Date.now();
+            scheduleInactivityLogout();
+            if (Date.now() - lastPresenceSentAt >= 60000) sendPresence();
+        }
+
+        function startPresence() {
+            clearSessionTimers();
+            lastUserActivityAt = Date.now();
+            lastPresenceSentAt = 0;
+            if (!activityListenersInstalled) {
+                ['click', 'keydown', 'touchstart', 'pointerdown', 'scroll'].forEach(eventName => {
+                    window.addEventListener(eventName, recordUserActivity, { passive: true });
+                });
+                activityListenersInstalled = true;
+            }
+            scheduleInactivityLogout();
+            sendPresence();
+            presenceTimer = setInterval(sendPresence, 60000);
+            if (getCurrentUserRole() === "Admin") {
+                adminAlertTimer = setInterval(() => {
+                    if (window.loadSecurityOverview) window.loadSecurityOverview();
+                }, 60000);
+            }
+        }
+
+        window.handleLogout = async function (reason) {
+            clearSessionTimers();
+            try { if (apiToken()) await apiRequest('/auth/logout', { method:'POST', body:'{}' }); } catch (_) {}
+            window.forceLocalLogout(reason || '');
+        };
+
+        window.forceLogoutUser = async function (userId) {
+            if (!confirm('VIL DU AVSLUTTE ALLE AKTIVE ØKTER FOR DENNE BRUKEREN?')) return;
+            try {
+                await apiRequest('/admin/users/' + encodeURIComponent(userId) + '/force-logout', {
+                    method: 'POST',
+                    body: '{}'
+                });
+                await loadSecurityOverview();
+                alert('BRUKEREN ER LOGGET UT.');
+            } catch (err) {
+                alert('KUNNE IKKE LOGGE UT BRUKEREN: ' + (err.message || 'UKJENT FEIL'));
+            }
         };
 
         // The old button reset local-only credentials. With API login it should not
