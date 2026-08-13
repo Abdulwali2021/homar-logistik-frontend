@@ -1185,32 +1185,18 @@
             </div>
 
             <div class="input-card" style="margin-top:20px;">
-                <h4 style="margin-top:0;">INNLOGGING OG GLEMT PASSORD</h4>
-                <p style="font-size:12px; color:#666;">PASSORD OG ENGANGSKODER VISES ALDRI.</p>
+                <h4 style="margin-top:0;">BRUKERAKTIVITET</h4>
+                <p style="font-size:12px; color:#666;">VELG ÉN BRUKER FOR Å SE INNLOGGING, AKTIV STATUS OG GLEMT PASSORD. PASSORD OG ENGANGSKODER VISES ALDRI.</p>
                 <div class="login-summary-picker">
                     <label for="securityActivityUserSelect">VELG BRUKER</label>
                     <select id="securityActivityUserSelect" onchange="showSelectedSecurityActivity()">
                         <option value="">-- VELG BRUKER --</option>
                     </select>
                     <div id="selectedSecurityActivity" class="login-summary-result">
-                        VELG EN BRUKER FOR Å SE INNLOGGING OG GLEMT PASSORD.
+                        VELG EN BRUKER FOR Å SE BRUKERAKTIVITET.
                     </div>
                 </div>
                 <div id="securityActivityBody" class="hidden"></div>
-            </div>
-
-            <div class="input-card" style="margin-top:20px;">
-                <h4 style="margin-top:0;">SAMLET INNLOGGINGSOVERSIKT</h4>
-                <p style="font-size:12px; color:#666;">ÉN RAD PER BRUKER. ANTALLET ØKER FOR HVER VELLYKKET INNLOGGING.</p>
-                <div class="login-summary-picker">
-                    <label for="loginSummaryUserSelect">VELG BRUKER</label>
-                    <select id="loginSummaryUserSelect" onchange="showSelectedLoginSummary()">
-                        <option value="">-- VELG BRUKER --</option>
-                    </select>
-                    <div id="selectedLoginSummary" class="login-summary-result">
-                        VELG EN BRUKER FOR Å SE INNLOGGINGSOVERSIKTEN.
-                    </div>
-                </div>
                 <div id="userActionsBody" class="hidden"></div>
             </div>
         </div>
@@ -3165,18 +3151,23 @@
             const rows = cachedSecurityLogs.filter(row =>
                 String(row.username || 'UKJENT').toUpperCase() === username
             );
-            if (!username || !rows.length) {
-                result.textContent = "VELG EN BRUKER FOR Å SE INNLOGGING OG GLEMT PASSORD.";
+            const summary = cachedLoginSummary.find(row =>
+                String(row.username || '').toUpperCase() === username
+            );
+            if (!username || (!rows.length && !summary)) {
+                result.textContent = "VELG EN BRUKER FOR Å SE BRUKERAKTIVITET.";
                 return;
             }
-            const latest = rows[0];
-            const loginAttempts = rows.filter(row =>
-                row.eventType === 'LOGIN_SUCCESS' || row.eventType === 'LOGIN_FAILED'
-            ).length;
+            const latest = rows[0] || {};
+            const loginCount = Number(summary?.loginCount) || 0;
             const resetEvents = rows.filter(row =>
                 String(row.eventType || '').startsWith('PASSWORD_RESET_')
             ).length;
-            const lastTime = latest.createdAt ? new Date(latest.createdAt).toLocaleString('nb-NO') : '-';
+            const failedLogins = rows.filter(row => row.eventType === 'LOGIN_FAILED').length;
+            const lastLogin = summary?.lastLoginAt
+                ? new Date(summary.lastLoginAt).toLocaleString('nb-NO')
+                : '-';
+            const active = cachedOnlineNames.has(username);
             const eventLabel = ({
                 LOGIN_SUCCESS: 'INNLOGGING',
                 LOGIN_FAILED: 'MISLYKKET INNLOGGING',
@@ -3187,12 +3178,13 @@
             })[latest.eventType] || latest.eventType || '-';
             result.innerHTML = `
                 <div><small>BRUKER</small><strong>${username}</strong></div>
-                <div><small>INNLOGGINGSFORSØK</small><strong>${loginAttempts}</strong></div>
+                <div><small>ANTALL INNLOGGINGER</small><strong>${loginCount}</strong></div>
+                <div><small>SIST INNLOGGET</small><strong>${lastLogin}</strong></div>
+                <div><small>STATUS NÅ</small><strong style="color:${active ? '#155724' : '#6c757d'};">${active ? '● AKTIV NÅ' : 'IKKE AKTIV'}</strong></div>
+                <div><small>MISLYKKEDE INNLOGGINGER</small><strong>${failedLogins}</strong></div>
                 <div><small>GLEMT PASSORD</small><strong>${resetEvents}</strong></div>
-                <div><small>SISTE TIDSPUNKT</small><strong>${lastTime}</strong></div>
                 <div><small>SISTE HENDELSE</small><strong>${eventLabel}</strong></div>
                 <div><small>E-POST</small><strong>${latest.emailMasked || '-'}</strong></div>
-                <div><small>STATUS</small><strong style="color:${latest.success ? '#155724' : '#dc3545'};">${latest.success ? 'OK' : 'FEILET'}</strong></div>
             `;
         }
         window.showSelectedSecurityActivity = showSelectedSecurityActivity;
@@ -3250,9 +3242,10 @@
                 const securitySelect = document.getElementById("securityActivityUserSelect");
                 const previousSecurityUser = securitySelect ? securitySelect.value : "";
                 if (securitySelect) {
-                    const securityUsers = [...new Set(cachedSecurityLogs.map(row =>
-                        String(row.username || 'UKJENT').toUpperCase()
-                    ))].sort();
+                    const securityUsers = [...new Set([
+                        ...cachedSecurityLogs.map(row => String(row.username || 'UKJENT').toUpperCase()),
+                        ...(Array.isArray(loginSummary) ? loginSummary : []).map(row => String(row.username || '').toUpperCase())
+                    ].filter(Boolean))].sort();
                     securitySelect.innerHTML = '<option value="">-- VELG BRUKER --</option>' +
                         securityUsers.map(username =>
                             '<option value="' + username + '">' + username + '</option>'
@@ -3261,9 +3254,9 @@
                         securitySelect.value = previousSecurityUser;
                     }
                 }
-                showSelectedSecurityActivity();
                 cachedOnlineNames = new Set(online.map(row => String(row.username || '').toUpperCase()));
                 cachedLoginSummary = Array.isArray(loginSummary) ? loginSummary : [];
+                showSelectedSecurityActivity();
                 const loginSelect = document.getElementById("loginSummaryUserSelect");
                 const previousUser = loginSelect ? loginSelect.value : "";
                 if (loginSelect) {
