@@ -1367,7 +1367,7 @@
             if (username === "admin") {
                 return { fullAccess: true, noAccess: false, canViewAdmin: true, canViewBudget: true, canViewExpense: true, canRegister: true, canChangeStatus: true, editAnytime: true, deleteAnytime: true };
             }
-            return userPerms[username] || { fullAccess: false, noAccess: true, canViewAdmin: false, canViewBudget: false, canViewExpense: false, canRegister: false, canChangeStatus: false, editAnytime: false, deleteAnytime: fullAccess ? true : (noAccess ? false : document.getElementById("userPermDeleteAnytime").checked) };
+            return userPerms[username] || { fullAccess: false, noAccess: true, canViewAdmin: false, canViewBudget: false, canViewExpense: false, canRegister: false, canChangeStatus: false, editAnytime: false, deleteAnytime: false };
         }
 
         function canUserViewBudget() {
@@ -2997,7 +2997,7 @@
                 document.getElementById("userPermRegister").checked = true;
                 document.getElementById("userPermStatus").checked = true;
                 document.getElementById("userPermEditAnytime").checked = true;
-                document.getElementById("userPermDeleteAnytime").checked = fullAccess ? true : !!perms.deleteAnytime;
+                document.getElementById("userPermDeleteAnytime").checked = true;
             }
             toggleNoAccessCheck();
         }
@@ -3023,7 +3023,7 @@
                 document.getElementById("userPermRegister").checked = false;
                 document.getElementById("userPermStatus").checked = false;
                 document.getElementById("userPermEditAnytime").checked = false;
-                document.getElementById("userPermDeleteAnytime").checked = fullAccess ? true : !!perms.deleteAnytime;
+                document.getElementById("userPermDeleteAnytime").checked = false;
             }
         }
 
