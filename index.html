@@ -2479,9 +2479,15 @@
                     const amount = convertPriceToDisplay(Number(payment.amount) || 0).toFixed(2);
                     const actor = String(payment.createdBy || '').toUpperCase();
                     const manage = canManageCustomerPayment(payment);
-                    const actions = manage
-                        ? '<span style="display:flex;gap:4px;"><button type="button" onclick="startCustomerPaymentEdit(' + paymentIndex + ')" style="min-height:28px;padding:3px 6px;font-size:10px;">ENDRE</button>' +
-                          '<button type="button" onclick="deleteCustomerPayment(' + paymentIndex + ')" style="min-height:28px;padding:3px 6px;font-size:10px;background:#dc3545;">ANGRE</button></span>'
+                    const canDeletePayment = getCurrentUserRole() === "Admin";
+                    const editAction = manage
+                        ? '<button type="button" onclick="startCustomerPaymentEdit(' + paymentIndex + ')" style="min-height:28px;padding:3px 6px;font-size:10px;">ENDRE</button>'
+                        : '';
+                    const deleteAction = canDeletePayment
+                        ? '<button type="button" onclick="deleteCustomerPayment(' + paymentIndex + ')" style="min-height:28px;padding:3px 6px;font-size:10px;background:#dc3545;">SLETT</button>'
+                        : '';
+                    const actions = editAction || deleteAction
+                        ? '<span style="display:flex;gap:4px;">' + editAction + deleteAction + '</span>'
                         : '';
                     return '<div class="payment-history-row"><span>' + String(payment.date || '') +
                         (actor ? ' – ' + actor : '') + '</span><strong>' + amount + ' ' + symbol + '</strong>' + actions + '</div>';
@@ -2575,11 +2581,11 @@
             const list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
             const item = list[orderIndex];
             const payment = item && customerPayments(item)[paymentIndex];
-            if (!payment || !canManageCustomerPayment(payment)) {
-                alert("DU KAN KUN ANGRE DIN EGEN BETALING INNEN 24 TIMER.");
+            if (!payment || getCurrentUserRole() !== "Admin") {
+                alert("KUN ADMIN KAN SLETTE EN REGISTRERT BETALING.");
                 return;
             }
-            if (!confirm("ER DU SIKKER PÅ AT DU VIL ANGRE DENNE BETALINGEN?")) return;
+            if (!confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE BETALINGEN?")) return;
 
             item.payments.splice(paymentIndex, 1);
             syncCustomerPaymentState(item);
