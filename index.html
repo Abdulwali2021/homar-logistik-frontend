@@ -466,6 +466,34 @@
             }
             #customerInputCard .form-row > * { grid-column: auto !important; }
         }
+
+        /* Fullt kort, men naturlig feltbredde og mindre knapper */
+        @media (min-width: 901px) {
+            #gariInputCard .form-row,
+            #logisticsInputCard .form-row,
+            #dhagaxshidInputCard .form-row {
+                grid-template-columns: 170px 210px 240px 150px 160px 135px !important;
+                justify-content: start;
+            }
+            #lagerInputCard .form-row,
+            #qarashInputCard .form-row,
+            #shamitoInputCard .form-row {
+                grid-template-columns: 170px 240px 160px 170px 135px !important;
+                justify-content: start;
+            }
+            #customerInputCard .form-row {
+                grid-template-columns: repeat(4, minmax(180px, 1fr)) !important;
+            }
+            #customerInputCard .btn-success, #lagerInputCard .btn-success,
+            #logisticsInputCard .btn-success, #gariInputCard .btn-success,
+            #qarashInputCard .btn-success, #shamitoInputCard .btn-success,
+            #dhagaxshidInputCard .btn-success {
+                width: 135px !important;
+                min-width: 135px !important;
+                max-width: 135px !important;
+                justify-self: start;
+            }
+        }
     </style>
 </head>
 <body>
