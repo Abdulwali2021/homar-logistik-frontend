@@ -453,6 +453,33 @@
                 text-overflow: clip;
             }
         }
+
+        /* Vis hele kursverdien tydelig inne i feltet */
+        #manualRateInput {
+            width: 135px !important;
+            min-width: 135px !important;
+            padding: 5px 12px !important;
+            color: #212529 !important;
+            background-color: #ffffff;
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 1.2;
+            text-align: left;
+            overflow: visible;
+            opacity: 1;
+            -webkit-text-fill-color: #212529;
+        }
+        #manualRateInput:disabled {
+            color: #343a40 !important;
+            background-color: #f8f9fa;
+            opacity: 1;
+            -webkit-text-fill-color: #343a40;
+        }
+        @media (min-width: 901px) {
+            .currency-bar > div:nth-child(3) {
+                grid-template-columns: max-content 135px minmax(95px, 1fr);
+            }
+        }
     </style>
 </head>
 <body>
