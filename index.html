@@ -2435,15 +2435,9 @@
 
             if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE SAMEN-REGISTRERINGEN?")) {
                 updateLagerFromSamen(item.type, -Number(item.qty || 0), item.date);
-                if (isAdmin) {
-                    list.splice(index, 1);
-                } else {
-                    // Behold samme listelengde slik at eksisterende Render-backend
-                    // kan lagre slettingen uten en ny utrulling.
-                    item.deleted = true;
-                    item.deletedBy = getCurrentUser();
-                    item.deletedAt = new Date().toISOString();
-                }
+                // Raden fjernes fysisk fra den aktive listen. Aktivitetshistorikken
+                // lagres separat og beholdes for kontroll.
+                list.splice(index, 1);
                 localStorage.setItem("homar_samen", JSON.stringify(list));
                 loadData();
             }
