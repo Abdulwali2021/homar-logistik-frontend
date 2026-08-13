@@ -1040,7 +1040,7 @@
                     <input type="checkbox" id="userPermFullAccess" onclick="toggleFullAccessCheck()">
                     <label for="userPermFullAccess">
                         <strong>FULL TILGANG</strong>
-                        <small>ALLE FANER, ADMIN PANEL, REGISTRERING, BETALINGER, REDIGERING OG SLETTING. BARE ADMIN KAN ENDRE ELLER SLETTE HELE KUNDEORDRER.</small>
+                        <small>ALLE FANER, ADMIN PANEL, REGISTRERING, BETALINGER OG REDIGERING. SLETTING ER ALLTID KUN FOR ADMIN.</small>
                     </label>
                 </div>
 
@@ -2780,6 +2780,10 @@
 
         // Budsjet funksjoner
         function openBudsjetForm(target) {
+            if (!canUserRegister()) {
+                alert("DU HAR KUN LESERETTIGHET. DU KAN IKKE ENDRE BANK ELLER WAFI.");
+                return;
+            }
             document.getElementById("selectedBudsjetTarget").value = target;
             let symbol = document.getElementById("activeCurrency").value === "USD" ? "$" : "KR";
             let targetUpper = target.toUpperCase();
@@ -2796,12 +2800,16 @@
         }
 
         function saveBudsjet() {
+            if (!canUserRegister()) {
+                alert("DU HAR IKKE TILLATELSE TIL Å ENDRE BANK ELLER WAFI.");
+                return;
+            }
             let target = document.getElementById("selectedBudsjetTarget").value;
             let mode = document.getElementById("bMode").value;
             let amountInput = parseFloat(document.getElementById("bAmount").value);
 
-            if (isNaN(amountInput)) {
-                alert("VENNLIGST OPPGI ET GYLDIG BELØP!");
+            if (!Number.isFinite(amountInput) || amountInput <= 0) {
+                alert("VENNLIGST OPPGI ET GYLDIG BELØP STØRRE ENN 0!");
                 return;
             }
 
@@ -2835,7 +2843,7 @@
                 document.getElementById("userPermRegister").checked = true;
                 document.getElementById("userPermStatus").checked = true;
                 document.getElementById("userPermEditAnytime").checked = true;
-                document.getElementById("userPermDeleteAnytime").checked = true;
+                document.getElementById("userPermDeleteAnytime").checked = false;
             }
             toggleNoAccessCheck();
         }
