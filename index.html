@@ -423,7 +423,7 @@
             <table id="customerTable">
                 <thead>
                     <tr>
-                        <th>DATO</th><th>NAVN</th><th>TELEFON</th><th>VARE</th><th>QUANTY</th><th id="thCustPrice">PRICE</th><th id="thCustTotal">TOTALT</th><th>BETALT</th><th>GJENSTÅR</th><th>STATUS</th><th class="sjuki-col hidden">OPPRETTET AV</th><th>HANDLING</th>
+                        <th>DATO</th><th>NAVN</th><th>TELEFON</th><th>VARE</th><th>QUANTY</th><th id="thCustPrice">PRICE</th><th id="thCustTotal">TOTALT</th><th>BETALT</th><th id="thCustRemaining" class="hidden">GJENSTÅR</th><th>STATUS</th><th class="sjuki-col hidden">OPPRETTET AV</th><th>HANDLING</th>
                     </tr>
                 </thead>
                 <tbody id="customerBody"></tbody>
@@ -3236,6 +3236,9 @@
             const searchText = document.getElementById("searchTextInput").value.toUpperCase().trim();
             const isAdmin = getCurrentUserRole() === "Admin";
             const canRegisterPayment = canUserChangeStatus();
+            const showRemainingColumn = list.some(order => customerPayments(order).length > 0);
+            const remainingHeader = document.getElementById("thCustRemaining");
+            if (remainingHeader) remainingHeader.classList.toggle("hidden", !showRemainingColumn);
 
             let sumQty = 0;
             let sumTotal = 0;
@@ -3302,7 +3305,7 @@
                     <td>${dispPrice.toFixed(2)}</td>
                     <td>${dispTotal.toFixed(2)}</td>
                     <td style="color:#218838;font-weight:bold;">${dispPaid.toFixed(2)}</td>
-                    <td style="color:#b02a37;font-weight:bold;">${(payments.length > 0 || status === "BETALT") ? dispRemaining.toFixed(2) : ''}</td>
+                    <td class="${showRemainingColumn ? '' : 'hidden'}" style="color:#b02a37;font-weight:bold;">${payments.length > 0 ? dispRemaining.toFixed(2) : ''}</td>
                     <td><button type="button" class="status-btn ${statusClass}" ${statusAction}>${statusText}</button></td>
                     <td class="sjuki-col ${showCol}">${createdByUp}</td>
                     <td>
