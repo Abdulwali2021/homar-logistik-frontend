@@ -3723,7 +3723,11 @@
 
         function renderLogisticsTable() {
             let list = JSON.parse(localStorage.getItem("homar_samen") || "[]");
-            const activeList = list.filter(item => item && !item.deleted);
+            // Tell bare aktive SAMEN-rader som også kan finnes igjen i VIS ALLE.
+            // Gamle ugyldige rader uten dato skal aldri påvirke totalene i skjul.
+            const activeList = list.filter(item =>
+                item && !item.deleted && String(item.date || '').trim()
+            );
             let tbody = document.getElementById("logisticsBody");
             tbody.innerHTML = "";
 
