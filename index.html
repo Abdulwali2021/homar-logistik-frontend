@@ -1462,7 +1462,7 @@
             const targetUser = String(username || '').toUpperCase();
             const samen = JSON.parse(localStorage.getItem("homar_samen") || "[]");
             return samen.some(entry => {
-                if (entry && entry.deleted) return false;
+                if (entry && (entry.deleted || entry.deletedAt)) return false;
                 const actor = String(entry.updatedBy || entry.createdBy || "admin").toUpperCase();
                 const time = entry.updatedAt || entry.createdAt || entry.date;
                 return normType(entry.type) === targetType && actor === targetUser && isWithin24Hours(time);
@@ -2445,7 +2445,7 @@
         function deleteLogistics(index) {
             const list = JSON.parse(localStorage.getItem("homar_samen") || "[]");
             const item = list[index];
-            if (!item || item.deleted) return;
+            if (!item || item.deleted || item.deletedAt) return;
             const isAdmin = getCurrentUserRole() === "Admin";
 
             if (!canDeleteOwnRecentRecord(item)) {
@@ -3902,7 +3902,7 @@
             // Tell bare aktive SAMEN-rader som også kan finnes igjen i VIS ALLE.
             // Gamle ugyldige rader uten dato skal aldri påvirke totalene i skjul.
             const activeList = list.filter(item =>
-                item && !item.deleted && String(item.date || '').trim()
+                item && !item.deleted && !item.deletedAt && String(item.date || '').trim()
             );
             let tbody = document.getElementById("logisticsBody");
             tbody.innerHTML = "";
@@ -3915,7 +3915,7 @@
   let sumTotal = activeList.reduce((acc, item) => acc + (((Number(item.qty) || 0) * (Number(item.price) || 0)) + (Number(item.driverPrice) || 0)), 0);
 
   list.forEach((item, index) => {
-      if (!item || item.deleted || !filterByCalendar(item)) return;
+      if (!item || item.deleted || item.deletedAt || !filterByCalendar(item)) return;
 
       let rowTotalNOK = (item.qty * item.price) + Number(item.driverPrice || 0);
 
@@ -4254,7 +4254,10 @@
 
         function renderUtgiftValues() {
             let samenList = JSON.parse(localStorage.getItem("homar_samen") || "[]");
-            let samenTot = samenList.filter(filterByCalendar).reduce((acc, x) => acc + (x.qty * x.price) + Number(x.driverPrice || 0), 0);
+            let samenTot = samenList
+                .filter(x => x && !x.deleted && !x.deletedAt)
+                .filter(filterByCalendar)
+                .reduce((acc, x) => acc + (Number(x.qty || 0) * Number(x.price || 0)) + Number(x.driverPrice || 0), 0);
 
             let gariList = JSON.parse(localStorage.getItem("homar_gari") || "[]");
             let gariTot = gariList.filter(filterByCalendar).reduce((acc, x) => acc + (Number(x.qty || 0) * Number(x.price || 0)), 0);
