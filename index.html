@@ -273,6 +273,35 @@
             html { scroll-behavior: auto; }
             *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
         }
+
+        /* Kompakt QARASH-skjema */
+        #qarashInputCard {
+            max-width: 930px;
+            padding: 12px 14px;
+            margin-right: auto;
+        }
+        #qarashInputCard h4 { margin: 0 0 10px; }
+        #qarashInputCard .form-row {
+            display: grid;
+            grid-template-columns: 150px 220px 150px 160px 125px !important;
+            gap: 8px;
+            align-items: end;
+        }
+        #qarashInputCard input,
+        #qarashInputCard button { min-height: 38px; height: 38px; }
+        #qarashInputCard label { margin-bottom: 3px; }
+        #qarashSubmitBtn { width: 125px; padding: 6px 10px; }
+
+        @media (max-width: 900px) {
+            #qarashInputCard { max-width: 100%; }
+            #qarashInputCard .form-row {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            }
+            #qarashSubmitBtn { width: 100%; }
+        }
+        @media (max-width: 600px) {
+            #qarashInputCard .form-row { grid-template-columns: 1fr !important; }
+        }
     </style>
 </head>
 <body>
