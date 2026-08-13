@@ -220,9 +220,8 @@
             border-radius: 6px;
         }
         .table-scroll > table { min-width: 760px; margin-bottom: 0; }
-        .nav-tabs { overflow: visible; flex-wrap: wrap; padding-bottom: 6px; }
-        .nav-btn { flex: 1 1 112px; min-width: 112px; min-height: 46px; }
-        #tabShamito { order: 9999; }
+        .nav-tabs { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
+        .nav-btn { flex: 0 0 auto; min-width: 112px; min-height: 46px; }
         .action-content button { min-height: 44px; }
         .modal-content { max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow-y: auto; }
 
@@ -253,8 +252,7 @@
             .live-date-badge, .digital-clock { flex: 1 1 auto; text-align: center; }
             .header-bar > button { width: 100%; }
             .nav-tabs { margin-left: -12px; margin-right: -12px; padding-left: 12px; padding-right: 12px; }
-            .nav-btn { flex: 1 1 calc(50% - 10px); min-width: 122px; }
-            #tabShamito { flex-basis: 100%; }
+            .nav-btn { min-width: 122px; }
             .form-row { grid-template-columns: 1fr; }
             .form-row > button, .btn-success { width: 100%; }
             .input-card { padding: 12px; }
@@ -624,13 +622,13 @@
             <button id="tabLager" class="nav-btn active" onclick="switchView('lager')">LAGER</button>
             <button id="tabSamen" class="nav-btn" onclick="switchView('samen')">SAMEN</button>
             <button id="tabGari" class="nav-btn" onclick="switchView('gari')">GARI</button>
+            <button id="tabShamito" class="nav-btn" onclick="switchView('shamito')">SHAMITO</button>
             <button id="tabDhagaxshid" class="nav-btn" onclick="switchView('dhagaxshid')">DHAGAX SHID</button>
             <button id="tabKunde" class="nav-btn" onclick="switchView('kunde')">KUNDE</button>
             <button id="tabQarash" class="nav-btn" onclick="switchView('qarash')">QARASH</button>
             <button id="tabUtgift" class="nav-btn" onclick="switchView('utgift')" style="background-color: #17a2b8;">UTGIFT</button>
             <button id="tabBudsjet" class="nav-btn hidden" onclick="switchView('budsjet')">BUDSJET</button>
             <button id="tabAdmin" class="nav-btn hidden" onclick="switchView('admin')" style="background-color: #343a40;">ADMIN PANEL</button>
-            <button id="tabShamito" class="nav-btn" onclick="switchView('shamito')">SHAMITO</button>
         </div>
 
         <!-- Valutabarsystem -->
@@ -3863,9 +3861,11 @@
             let sumQty = 0;
             let sumTotal = 0;
 
-            list.forEach((item, index) => {
-                if (!filterByCalendar(item)) return;
-
+            list
+                .map((item, index) => ({ item, index }))
+                .filter(row => filterByCalendar(row.item))
+                .sort((a, b) => (Number(b.item.qty) || 0) - (Number(a.item.qty) || 0))
+                .forEach(({ item, index }) => {
                 let totalNOK = item.qty * item.price;
                 sumQty += item.qty;
                 sumTotal += totalNOK;
