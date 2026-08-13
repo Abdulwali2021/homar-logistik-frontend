@@ -1553,12 +1553,12 @@
             if (!localStorage.getItem("homar_users")) {
                 let defaultUsers = [
                     { username: "admin", password: "123", role: "Admin" },
-                    { username: "user", password: "123", role: "Bruker" }
+                    { username: "user", password: "123", role: "VANLIG" }
                 ];
                 localStorage.setItem("homar_users", JSON.stringify(defaultUsers));
             }
             if (!localStorage.getItem("homar_roles")) {
-                let defaultRoles = ["Admin", "Bruker", "Leder"];
+                let defaultRoles = ["ADMIN", "LEDER", "VANLIG"];
                 localStorage.setItem("homar_roles", JSON.stringify(defaultRoles));
             }
         }
@@ -1566,10 +1566,10 @@
         function resetDefaultCredentials() {
             let defaultUsers = [
                 { username: "admin", password: "123", role: "Admin" },
-                { username: "user", password: "123", role: "Bruker" }
+                { username: "user", password: "123", role: "VANLIG" }
             ];
             localStorage.setItem("homar_users", JSON.stringify(defaultUsers));
-            let defaultRoles = ["Admin", "Bruker", "Leder"];
+            let defaultRoles = ["ADMIN", "LEDER", "VANLIG"];
             localStorage.setItem("homar_roles", JSON.stringify(defaultRoles));
             document.getElementById("loginError").style.color = "green";
             document.getElementById("loginError").textContent = "INNLOGGING TILBAKESTILT! BRUKERNAVN: ADMIN, PASSORD: 123";
@@ -1583,7 +1583,7 @@
             let username = getCurrentUser();
             let users = JSON.parse(localStorage.getItem("homar_users") || "[]");
             let u = users.find(x => x.username === username);
-            return u ? u.role : "Bruker";
+            return u ? u.role : "VANLIG";
         }
 
         function checkAdminAccess() {
@@ -2946,7 +2946,7 @@
             let roles = JSON.parse(localStorage.getItem("homar_roles") || "[]");
 
             if (oldName) {
-                if (oldName === "Admin" || oldName === "Bruker") {
+                if (["ADMIN", "LEDER", "VANLIG"].includes(String(oldName).toUpperCase())) {
                     alert("KAN IKKE ENDRE STANDARDROLLER!");
                     return;
                 }
@@ -2977,7 +2977,7 @@
 
         function editRole(roleName) {
             if (getCurrentUserRole() !== "Admin") return;
-            if (roleName === "Admin" || roleName === "Bruker") {
+            if (["ADMIN", "LEDER", "VANLIG"].includes(String(roleName).toUpperCase())) {
                 alert("KAN IKKE REDIGERE STANDARDROLLER!");
                 return;
             }
@@ -2992,7 +2992,7 @@
                 alert("KUN ADMIN KAN SLETTE ROLLER!");
                 return;
             }
-            if (roleName === "Admin" || roleName === "Bruker") {
+            if (["ADMIN", "LEDER", "VANLIG"].includes(String(roleName).toUpperCase())) {
                 alert("KAN IKKE SLETTE STANDARDROLLER!");
                 return;
             }
@@ -3085,6 +3085,14 @@
             roleSelect.innerHTML = "";
             adminUserSelect.innerHTML = "";
             
+            roles = [...new Set(roles.map(r => {
+                const role = String(r || "").toUpperCase();
+                return role === "BRUKER" ? "VANLIG" : role;
+            }))].sort((a, b) => {
+                const order = ["ADMIN", "LEDER", "VANLIG"];
+                return order.indexOf(a) - order.indexOf(b);
+            });
+
             roles.forEach(r => {
                 let rUp = String(r || "").toUpperCase();
                 roleSelect.innerHTML += `<option value="${r}">${rUp}</option>`;
@@ -3092,7 +3100,7 @@
 
             users.forEach(u => {
                 let uUp = String(u.username || "").toUpperCase();
-                let rUp = String(u.role || "").toUpperCase();
+                let rUp = (String(u.role || "").toUpperCase() === "BRUKER" ? "VANLIG" : String(u.role || "").toUpperCase());
                 adminUserSelect.innerHTML += `<option value="${u.username}">${uUp} (${rUp})</option>`;
             });
 
@@ -3104,7 +3112,7 @@
                 let p = getUserPermissions(u.username);
                 overviewBody.innerHTML += `<tr>
                     <td>${String(u.username || "").toUpperCase()}</td>
-                    <td>${String(u.role || "").toUpperCase()}</td>
+                    <td>${(String(u.role || "").toUpperCase() === "BRUKER" ? "VANLIG" : String(u.role || "").toUpperCase())}</td>
                     <td>${p.fullAccess ? 'JA' : 'NEI'}</td>
                     <td>${p.noAccess ? 'JA (KUN SE)' : 'NEI'}</td>
                     <td>${p.canViewBudget ? 'JA' : 'NEI'}</td>
@@ -3119,7 +3127,7 @@
             rolesBody.innerHTML = "";
             roles.forEach(r => {
                 let rUp = String(r || "").toUpperCase();
-                let canModify = rUp !== "ADMIN" && rUp !== "BRUKER";
+                let canModify = !["ADMIN", "LEDER", "VANLIG"].includes(rUp);
                 rolesBody.innerHTML += `<tr>
                     <td>${rUp}</td>
                     <td>${canModify ? `
@@ -3137,7 +3145,7 @@
                 usersBody.innerHTML += `<tr>
                     <td>${uUp}</td>
                     <td>${String(u.email || 'IKKE REGISTRERT').toLowerCase()}</td>
-                    <td>${String(u.role || "").toUpperCase()}</td>
+                    <td>${(String(u.role || "").toUpperCase() === "BRUKER" ? "VANLIG" : String(u.role || "").toUpperCase())}</td>
                     <td>
                         <button style="background-color: #007bff; padding: 4px 8px; font-size: 12px; margin-right: 5px;" onclick="editUser('${u.username}')">ENDRE</button>
                         ${isMainAdmin
@@ -3994,7 +4002,7 @@
             const localUsers = users.map(u => {
                 const username = String(u.username || '').toUpperCase();
                 permissionMap[username] = u.permissions || {};
-                return { id:u.id, username, email:u.email || '', password:'', role:u.role || 'Bruker', active:u.active !== false };
+                return { id:u.id, username, email:u.email || '', password:'', role:u.role || 'VANLIG', active:u.active !== false };
             });
             localStorage.setItem('homar_users', JSON.stringify(localUsers));
             localStorage.setItem('homar_user_permissions', JSON.stringify(permissionMap));
@@ -4154,8 +4162,8 @@
             try {
                 const user = JSON.parse(localStorage.getItem('homar_api_user') || '{}');
                 const role = String(user.role || '').toUpperCase();
-                return role === 'ADMIN' ? 'Admin' : (user.role || 'Bruker');
-            } catch (_) { return 'Bruker'; }
+                return role === 'ADMIN' ? 'Admin' : (user.role || 'VANLIG');
+            } catch (_) { return 'VANLIG'; }
         };
 
         window.getUserPermissions = function (username) {
