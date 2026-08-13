@@ -2033,7 +2033,9 @@
         function canDeleteOwnLagerQuantity(item) {
             if (getCurrentUserRole() === "Admin") return true;
             const perms = getUserPermissions(getCurrentUser());
-            if (perms.noAccess || (!perms.fullAccess && !perms.deleteAnytime)) return false;
+            // editAnytime brukes også som sikker reserve når Render ikke kan
+            // publisere den nye deleteAnytime-tillatelsen.
+            if (perms.noAccess || (!perms.fullAccess && !perms.deleteAnytime && !perms.editAnytime)) return false;
             return ownLagerQuantity(item, getCurrentUser(), true) > 0;
         }
 
