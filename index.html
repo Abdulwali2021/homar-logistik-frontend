@@ -335,6 +335,26 @@
                 grid-template-columns: 1fr !important;
             }
         }
+
+        /* Bruk alltid litt mer plass nedover: maks fire felt per rad på PC */
+        @media (min-width: 901px) {
+            #customerInputCard .form-row, #lagerInputCard .form-row,
+            #logisticsInputCard .form-row, #gariInputCard .form-row,
+            #qarashInputCard .form-row, #shamitoInputCard .form-row,
+            #dhagaxshidInputCard .form-row {
+                grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+                grid-auto-flow: row !important;
+                row-gap: 10px !important;
+            }
+        }
+        @media (max-width: 900px) and (min-width: 601px) {
+            #customerInputCard .form-row, #lagerInputCard .form-row,
+            #logisticsInputCard .form-row, #gariInputCard .form-row,
+            #qarashInputCard .form-row, #shamitoInputCard .form-row,
+            #dhagaxshidInputCard .form-row {
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            }
+        }
     </style>
 </head>
 <body>
