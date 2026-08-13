@@ -269,6 +269,26 @@
             .modal-content { width: 100%; margin: 12px 0; }
         }
 
+        /* Lås mobilvisningen til skjermbredden; bare tabeller og faner kan rulles sidelengs */
+        html, body {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: clip;
+            overscroll-behavior-x: none;
+        }
+        body > *, .container, #appSection, .tab-content, .input-card,
+        .archive-bar, .currency-bar, .filter-container, .summary-bar {
+            max-width: 100%;
+            min-width: 0;
+        }
+        .table-scroll, .nav-tabs {
+            max-width: 100%;
+            overscroll-behavior-x: contain;
+        }
+        @supports not (overflow: clip) {
+            html, body { overflow-x: hidden; }
+        }
+
         @media (prefers-reduced-motion: reduce) {
             html { scroll-behavior: auto; }
             *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
