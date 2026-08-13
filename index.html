@@ -3473,7 +3473,7 @@
             const changes = (Array.isArray(actionLogs) ? actionLogs : [])
                 .filter(row => String(row.eventType || '').toUpperCase() === 'ACTION:BUDSJET:ENDRET')
                 .filter(row => new Date(row.createdAt || 0).getTime() >= startedAt)
-                .filter(row => /BANK/i.test(String(row.details || '')) && !/WAFI/i.test(String(row.details || '')))
+                .filter(row => /BANK/i.test(String(row.details || '')))
                 .filter(row => !readIds.has(String(row.id)))
                 .slice(0, 5);
             target.innerHTML = '';
@@ -3488,7 +3488,7 @@
                 const message = document.createElement('span');
                 const time = row.createdAt ? new Date(row.createdAt).toLocaleString('nb-NO') : '-';
                 message.textContent = String(row.username || 'UKJENT').toUpperCase() + ' – ' +
-                    String(row.details || 'BANK/WAFI ENDRET') + ' – ' + time;
+                    String(row.details || 'BANK ENDRET').split(' / ').filter(part => /BANK/i.test(part)).join(' / ') + ' – ' + time;
                 const okButton = document.createElement('button');
                 okButton.type = 'button';
                 okButton.textContent = 'OK';
