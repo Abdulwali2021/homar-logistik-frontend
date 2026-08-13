@@ -1027,7 +1027,7 @@
         <div id="sectionAdmin" class="hidden">
             <h3>ADMINISTRASJON PANEL</h3>
 
-            <div id="bankChangeAlertCard" class="input-card" style="border-left:6px solid #dc3545;background:#fff8f0;">
+            <div id="bankChangeAlertCard" class="input-card hidden" style="border-left:6px solid #dc3545;background:#fff8f0;">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
                     <div>
                         <h4 style="margin:0 0 5px;color:#a33a00;">⚠ VARSEL – NY BANKAKTIVITET</h4>
@@ -3460,14 +3460,17 @@
             if (row) row.remove();
             const target = document.getElementById("bankChangeAlerts");
             if (target && !target.children.length) {
-                target.textContent = "INGEN ULESTE BANKVARSLER.";
+                target.textContent = "";
+                const card = document.getElementById("bankChangeAlertCard");
+                if (card) card.classList.add("hidden");
             }
         }
         window.markBankAlertRead = markBankAlertRead;
 
         function renderBankChangeAlerts(actionLogs) {
             const target = document.getElementById("bankChangeAlerts");
-            if (!target) return;
+            const card = document.getElementById("bankChangeAlertCard");
+            if (!target || !card) return;
             const readIds = readBankAlertIds();
             const startedAt = bankAlertStartedAt();
             const changes = (Array.isArray(actionLogs) ? actionLogs : [])
@@ -3478,9 +3481,11 @@
                 .slice(0, 5);
             target.innerHTML = '';
             if (!changes.length) {
-                target.textContent = "INGEN ULESTE BANKVARSLER.";
+                target.textContent = "";
+                card.classList.add("hidden");
                 return;
             }
+            card.classList.remove("hidden");
             changes.forEach(row => {
                 const line = document.createElement('div');
                 line.dataset.bankAlertId = String(row.id);
