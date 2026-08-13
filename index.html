@@ -1026,6 +1026,17 @@
         <!-- ADMIN PANEL SEKSJON -->
         <div id="sectionAdmin" class="hidden">
             <h3>ADMINISTRASJON PANEL</h3>
+
+            <div id="bankChangeAlertCard" class="input-card" style="border-left:6px solid #dc3545;background:#fff8f0;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                    <div>
+                        <h4 style="margin:0 0 5px;color:#a33a00;">⚠ VARSEL – BANK / WAFI ENDRINGER</h4>
+                        <p style="margin:0;font-size:12px;color:#666;">OPPDATERES AUTOMATISK. VISER HVEM SOM ENDRET SALDOEN OG NÅR.</p>
+                    </div>
+                    <button type="button" onclick="loadSecurityOverview()" style="background:#0b63ce;">OPPDATER VARSEL</button>
+                </div>
+                <div id="bankChangeAlerts" style="margin-top:12px;font-weight:bold;">INGEN NYE ENDRINGER REGISTRERT.</div>
+            </div>
             
             <div class="input-card">
                 <h4>DETALJERT BRUKERTILGANG OG RETTIGHETER</h4>
@@ -3425,6 +3436,28 @@
         }
         window.showSelectedLoginSummary = showSelectedLoginSummary;
 
+        function renderBankChangeAlerts(actionLogs) {
+            const target = document.getElementById("bankChangeAlerts");
+            if (!target) return;
+            const changes = (Array.isArray(actionLogs) ? actionLogs : [])
+                .filter(row => String(row.eventType || '').toUpperCase() === 'ACTION:BUDSJET:ENDRET')
+                .filter(row => /BANK|WAFI/i.test(String(row.details || '')))
+                .slice(0, 5);
+            target.innerHTML = '';
+            if (!changes.length) {
+                target.textContent = "INGEN BANK- ELLER WAFI-ENDRINGER REGISTRERT ENNÅ.";
+                return;
+            }
+            changes.forEach(row => {
+                const line = document.createElement('div');
+                line.style.cssText = 'padding:9px 10px;margin-top:6px;background:#fff;border:1px solid #f0c9a8;border-radius:6px;';
+                const time = row.createdAt ? new Date(row.createdAt).toLocaleString('nb-NO') : '-';
+                line.textContent = String(row.username || 'UKJENT').toUpperCase() + ' – ' +
+                    String(row.details || 'BANK/WAFI ENDRET') + ' – ' + time;
+                target.appendChild(line);
+            });
+        }
+
         async function loadSecurityOverview() {
             if (getCurrentUserRole() !== "Admin" || !window.homarApiRequest) return;
             const onlineBody = document.getElementById("onlineUsersBody");
@@ -3449,6 +3482,7 @@
                 ]);
                 const logs = [...(Array.isArray(securityLogs) ? securityLogs : []), ...(Array.isArray(actionLogs) ? actionLogs : [])]
                     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+                renderBankChangeAlerts(actionLogs);
                 onlineBody.innerHTML = online.length ? online.map(row => `<tr>
                     <td><span style="display:inline-block;width:10px;height:10px;background:#28a745;border-radius:50%;margin-right:7px;"></span>${String(row.username || '').toUpperCase()}</td>
                     <td>${String(row.role || '').toUpperCase()}</td>
@@ -4252,6 +4286,18 @@
         }
 
         function changedItemDetails(oldValue, newValue, action) {
+            if (oldValue && newValue && typeof oldValue === 'object' && typeof newValue === 'object' &&
+                !Array.isArray(oldValue) && !Array.isArray(newValue)) {
+                const changes = [];
+                for (const key of ['bank', 'wafi']) {
+                    const before = Number(oldValue[key]) || 0;
+                    const after = Number(newValue[key]) || 0;
+                    if (before !== after) {
+                        changes.push(key.toUpperCase() + ': ' + before.toFixed(2) + ' → ' + after.toFixed(2));
+                    }
+                }
+                return changes.join(' / ');
+            }
             if (!Array.isArray(oldValue) || !Array.isArray(newValue)) return '';
             let item = null;
             if (action === 'REGISTRERTE') item = newValue.find(x => !oldValue.some(y => JSON.stringify(y) === JSON.stringify(x))) || newValue[newValue.length - 1];
@@ -4436,18 +4482,26 @@
         };
 
         let presenceTimer = null;
+        let adminAlertTimer = null;
         async function sendPresence() {
             if (!apiToken()) return;
             try { await apiRequest('/auth/presence', { method:'POST', body:'{}' }); } catch (_) {}
         }
         function startPresence() {
             clearInterval(presenceTimer);
+            clearInterval(adminAlertTimer);
             sendPresence();
             presenceTimer = setInterval(sendPresence, 60000);
+            if (getCurrentUserRole() === "Admin") {
+                adminAlertTimer = setInterval(() => {
+                    if (window.loadSecurityOverview) window.loadSecurityOverview();
+                }, 60000);
+            }
         }
 
         window.handleLogout = async function () {
             clearInterval(presenceTimer);
+            clearInterval(adminAlertTimer);
             try { if (apiToken()) await apiRequest('/auth/logout', { method:'POST', body:'{}' }); } catch (_) {}
             serverSyncReady = false;
             localStorage.removeItem('homar_api_token');
