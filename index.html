@@ -1031,7 +1031,7 @@
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
                     <div>
                         <h4 style="margin:0 0 5px;color:#a33a00;">⚠ VARSEL – NY BANKAKTIVITET</h4>
-                        <p style="margin:0;font-size:12px;color:#666;">VISER BARE NYE ENDRINGER I BANKEN, HVEM SOM GJORDE DEM OG NÅR.</p>
+                        <p style="margin:0;font-size:12px;color:#666;">VISER BARE NYE ENDRINGER I BANK OG WAFI, HVEM SOM GJORDE DEM OG NÅR.</p>
                     </div>
                     <button type="button" onclick="loadSecurityOverview()" style="background:#0b63ce;">OPPDATER VARSEL</button>
                 </div>
@@ -3473,7 +3473,7 @@
             const changes = (Array.isArray(actionLogs) ? actionLogs : [])
                 .filter(row => String(row.eventType || '').toUpperCase() === 'ACTION:BUDSJET:ENDRET')
                 .filter(row => new Date(row.createdAt || 0).getTime() >= startedAt)
-                .filter(row => /BANK/i.test(String(row.details || '')))
+                .filter(row => /BANK|WAFI/i.test(String(row.details || '')))
                 .filter(row => !readIds.has(String(row.id)))
                 .slice(0, 5);
             target.innerHTML = '';
@@ -3488,7 +3488,7 @@
                 const message = document.createElement('span');
                 const time = row.createdAt ? new Date(row.createdAt).toLocaleString('nb-NO') : '-';
                 message.textContent = String(row.username || 'UKJENT').toUpperCase() + ' – ' +
-                    String(row.details || 'BANK ENDRET').split(' / ').filter(part => /BANK/i.test(part)).join(' / ') + ' – ' + time;
+                    String(row.details || 'BANK/WAFI ENDRET') + ' – ' + time;
                 const okButton = document.createElement('button');
                 okButton.type = 'button';
                 okButton.textContent = 'OK';
