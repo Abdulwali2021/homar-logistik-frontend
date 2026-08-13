@@ -1886,7 +1886,7 @@
             const rest = String(seconds % 60).padStart(2, "0");
             text.textContent = latest.label + " ER SLETTET – ANGRE INNEN " + minutes + ":" + rest;
             bar.classList.remove("hidden");
-            undoTrashTimer = setTimeout(renderUndoDeleteBar, 1000);
+            undoTrashTimer = setTimeout(purgeExpiredDeletionTrash, 1000);
         }
 
         window.undoLatestDeletion = function () {
@@ -1904,7 +1904,14 @@
             const entry = selected.entry;
             const list = JSON.parse(localStorage.getItem(entry.key) || "[]");
             const insertAt = Math.max(0, Math.min(Number(entry.index) || 0, list.length));
-            list.splice(insertAt, 0, entry.item);
+            if (entry.mode === "lager") {
+                const typeKey = normType(entry.item && entry.item.type);
+                const existingIndex = list.findIndex(row => normType(row && row.type) === typeKey);
+                if (existingIndex >= 0) list[existingIndex] = entry.item;
+                else list.splice(insertAt, 0, entry.item);
+            } else {
+                list.splice(insertAt, 0, entry.item);
+            }
             if (entry.mode === "samen") {
                 updateLagerFromSamen(entry.item.type, Number(entry.item.qty || 0), entry.item.date);
             } else if (entry.mode === "customer") {
@@ -2363,6 +2370,7 @@
             const list = consolidateLagerRows();
             const item = list[index];
             if (!item) return;
+            const undoSnapshot = JSON.parse(JSON.stringify(item));
             const isAdmin = getCurrentUserRole() === "Admin";
 
             if (isAdmin) {
@@ -2384,6 +2392,9 @@
                 item.updatedAt = new Date().toISOString();
             }
 
+            if (canUseDeleteUndo()) {
+                moveDeletedRowToTrash("homar_lager", index, undoSnapshot, "LAGER", "lager");
+            }
             localStorage.setItem("homar_lager", JSON.stringify(list));
             loadData();
         }
