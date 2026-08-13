@@ -1422,6 +1422,7 @@
             const targetUser = String(username || '').toUpperCase();
             const samen = JSON.parse(localStorage.getItem("homar_samen") || "[]");
             return samen.some(entry => {
+                if (entry && entry.deleted) return false;
                 const actor = String(entry.updatedBy || entry.createdBy || "admin").toUpperCase();
                 const time = entry.updatedAt || entry.createdAt || entry.date;
                 return normType(entry.type) === targetType && actor === targetUser && isWithin24Hours(time);
@@ -1449,6 +1450,13 @@
         function canModifyOrDelete(item) {
             // Registrerte data skal bevares. Bare en faktisk ADMIN kan slette.
             return getCurrentUserRole() === "Admin";
+        }
+
+        function canDeleteOwnRecentRecord(item) {
+            if (getCurrentUserRole() === "Admin") return true;
+            const perms = getUserPermissions(getCurrentUser());
+            if (perms.noAccess || (!perms.fullAccess && !perms.deleteAnytime && !perms.editAnytime)) return false;
+            return isOwnRecentRecord(item);
         }
 
         function canEditDetails(item) {
@@ -2372,18 +2380,27 @@
         }
 
         function deleteLogistics(index) {
-            let list = JSON.parse(localStorage.getItem("homar_samen") || "[]");
-            let item = list[index];
-            if (!item) return;
+            const list = JSON.parse(localStorage.getItem("homar_samen") || "[]");
+            const item = list[index];
+            if (!item || item.deleted) return;
+            const isAdmin = getCurrentUserRole() === "Admin";
 
-            if (!canModifyOrDelete(item)) {
-                alert("DU KAN KUN SLETTE DINE EGNE ORDRER INNEN 24 TIMER.");
+            if (!canDeleteOwnRecentRecord(item)) {
+                alert("DU KAN KUN SLETTE DINE EGNE SAMEN-REGISTRERINGER INNEN 24 TIMER.");
                 return;
             }
 
-            if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE?")) {
+            if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE SAMEN-REGISTRERINGEN?")) {
                 updateLagerFromSamen(item.type, -Number(item.qty || 0), item.date);
-                list.splice(index, 1);
+                if (isAdmin) {
+                    list.splice(index, 1);
+                } else {
+                    // Behold samme listelengde slik at eksisterende Render-backend
+                    // kan lagre slettingen uten en ny utrulling.
+                    item.deleted = true;
+                    item.deletedBy = getCurrentUser();
+                    item.deletedAt = new Date().toISOString();
+                }
                 localStorage.setItem("homar_samen", JSON.stringify(list));
                 loadData();
             }
@@ -3585,18 +3602,19 @@
 
         function renderLogisticsTable() {
             let list = JSON.parse(localStorage.getItem("homar_samen") || "[]");
+            const activeList = list.filter(item => item && !item.deleted);
             let tbody = document.getElementById("logisticsBody");
             tbody.innerHTML = "";
 
             // SAMEN-totalene skal alltid vise totalsum for ALLE datoer,
   // uavhengig av hvilken dato som vises i tabellen.
-  let sumQty = list.reduce((acc, item) => acc + (Number(item.qty) || 0), 0);
-  let sumDriver = list.reduce((acc, item) => acc + (Number(item.driverPrice) || 0), 0);
-  let sumPrice = list.reduce((acc, item) => acc + ((Number(item.qty) || 0) * (Number(item.price) || 0)), 0);
-  let sumTotal = list.reduce((acc, item) => acc + (((Number(item.qty) || 0) * (Number(item.price) || 0)) + (Number(item.driverPrice) || 0)), 0);
+  let sumQty = activeList.reduce((acc, item) => acc + (Number(item.qty) || 0), 0);
+  let sumDriver = activeList.reduce((acc, item) => acc + (Number(item.driverPrice) || 0), 0);
+  let sumPrice = activeList.reduce((acc, item) => acc + ((Number(item.qty) || 0) * (Number(item.price) || 0)), 0);
+  let sumTotal = activeList.reduce((acc, item) => acc + (((Number(item.qty) || 0) * (Number(item.price) || 0)) + (Number(item.driverPrice) || 0)), 0);
 
   list.forEach((item, index) => {
-      if (!filterByCalendar(item)) return;
+      if (!item || item.deleted || !filterByCalendar(item)) return;
 
       let rowTotalNOK = (item.qty * item.price) + Number(item.driverPrice || 0);
 
@@ -3604,7 +3622,7 @@
                 let dispPrice = convertPriceToDisplay(item.price);
                 let dispTotal = convertPriceToDisplay(rowTotalNOK);
                 let showCol = showSjukiColumns ? "" : "hidden";
-                let canMod = canModifyOrDelete(item);
+                let canMod = canDeleteOwnRecentRecord(item);
                 let canEdit = canEditDetails(item);
                 let createdByUp = String(item.createdBy || "admin").toUpperCase();
 
