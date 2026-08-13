@@ -1982,55 +1982,175 @@
             }
         }
 
-        // Lager funksjoner (viser alltid dagens dato, sjekker >= 0)
+        // Lager: én samlet linje per produkt, med eget antallsbidrag per bruker.
+        function lagerContributions(item) {
+            if (Array.isArray(item && item.contributions) && item.contributions.length) {
+                return item.contributions.map(entry => ({
+                    user: String(entry.user || entry.createdBy || 'ADMIN').toUpperCase(),
+                    qty: Math.max(0, Number(entry.qty) || 0),
+                    source: String(entry.source || 'LAGER').toUpperCase(),
+                    date: entry.date || item.date || todayStr,
+                    createdAt: entry.createdAt || item.createdAt || new Date().toISOString()
+                })).filter(entry => entry.qty > 0);
+            }
+
+            const total = Math.max(0, Number(item && item.qty) || 0);
+            const creator = String(item && item.createdBy || 'ADMIN').toUpperCase();
+            const updater = String(item && item.updatedBy || '').toUpperCase();
+            const lastAdded = Math.max(0, Number(item && item.lastAddedQty) || 0);
+            const rows = [];
+            if (lastAdded > 0 && lastAdded <= total && updater && updater !== creator) {
+                if (total - lastAdded > 0) rows.push({
+                    user: creator, qty: total - lastAdded, source: 'TIDLIGERE',
+                    date: item.date || todayStr, createdAt: item.createdAt || new Date().toISOString()
+                });
+                rows.push({
+                    user: updater, qty: lastAdded, source: item.lastAddedFrom || 'LAGER',
+                    date: item.date || todayStr, createdAt: item.updatedAt || new Date().toISOString()
+                });
+            } else if (total > 0) {
+                rows.push({
+                    user: updater || creator, qty: total, source: item && item.lastAddedFrom || 'TIDLIGERE',
+                    date: item && item.date || todayStr,
+                    createdAt: item && (item.updatedAt || item.createdAt) || new Date().toISOString()
+                });
+            }
+            return rows;
+        }
+
+        function ownLagerQuantity(item, username) {
+            const target = String(username || getCurrentUser() || '').toUpperCase();
+            return lagerContributions(item)
+                .filter(entry => entry.user === target)
+                .reduce((sum, entry) => sum + (Number(entry.qty) || 0), 0);
+        }
+
+        function consolidateLagerRows() {
+            const original = JSON.parse(localStorage.getItem("homar_lager") || "[]");
+            const merged = [];
+            const byType = new Map();
+
+            original.forEach(item => {
+                const key = normType(item && item.type);
+                if (!key) return;
+                const contributions = lagerContributions(item);
+                let target = byType.get(key);
+                if (!target) {
+                    target = {
+                        ...item,
+                        type: String(item.type || '').trim().toUpperCase(),
+                        qty: 0,
+                        contributions: []
+                    };
+                    delete target.lastAddedQty;
+                    delete target.lastAddedFrom;
+                    byType.set(key, target);
+                    merged.push(target);
+                }
+                target.contributions.push(...contributions);
+                target.qty += contributions.reduce((sum, entry) => sum + (Number(entry.qty) || 0), 0);
+                if (Number(item.price) > 0 || !Number(target.price)) target.price = Number(item.price) || 0;
+                const targetTime = new Date(target.updatedAt || target.createdAt || target.date || 0).getTime();
+                const itemTime = new Date(item.updatedAt || item.createdAt || item.date || 0).getTime();
+                if (itemTime >= targetTime) {
+                    target.date = item.date || target.date;
+                    target.updatedAt = item.updatedAt || item.createdAt || target.updatedAt;
+                    target.updatedBy = item.updatedBy || item.createdBy || target.updatedBy;
+                }
+            });
+
+            const changed = JSON.stringify(original) !== JSON.stringify(merged);
+            if (changed) localStorage.setItem("homar_lager", JSON.stringify(merged));
+            return merged;
+        }
+
+        function addLagerContribution(item, qty, source, actor) {
+            item.contributions = lagerContributions(item);
+            const amount = Number(qty) || 0;
+            const user = String(actor || getCurrentUser() || 'ADMIN').toUpperCase();
+            if (amount > 0) {
+                item.contributions.push({
+                    user, qty: amount, source: String(source || 'LAGER').toUpperCase(),
+                    date: todayStr, createdAt: new Date().toISOString()
+                });
+            } else if (amount < 0) {
+                let remaining = Math.abs(amount);
+                for (let i = item.contributions.length - 1; i >= 0 && remaining > 0; i--) {
+                    const entry = item.contributions[i];
+                    if (entry.user !== user || (source && entry.source !== String(source).toUpperCase())) continue;
+                    const used = Math.min(remaining, Number(entry.qty) || 0);
+                    entry.qty -= used;
+                    remaining -= used;
+                }
+                item.contributions = item.contributions.filter(entry => Number(entry.qty) > 0);
+            }
+            item.qty = item.contributions.reduce((sum, entry) => sum + (Number(entry.qty) || 0), 0);
+        }
+
         function saveLager() {
             if (!canUserRegister()) {
                 alert("DU HAR IKKE TILLATELSE TIL Å REGISTRERE OPPFØRINGER.");
                 return;
             }
-            let index = parseInt(document.getElementById("lagerEditIndex").value);
-            let date = todayStr; 
-            let type = document.getElementById("lType").value.trim().toUpperCase();
-            let qty = parseInt(document.getElementById("lQty").value);
-            let priceInput = parseFloat(document.getElementById("lPrice").value);
+            const index = parseInt(document.getElementById("lagerEditIndex").value);
+            const date = todayStr;
+            const type = document.getElementById("lType").value.trim().toUpperCase();
+            const qty = parseInt(document.getElementById("lQty").value);
+            const priceInput = parseFloat(document.getElementById("lPrice").value);
 
             if (!date || !type || isNaN(qty) || isNaN(priceInput) || qty < 0) {
                 alert("VENNLIGST FYLL UT ALLE FELT KORREKT (QUANTY KAN IKKE VÆRE UNDER 0)!");
                 return;
             }
 
-            let priceNOK = convertInputPriceToNOK(priceInput);
-            let list = JSON.parse(localStorage.getItem("homar_lager") || "[]");
+            const priceNOK = convertInputPriceToNOK(priceInput);
+            const list = consolidateLagerRows();
+            const isAdmin = getCurrentUserRole() === "Admin";
+            const actor = String(getCurrentUser() || 'ADMIN').toUpperCase();
 
             if (index > -1) {
-                let oldItem = list[index];
-                if (!canEditDetails(oldItem)) {
-                    alert("DU KAN KUN REDIGERE DINE EGNE LAGEROPPFØRINGER INNEN 24 TIMER.");
+                const item = list[index];
+                if (!item || !canEditDetails(item)) {
+                    alert("DU KAN KUN REDIGERE DITT EGET ANTALL.");
                     return;
                 }
-                list[index].date = date;
-                list[index].type = type;
-                list[index].qty = qty;
-                list[index].price = priceNOK;
+                if (isAdmin) {
+                    item.type = type;
+                    item.price = priceNOK;
+                    item.contributions = [{
+                        user: actor, qty, source: 'ADMIN',
+                        date, createdAt: new Date().toISOString()
+                    }];
+                    item.qty = qty;
+                } else {
+                    item.contributions = lagerContributions(item).filter(entry => entry.user !== actor);
+                    if (qty > 0) item.contributions.push({
+                        user: actor, qty, source: 'LAGER',
+                        date, createdAt: new Date().toISOString()
+                    });
+                    item.qty = item.contributions.reduce((sum, entry) => sum + (Number(entry.qty) || 0), 0);
+                }
+                item.date = date;
+                item.updatedBy = actor;
+                item.updatedAt = new Date().toISOString();
             } else {
-                let existingIndex = list.findIndex(item => normType(item.type) === normType(type));
-
+                const existingIndex = list.findIndex(item => normType(item.type) === normType(type));
                 if (existingIndex > -1) {
-                    list[existingIndex].qty += qty;
-                    list[existingIndex].price = priceNOK;
-                    list[existingIndex].date = date;
-                    list[existingIndex].updatedBy = getCurrentUser();
-                    list[existingIndex].updatedAt = new Date().toISOString();
-                    list[existingIndex].lastAddedQty = qty;
-                    list[existingIndex].lastAddedFrom = "LAGER";
+                    const item = list[existingIndex];
+                    addLagerContribution(item, qty, 'LAGER', actor);
+                    item.price = priceNOK;
+                    item.date = date;
+                    item.updatedBy = actor;
+                    item.updatedAt = new Date().toISOString();
                 } else {
                     list.push({
-                        date: date,
-                        type: type,
-                        qty: qty,
-                        price: priceNOK,
-                        createdBy: getCurrentUser(),
-                        createdAt: new Date().toISOString()
+                        date, type, qty, price: priceNOK,
+                        createdBy: actor,
+                        createdAt: new Date().toISOString(),
+                        contributions: qty > 0 ? [{
+                            user: actor, qty, source: 'LAGER',
+                            date, createdAt: new Date().toISOString()
+                        }] : []
                     });
                 }
             }
@@ -2044,43 +2164,44 @@
             document.getElementById("lagerEditIndex").value = "-1";
             document.getElementById("lDate").value = todayStr;
             document.getElementById("lType").value = "";
+            document.getElementById("lType").disabled = false;
             document.getElementById("lQty").value = "";
             document.getElementById("lPrice").value = "";
+            document.getElementById("lPrice").disabled = false;
             document.getElementById("lagerFormTitle").textContent = "REGISTRER NY LAGER";
             document.getElementById("lagerSubmitBtn").textContent = "REGISTRER";
         }
 
         function editLager(index) {
-            let list = JSON.parse(localStorage.getItem("homar_lager") || "[]");
-            let item = list[index];
-            if (!item) return;
-
-            if (!canEditDetails(item)) {
-                alert("DU KAN KUN REDIGERE DINE EGNE LAGEROPPFØRINGER INNEN 24 TIMER.");
+            const list = consolidateLagerRows();
+            const item = list[index];
+            if (!item || !canEditDetails(item)) {
+                alert("DU KAN KUN REDIGERE DITT EGET ANTALL.");
                 return;
             }
-
+            const isAdmin = getCurrentUserRole() === "Admin";
+            const ownQty = ownLagerQuantity(item, getCurrentUser());
             document.getElementById("lagerEditIndex").value = index;
             document.getElementById("lDate").value = todayStr;
             document.getElementById("lType").value = item.type;
-            document.getElementById("lQty").value = item.qty;
+            document.getElementById("lType").disabled = !isAdmin;
+            document.getElementById("lQty").value = isAdmin ? item.qty : ownQty;
             document.getElementById("lPrice").value = convertPriceToDisplay(item.price);
-            document.getElementById("lagerFormTitle").textContent = "REDIGER LAGER";
+            document.getElementById("lPrice").disabled = !isAdmin;
+            document.getElementById("lagerFormTitle").textContent =
+                isAdmin ? "REDIGER HELE LAGERLINJEN" : "REDIGER DITT ANTALL (MAKS " + ownQty + ")";
             document.getElementById("lagerSubmitBtn").textContent = "OPPDATER";
             window.scrollTo({ top: document.getElementById("lagerInputCard").offsetTop, behavior: 'smooth' });
         }
 
         function deleteLager(index) {
-            let list = JSON.parse(localStorage.getItem("homar_lager") || "[]");
-            let item = list[index];
-            if (!item) return;
-
-            if (!canModifyOrDelete(item)) {
-                alert("DU KAN KUN SLETTE DINE EGNE LAGEROPPFØRINGER INNEN 24 TIMER.");
+            const list = consolidateLagerRows();
+            const item = list[index];
+            if (!item || getCurrentUserRole() !== "Admin") {
+                alert("KUN ADMIN KAN SLETTE HELE PRODUKTLINJEN.");
                 return;
             }
-
-            if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE?")) {
+            if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE HELE PRODUKTLINJEN?")) {
                 list.splice(index, 1);
                 localStorage.setItem("homar_lager", JSON.stringify(list));
                 loadData();
