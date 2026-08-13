@@ -1435,6 +1435,11 @@
             const updater = String(item.updatedBy || "").toUpperCase();
             const createdTime = item.createdAt || item.date;
             const updatedTime = item.updatedAt || item.createdAt || item.date;
+            if (Array.isArray(item.contributions) && item.contributions.some(entry =>
+                String(entry.user || '').toUpperCase() === currentUser &&
+                Number(entry.qty) > 0 &&
+                isWithin24Hours(entry.createdAt || entry.date)
+            )) return true;
 
             if (creator === currentUser && isWithin24Hours(createdTime)) return true;
             if (updater === currentUser && isWithin24Hours(updatedTime)) return true;
@@ -2218,37 +2223,35 @@
         }
 
         function updateLagerFromSamen(type, qtyDelta, date) {
-            let cleanType = String(type || "").trim().toUpperCase();
-            qtyDelta = Number(qtyDelta) || 0;
-            if (!cleanType || qtyDelta === 0) return;
+            const cleanType = String(type || "").trim().toUpperCase();
+            const amount = Number(qtyDelta) || 0;
+            if (!cleanType || amount === 0) return;
 
-            let lager = JSON.parse(localStorage.getItem("homar_lager") || "[]");
-            let lagerIndex = lager.findIndex(item => normType(item.type) === normType(cleanType));
+            const lager = consolidateLagerRows();
+            const actor = String(getCurrentUser() || 'ADMIN').toUpperCase();
+            const lagerIndex = lager.findIndex(item => normType(item.type) === normType(cleanType));
 
             if (lagerIndex !== -1) {
-                lager[lagerIndex].qty = (Number(lager[lagerIndex].qty) || 0) + qtyDelta;
-                if (lager[lagerIndex].qty < 0) {
-                    lager[lagerIndex].qty = 0;
-                }
-                lager[lagerIndex].date = todayStr;
-                lager[lagerIndex].updatedBy = getCurrentUser();
-                lager[lagerIndex].updatedAt = new Date().toISOString();
-                lager[lagerIndex].lastAddedQty = qtyDelta;
-                lager[lagerIndex].lastAddedFrom = "SAMEN"; 
-            } else {
-                if (qtyDelta > 0) {
-                    lager.push({
-                        date: todayStr, 
-                        type: cleanType,
-                        qty: qtyDelta,
-                        price: 0,
-                        createdBy: getCurrentUser(),
-                        createdAt: new Date().toISOString(),
-                        createdFromSamen: true
-                    });
-                }
+                const item = lager[lagerIndex];
+                addLagerContribution(item, amount, 'SAMEN', actor);
+                item.date = todayStr;
+                item.updatedBy = actor;
+                item.updatedAt = new Date().toISOString();
+            } else if (amount > 0) {
+                lager.push({
+                    date: todayStr,
+                    type: cleanType,
+                    qty: amount,
+                    price: 0,
+                    createdBy: actor,
+                    createdAt: new Date().toISOString(),
+                    createdFromSamen: true,
+                    contributions: [{
+                        user: actor, qty: amount, source: 'SAMEN',
+                        date: date || todayStr, createdAt: new Date().toISOString()
+                    }]
+                });
             }
-
             localStorage.setItem("homar_lager", JSON.stringify(lager));
         }
 
@@ -3491,7 +3494,7 @@
         }
 
         function renderLagerTable() {
-            let list = JSON.parse(localStorage.getItem("homar_lager") || "[]");
+            let list = consolidateLagerRows();
             let tbody = document.getElementById("lagerBody");
             tbody.innerHTML = "";
 
