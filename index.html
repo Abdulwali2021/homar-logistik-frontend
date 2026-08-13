@@ -1096,11 +1096,11 @@
                             <small>KAN REDIGERE EGNE VARER OG OPPFØRINGER INNEN 24 TIMER.</small>
                         </label>
                     </div>
-                    <div class="checkbox-group permission-option" style="background:#f8f9fa;">
-                        <input type="checkbox" id="userPermDeleteAnytime" class="hidden" disabled>
-                        <label>
-                            <strong>SLETTING ER KUN FOR ADMIN</strong>
-                            <small>REGISTRERTE VARER, KUNDER OG OPPFØRINGER KAN IKKE SLETTES AV ANDRE BRUKERE.</small>
+                    <div class="checkbox-group permission-option">
+                        <input type="checkbox" id="userPermDeleteAnytime">
+                        <label for="userPermDeleteAnytime">
+                            <strong>SLETTE EGET ANTALL INNEN 24 TIMER</strong>
+                            <small>KAN BARE SLETTE SITT EGET NYLIG REGISTRERTE ANTALL. ANDRES ANTALL PÅ SAMME PRODUKTLINJE BEHOLDES.</small>
                         </label>
                     </div>
                 </div>
@@ -1367,7 +1367,7 @@
             if (username === "admin") {
                 return { fullAccess: true, noAccess: false, canViewAdmin: true, canViewBudget: true, canViewExpense: true, canRegister: true, canChangeStatus: true, editAnytime: true, deleteAnytime: true };
             }
-            return userPerms[username] || { fullAccess: false, noAccess: true, canViewAdmin: false, canViewBudget: false, canViewExpense: false, canRegister: false, canChangeStatus: false, editAnytime: false, deleteAnytime: false };
+            return userPerms[username] || { fullAccess: false, noAccess: true, canViewAdmin: false, canViewBudget: false, canViewExpense: false, canRegister: false, canChangeStatus: false, editAnytime: false, deleteAnytime: fullAccess ? true : (noAccess ? false : document.getElementById("userPermDeleteAnytime").checked) };
         }
 
         function canUserViewBudget() {
@@ -2023,11 +2023,18 @@
             return rows;
         }
 
-        function ownLagerQuantity(item, username) {
+        function ownLagerQuantity(item, username, recentOnly = false) {
             const target = String(username || getCurrentUser() || '').toUpperCase();
             return lagerContributions(item)
-                .filter(entry => entry.user === target)
+                .filter(entry => entry.user === target && (!recentOnly || isWithin24Hours(entry.createdAt || entry.date)))
                 .reduce((sum, entry) => sum + (Number(entry.qty) || 0), 0);
+        }
+
+        function canDeleteOwnLagerQuantity(item) {
+            if (getCurrentUserRole() === "Admin") return true;
+            const perms = getUserPermissions(getCurrentUser());
+            if (perms.noAccess || (!perms.fullAccess && !perms.deleteAnytime)) return false;
+            return ownLagerQuantity(item, getCurrentUser(), true) > 0;
         }
 
         function consolidateLagerRows() {
@@ -2128,7 +2135,9 @@
                     }];
                     item.qty = qty;
                 } else {
-                    item.contributions = lagerContributions(item).filter(entry => entry.user !== actor);
+                    item.contributions = lagerContributions(item).filter(entry =>
+                        entry.user !== actor || !isWithin24Hours(entry.createdAt || entry.date)
+                    );
                     if (qty > 0) item.contributions.push({
                         user: actor, qty, source: 'LAGER',
                         date, createdAt: new Date().toISOString()
@@ -2185,7 +2194,7 @@
                 return;
             }
             const isAdmin = getCurrentUserRole() === "Admin";
-            const ownQty = ownLagerQuantity(item, getCurrentUser());
+            const ownQty = ownLagerQuantity(item, getCurrentUser(), !isAdmin);
             document.getElementById("lagerEditIndex").value = index;
             document.getElementById("lDate").value = todayStr;
             document.getElementById("lType").value = item.type;
@@ -2202,15 +2211,30 @@
         function deleteLager(index) {
             const list = consolidateLagerRows();
             const item = list[index];
-            if (!item || getCurrentUserRole() !== "Admin") {
-                alert("KUN ADMIN KAN SLETTE HELE PRODUKTLINJEN.");
-                return;
-            }
-            if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE HELE PRODUKTLINJEN?")) {
+            if (!item) return;
+            const isAdmin = getCurrentUserRole() === "Admin";
+
+            if (isAdmin) {
+                if (!confirm("ER DU SIKKER PÅ AT DU VIL SLETTE HELE PRODUKTLINJEN?")) return;
                 list.splice(index, 1);
-                localStorage.setItem("homar_lager", JSON.stringify(list));
-                loadData();
+            } else {
+                if (!canDeleteOwnLagerQuantity(item)) {
+                    alert("DU KAN BARE SLETTE DITT EGET ANTALL INNEN 24 TIMER.");
+                    return;
+                }
+                const actor = String(getCurrentUser() || '').toUpperCase();
+                const ownRecentQty = ownLagerQuantity(item, actor, true);
+                if (!confirm("VIL DU SLETTE DITT EGET ANTALL: " + ownRecentQty + "?")) return;
+                item.contributions = lagerContributions(item).filter(entry =>
+                    entry.user !== actor || !isWithin24Hours(entry.createdAt || entry.date)
+                );
+                item.qty = item.contributions.reduce((sum, entry) => sum + (Number(entry.qty) || 0), 0);
+                item.updatedBy = actor;
+                item.updatedAt = new Date().toISOString();
             }
+
+            localStorage.setItem("homar_lager", JSON.stringify(list));
+            loadData();
         }
 
         // Samen (Logistikk) funksjoner
@@ -2973,7 +2997,7 @@
                 document.getElementById("userPermRegister").checked = true;
                 document.getElementById("userPermStatus").checked = true;
                 document.getElementById("userPermEditAnytime").checked = true;
-                document.getElementById("userPermDeleteAnytime").checked = false;
+                document.getElementById("userPermDeleteAnytime").checked = fullAccess ? true : !!perms.deleteAnytime;
             }
             toggleNoAccessCheck();
         }
@@ -2999,7 +3023,7 @@
                 document.getElementById("userPermRegister").checked = false;
                 document.getElementById("userPermStatus").checked = false;
                 document.getElementById("userPermEditAnytime").checked = false;
-                document.getElementById("userPermDeleteAnytime").checked = false;
+                document.getElementById("userPermDeleteAnytime").checked = fullAccess ? true : !!perms.deleteAnytime;
             }
         }
 
@@ -3017,7 +3041,7 @@
             document.getElementById("userPermRegister").checked = perms.canRegister;
             document.getElementById("userPermStatus").checked = perms.canChangeStatus;
             document.getElementById("userPermEditAnytime").checked = perms.editAnytime;
-            document.getElementById("userPermDeleteAnytime").checked = false;
+            document.getElementById("userPermDeleteAnytime").checked = fullAccess ? true : !!perms.deleteAnytime;
             toggleNoAccessCheck();
         }
 
@@ -3034,7 +3058,7 @@
                 canRegister: fullAccess ? true : (noAccess ? false : document.getElementById("userPermRegister").checked),
                 canChangeStatus: fullAccess ? true : (noAccess ? false : document.getElementById("userPermStatus").checked),
                 editAnytime: fullAccess ? true : (noAccess ? false : document.getElementById("userPermEditAnytime").checked),
-                deleteAnytime: false
+                deleteAnytime: fullAccess ? true : (noAccess ? false : document.getElementById("userPermDeleteAnytime").checked)
             };
             let msg = document.getElementById("userPermMsg");
             try {
@@ -3243,7 +3267,7 @@
                     <td>${p.canRegister ? 'JA' : 'NEI'}</td>
                     <td>${p.canChangeStatus ? 'JA' : 'NEI'}</td>
                     <td>${p.editAnytime ? 'JA' : 'NEI'}</td>
-                    <td>${String(u.role || '').toUpperCase() === 'ADMIN' ? 'KUN ADMIN' : 'NEI'}</td>
+                    <td>${String(u.role || '').toUpperCase() === 'ADMIN' ? 'HELE LINJER' : (p.deleteAnytime ? 'EGET ANTALL 24T' : 'NEI')}</td>
                 </tr>`;
             });
 
@@ -3524,7 +3548,7 @@
                 let hoursPassed = (new Date().getTime() - createdAt) / (1000 * 60 * 60);
 
                 // Brukeren kan også håndtere en eksisterende rad som de selv nylig har økt via LAGER eller SAMEN.
-                let canMod = canModifyOrDelete(item);
+                let canMod = canDeleteOwnLagerQuantity(item);
                 let canEdit = canEditDetails(item);
 
                 let isStockOk = Number(item.qty) >= 1;
