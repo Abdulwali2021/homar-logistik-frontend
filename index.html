@@ -624,25 +624,7 @@
             </div>
         </div>
 
-            <div class="input-card hidden" id="adminDataIntegrityCard" style="margin-top:25px;border-left:6px solid #f0ad4e;">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-                    <div>
-                        <h4 style="margin:0 0 5px;">ADMIN / LEDER DATASJEKK – SKJULTE OG UGYLDIGE RADER</h4>
-                        <p style="margin:0;font-size:12px;color:#666;">FINNER AKTIVE RADER MED MANGLENDE DATO, MANGLENDE/UGYLDIG PRIS, UGYLDIG ANTALL ELLER SKADET FORMAT.</p>
-                    </div>
-                    <button type="button" onclick="renderAdminDataIntegrityAudit()" style="background:#d98200;">KJØR DATASJEKK</button>
-                </div>
-                <div id="adminDataIntegritySummary" class="hidden" style="margin-top:12px;font-weight:bold;"></div>
-                <div class="table-scroll" style="margin-top:10px;">
-                    <table id="adminDataIntegrityTable" class="hidden">
-                        <thead><tr><th>FANE</th><th>RAD</th><th>VARE / NAVN</th><th>PROBLEM</th><th>DATO</th><th>HANDLING</th></tr></thead>
-                        <tbody id="adminDataIntegrityBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-
-        <!-- Faner øverst -->
+            <!-- Faner øverst -->
         <div class="nav-tabs">
             <button id="tabLager" class="nav-btn active" onclick="switchView('lager')">LAGER</button>
             <button id="tabSamen" class="nav-btn" onclick="switchView('samen')">SAMEN</button>
@@ -1305,9 +1287,7 @@
 
             // VIS ALLE skal også avsløre gamle/ugyldige rader uten dato,
             // slik at admin kan rydde dem i stedet for at de forblir skjult.
-            if (mode === "all") {
-                return !!itemDate || ["ADMIN", "LEDER"].includes(String(getCurrentUserRole() || "").toUpperCase());
-            }
+            if (mode === "all") return true;
             if (!itemDate) return false;
 
             if (mode === "today") {
@@ -3305,177 +3285,6 @@
             }
         }
 
-        function updateDataIntegrityAuditVisibility() {
-            const role = String(getCurrentUserRole() || "").toUpperCase();
-            const card = document.getElementById("adminDataIntegrityCard");
-            if (!card) return;
-            card.classList.toggle("hidden", !["ADMIN", "LEDER"].includes(role));
-        }
-
-        function renderAdminDataIntegrityAudit() {
-            const role = String(getCurrentUserRole() || "").toUpperCase();
-            const card = document.getElementById("adminDataIntegrityCard");
-            if (!["ADMIN", "LEDER"].includes(role)) {
-                if (card) card.classList.add("hidden");
-                return;
-            }
-            if (card) card.classList.remove("hidden");
-            const sources = [
-                ["LAGER", "homar_lager"],
-                ["SAMEN", "homar_samen"],
-                ["GARI", "homar_gari"],
-                ["SHAMITO", "homar_shamito"],
-                ["DHAGAX SHID", "homar_dhagaxshid"],
-                ["KUNDE", "homar_kunde"],
-                ["QARASH", "homar_qarash"]
-            ];
-            const findings = [];
-            sources.forEach(([area, key]) => {
-                let rows;
-                try {
-                    rows = JSON.parse(localStorage.getItem(key) || "[]");
-                } catch (_) {
-                    findings.push({ area, key, index: null, rowNumber: "-", name: "-", problem: "SKADET LAGRINGSFORMAT", date: "-", canDelete: false });
-                    return;
-                }
-                if (!Array.isArray(rows)) {
-                    findings.push({ area, key, index: null, rowNumber: "-", name: "-", problem: "UGYLDIG LISTEFORMAT", date: "-", canDelete: false });
-                    return;
-                }
-                rows.forEach((row, index) => {
-                    if (!row || typeof row !== "object" || Array.isArray(row)) {
-                        findings.push({ area, key, index, rowNumber: index + 1, name: "-", problem: "UGYLDIG RADFORMAT", date: "-", canDelete: true });
-                        return;
-                    }
-                    if (row.deleted || row.deletedAt) return;
-                    const name = String(
-                        row.type || row.navn || row.name || row.gariType ||
-                        row.vare || row.customerName || "UKJENT"
-                    ).toUpperCase();
-                    const date = String(row.date || row.betaltDato || "").trim();
-                    const problems = [];
-                    if (!date) problems.push("MANGLER DATO");
-                    const quantity = row.qty ?? row.antall ?? row.quantity;
-                    if (quantity !== undefined && !Number.isFinite(Number(quantity))) {
-                        problems.push("UGYLDIG ANTALL");
-                    }
-                    const price = row.price ?? row.priceNok ?? row.samenPrice;
-                    const missingPrice = price === undefined || price === null || String(price).trim() === "";
-                    const invalidPrice = !missingPrice && !Number.isFinite(Number(price));
-                    if (missingPrice) problems.push("MANGLER PRIS");
-                    else if (invalidPrice) problems.push("UGYLDIG PRIS");
-                    if (!name || name === "UKJENT") problems.push("MANGLER VARE/NAVN");
-                    if (problems.length) {
-                        findings.push({
-                            area,
-                            key,
-                            index,
-                            rowNumber: index + 1,
-                            name,
-                            problem: problems.join(" / "),
-                            date: date || "MANGLER DATO",
-                            canDelete: !date || missingPrice || invalidPrice
-                        });
-                    }
-                });
-            });
-
-            const summary = document.getElementById("adminDataIntegritySummary");
-            const table = document.getElementById("adminDataIntegrityTable");
-            const body = document.getElementById("adminDataIntegrityBody");
-            if (!summary || !table || !body) return;
-            summary.classList.remove("hidden");
-            body.innerHTML = "";
-            if (!findings.length) {
-                summary.style.color = "#155724";
-                summary.textContent = "DATASJEKK FULLFØRT: INGEN SKJULTE ELLER UGYLDIGE RADER FUNNET.";
-                table.classList.add("hidden");
-                return;
-            }
-            summary.style.color = "#b45309";
-            summary.textContent = "DATASJEKK FANT " + findings.length + " RAD(ER) SOM ADMIN ELLER LEDER MÅ KONTROLLERE.";
-            findings.forEach(finding => {
-                const tr = document.createElement("tr");
-                [finding.area, finding.rowNumber, finding.name, finding.problem, finding.date].forEach((value, columnIndex) => {
-                    const td = document.createElement("td");
-                    td.textContent = String(value);
-                    if (columnIndex === 3 || (columnIndex === 4 && value === "MANGLER DATO")) {
-                        td.style.color = "#dc3545";
-                        td.style.fontWeight = "bold";
-                    }
-                    tr.appendChild(td);
-                });
-                const actionTd = document.createElement("td");
-                if (finding.canDelete && finding.index !== null) {
-                    const button = document.createElement("button");
-                    button.type = "button";
-                    button.textContent = "SLETT UGYLDIG RAD";
-                    button.style.cssText = "background:#dc3545;padding:7px 9px;font-size:11px;";
-                    button.addEventListener("click", () =>
-                        deleteInvalidIntegrityRow(finding.area, finding.key, finding.index)
-                    );
-                    actionTd.appendChild(button);
-                } else {
-                    actionTd.textContent = "KONTROLLER";
-                }
-                tr.appendChild(actionTd);
-                body.appendChild(tr);
-            });
-            table.classList.remove("hidden");
-        }
-        window.renderAdminDataIntegrityAudit = renderAdminDataIntegrityAudit;
-
-        window.deleteInvalidIntegrityRow = async function (area, key, index) {
-            const role = String(getCurrentUserRole() || "").toUpperCase();
-            const allowedKeys = new Set([
-                "homar_lager", "homar_samen", "homar_gari", "homar_shamito",
-                "homar_dhagaxshid", "homar_kunde", "homar_qarash"
-            ]);
-            if (!["ADMIN", "LEDER"].includes(role) || !allowedKeys.has(key)) {
-                alert("DU HAR IKKE TILGANG TIL DENNE HANDLINGEN.");
-                return;
-            }
-            let rows;
-            try { rows = JSON.parse(localStorage.getItem(key) || "[]"); }
-            catch (_) { alert("LISTEN HAR UGYLDIG FORMAT OG KAN IKKE SLETTES HER."); return; }
-            if (!Array.isArray(rows) || !Number.isInteger(index) || index < 0 || index >= rows.length) {
-                alert("RADEN FINNES IKKE LENGER.");
-                return;
-            }
-            const row = rows[index];
-            const hasDate = row && typeof row === "object" &&
-                String(row.date || row.betaltDato || "").trim();
-            const price = row && typeof row === "object"
-                ? (row.price ?? row.priceNok ?? row.samenPrice)
-                : undefined;
-            const hasValidPrice = price !== undefined && price !== null &&
-                String(price).trim() !== "" && Number.isFinite(Number(price));
-            if (hasDate && hasValidPrice) {
-                alert("LEDER KAN BARE SLETTE UGYLDIGE RADER UTEN DATO ELLER PRIS.");
-                return;
-            }
-            if (!confirm("VIL DU SLETTE DEN UGYLDIGE RADEN UTEN DATO ELLER PRIS FRA " + area + "?")) return;
-            const updatedRows = rows.slice();
-            updatedRows.splice(index, 1);
-            try {
-                if (window.homarApiRequest) {
-                    await window.homarApiRequest("/state", {
-                        method: "PUT",
-                        body: JSON.stringify({ state: { [key]: updatedRows } })
-                    });
-                }
-                localStorage.setItem(key, JSON.stringify(updatedRows));
-                if (window.logUserAction) {
-                    window.logUserAction(area, "SLETTET", "UGYLDIG RAD UTEN DATO ELLER PRIS");
-                }
-                loadData();
-                renderAdminDataIntegrityAudit();
-                alert("DEN UGYLDIGE RADEN ER SLETTET.");
-            } catch (err) {
-                alert("KUNNE IKKE SLETTE RADEN: " + (err.message || "UKJENT FEIL"));
-            }
-        };
-
         function loadAdminData() {
             let roles = JSON.parse(localStorage.getItem("homar_roles") || "[]");
             let users = JSON.parse(localStorage.getItem("homar_users") || "[]");
@@ -3555,7 +3364,6 @@
                     </td>
                 </tr>`;
             });
-            updateDataIntegrityAuditVisibility();
             if (window.homarApiRequest) loadSecurityOverview();
         }
 
@@ -3788,7 +3596,6 @@
             checkInputCardVisibility();
             populateItemDropdowns();
             renderAllTables();
-            updateDataIntegrityAuditVisibility();
         }
 
         function populateItemDropdowns() {
