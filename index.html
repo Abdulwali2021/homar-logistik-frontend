@@ -101,7 +101,13 @@
             text-align: center;
         }
         .status-deen { background-color: #ffc107; color: #212529; }
+        .status-delbetalt { background-color: #fd7e14; color: white; }
         .status-betalt { background-color: #28a745; color: white; }
+        .payment-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px 0; }
+        .payment-summary > div { background:#f3f5f7; border:1px solid #dde2e6; border-radius:6px; padding:9px; text-align:center; }
+        .payment-history { max-height:180px; overflow:auto; border:1px solid #e0e4e8; border-radius:6px; margin-top:12px; }
+        .payment-history-row { display:flex; justify-content:space-between; gap:10px; padding:8px 10px; border-bottom:1px solid #edf0f2; font-size:12px; }
+        .payment-history-row:last-child { border-bottom:0; }
 
         .stock-badge {
             display: inline-block;
@@ -417,7 +423,7 @@
             <table id="customerTable">
                 <thead>
                     <tr>
-                        <th>DATO</th><th>NAVN</th><th>TELEFON</th><th>VARE</th><th>QUANTY</th><th id="thCustPrice">PRICE</th><th id="thCustTotal">TOTALL PRICE</th><th>STATUS</th><th class="sjuki-col hidden">OPPRETTET AV</th><th>HANDLING</th>
+                        <th>DATO</th><th>NAVN</th><th>TELEFON</th><th>VARE</th><th>QUANTY</th><th id="thCustPrice">PRICE</th><th id="thCustTotal">TOTALT</th><th>BETALT</th><th>GJENSTÅR</th><th>STATUS</th><th class="sjuki-col hidden">OPPRETTET AV</th><th>HANDLING</th>
                     </tr>
                 </thead>
                 <tbody id="customerBody"></tbody>
@@ -452,7 +458,7 @@
                     <div><label id="lblCustPrice">PRICE</label><input type="number" step="any" id="cPrice"></div>
                     <div>
                         <label>STATUS</label>
-                        <button type="button" id="cStatusBtn" class="status-btn status-deen" onclick="toggleFormStatus()" style="width: 100%; height: 38px;">DEEN</button>
+                        <button type="button" id="cStatusBtn" class="status-btn status-deen" disabled style="width:100%; height:38px;">DEEN</button>
                         <input type="hidden" id="cStatus" value="Deen">
                         <input type="hidden" id="cBetaltDato" value="">
                     </div>
@@ -897,22 +903,26 @@
     <!-- MODAL FOR RASK STATUS- OG DATOENDRING I TABELL -->
     <div id="statusModal" class="modal">
         <div class="modal-content">
-            <h3>BEHANDLE STATUS</h3>
+            <h3>REGISTRER BETALING</h3>
             <input type="hidden" id="modalIndex">
-            <div class="form-group" style="margin-top: 15px;">
-                <label>STATUS</label>
-                <select id="modalStatusSelect" onchange="toggleModalDateInput()">
-                    <option value="Deen">DEEN</option>
-                    <option value="Betalt">BETALT</option>
-                </select>
+            <div id="paymentCustomerInfo" style="font-weight:bold; margin-top:8px;"></div>
+            <div class="payment-summary">
+                <div><small>TOTALT</small><br><strong id="paymentTotal">0.00</strong></div>
+                <div><small>BETALT</small><br><strong id="paymentPaid">0.00</strong></div>
+                <div><small>GJENSTÅR</small><br><strong id="paymentRemaining">0.00</strong></div>
             </div>
-            <div class="form-group" id="modalDateGroup">
+            <div class="form-group">
+                <label>BELØP SOM BETALTES</label>
+                <input type="number" id="modalPaymentAmount" min="0.01" step="any">
+            </div>
+            <div class="form-group">
                 <label>BETALINGSDATO</label>
                 <input type="date" id="modalBetaltDato">
             </div>
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button type="button" onclick="saveModalStatus()" style="flex: 1;">LAGRE</button>
-                <button type="button" onclick="closeStatusModal()" style="background-color: #6c757d; flex: 1;">AVBRYT</button>
+            <div id="paymentHistory" class="payment-history"></div>
+            <div style="display:flex; gap:10px; margin-top:16px;">
+                <button type="button" onclick="saveCustomerPayment()" style="flex:1;">LAGRE BETALING</button>
+                <button type="button" onclick="closeStatusModal()" style="background-color:#6c757d; flex:1;">AVBRYT</button>
             </div>
         </div>
     </div>
@@ -1337,6 +1347,7 @@
                 input.value = "Deen";
                 btn.textContent = "DEEN";
                 btn.className = "status-btn status-deen";
+            btn.disabled = true;
                 betaltDatoInput.value = "";
             }
         }
@@ -2058,66 +2069,115 @@
             document.getElementById("cQty").max = available;
         }
 
+        function customerOrderTotal(item) {
+            return Math.max(0, Number(item && item.qty || 0) * Number(item && item.price || 0));
+        }
+
+        function customerPayments(item) {
+            return Array.isArray(item && item.payments) ? item.payments : [];
+        }
+
+        function customerPaidTotal(item) {
+            const total = customerOrderTotal(item);
+            const payments = customerPayments(item);
+            if (!payments.length && String(item && item.status || '').toUpperCase() === 'BETALT') return total;
+            return Math.min(total, payments.reduce((sum, payment) => sum + Math.max(0, Number(payment.amount) || 0), 0));
+        }
+
+        function customerPaymentStatus(item) {
+            const total = customerOrderTotal(item);
+            const paid = customerPaidTotal(item);
+            if (total > 0 && paid >= total - 0.005) return 'BETALT';
+            if (paid > 0) return 'DELBETALT';
+            return 'DEEN';
+        }
+
+        function syncCustomerPaymentState(item) {
+            const status = customerPaymentStatus(item);
+            item.status = status === 'BETALT' ? 'Betalt' : (status === 'DELBETALT' ? 'Delbetalt' : 'Deen');
+            const payments = customerPayments(item);
+            item.betaltDato = status === 'BETALT' && payments.length
+                ? String(payments[payments.length - 1].date || todayStr)
+                : '';
+            return status;
+        }
+
         function toggleTableRowStatus(index) {
             if (!canUserChangeStatus()) {
-                alert("DU HAR IKKE TILLATELSE TIL Å ENDRE STATUS.");
+                alert("DU HAR IKKE TILLATELSE TIL Å REGISTRERE BETALING.");
                 return;
             }
-            let list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
-            if (!list[index]) return;
+            openCustomerPayment(index);
+        }
 
-            let item = list[index];
-            let isAdmin = getCurrentUserRole() === "Admin";
-            let currentStatus = String(item.status || "Deen").toUpperCase();
+        function openCustomerPayment(index) {
+            const list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
+            const item = list[index];
+            if (!item) return;
+
+            const total = customerOrderTotal(item);
+            const paid = customerPaidTotal(item);
+            const remaining = Math.max(0, total - paid);
+            const symbol = document.getElementById("activeCurrency").value === "USD" ? "$" : "KR";
 
             document.getElementById("modalIndex").value = index;
-            let statusSelect = document.getElementById("modalStatusSelect");
-            statusSelect.value = item.status || "Deen";
-            
-            if (!isAdmin && currentStatus === "BETALT") {
-                statusSelect.disabled = true;
-            } else {
-                statusSelect.disabled = false;
-                for(let i = 0; i < statusSelect.options.length; i++) {
-                    statusSelect.options[i].disabled = false;
-                }
-            }
+            document.getElementById("paymentCustomerInfo").textContent =
+                String(item.kundeNavn || '').toUpperCase() + ' – ' + String(item.navn || '').toUpperCase();
+            document.getElementById("paymentTotal").textContent = convertPriceToDisplay(total).toFixed(2) + ' ' + symbol;
+            document.getElementById("paymentPaid").textContent = convertPriceToDisplay(paid).toFixed(2) + ' ' + symbol;
+            document.getElementById("paymentRemaining").textContent = convertPriceToDisplay(remaining).toFixed(2) + ' ' + symbol;
+            document.getElementById("modalPaymentAmount").value = "";
+            document.getElementById("modalPaymentAmount").max = convertPriceToDisplay(remaining).toFixed(2);
+            document.getElementById("modalPaymentAmount").disabled = remaining <= 0;
+            document.getElementById("modalBetaltDato").value = todayStr;
 
-            document.getElementById("modalBetaltDato").value = item.betaltDato || todayStr;
-            toggleModalDateInput();
+            const history = customerPayments(item);
+            document.getElementById("paymentHistory").innerHTML = history.length
+                ? history.map(payment => {
+                    const amount = convertPriceToDisplay(Number(payment.amount) || 0).toFixed(2);
+                    const actor = String(payment.createdBy || '').toUpperCase();
+                    return '<div class="payment-history-row"><span>' + String(payment.date || '') +
+                        (actor ? ' – ' + actor : '') + '</span><strong>' + amount + ' ' + symbol + '</strong></div>';
+                }).join('')
+                : '<div class="payment-history-row"><span>INGEN BETALINGER REGISTRERT</span></div>';
+
             document.getElementById("statusModal").style.display = "flex";
         }
 
-        function toggleModalDateInput() {
-            let status = document.getElementById("modalStatusSelect").value;
-            let group = document.getElementById("modalDateGroup");
-            if (status === "Betalt") {
-                group.style.display = "block";
-            } else {
-                group.style.display = "none";
-            }
-        }
-
-        function saveModalStatus() {
-            let index = parseInt(document.getElementById("modalIndex").value);
-            let list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
-            if (!list[index]) return;
-
-            let item = list[index];
-            let isAdmin = getCurrentUserRole() === "Admin";
-            let newStatus = document.getElementById("modalStatusSelect").value;
-            let newDate = document.getElementById("modalBetaltDato").value;
-
-            let currentStatus = String(item.status || "Deen").toUpperCase();
-
-            if (!isAdmin && currentStatus === "BETALT" && newStatus === "Deen") {
-                alert("DU KAN IKKE ENDRE STATUS TILBAKE TIL DEEN.");
+        function saveCustomerPayment() {
+            if (!canUserChangeStatus()) {
+                alert("DU HAR IKKE TILLATELSE TIL Å REGISTRERE BETALING.");
                 return;
             }
 
-            item.status = newStatus;
-            item.betaltDato = newStatus === "Betalt" ? (newDate || todayStr) : "";
+            const index = parseInt(document.getElementById("modalIndex").value);
+            const list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
+            const item = list[index];
+            if (!item) return;
 
+            const amountInput = parseFloat(document.getElementById("modalPaymentAmount").value);
+            const paymentDate = document.getElementById("modalBetaltDato").value;
+            const amountNOK = convertInputPriceToNOK(amountInput);
+            const remaining = Math.max(0, customerOrderTotal(item) - customerPaidTotal(item));
+
+            if (!paymentDate || !Number.isFinite(amountNOK) || amountNOK <= 0) {
+                alert("SKRIV ET GYLDIG BETALINGSBELØP OG DATO.");
+                return;
+            }
+            if (amountNOK > remaining + 0.005) {
+                alert("BETALINGEN KAN IKKE VÆRE STØRRE ENN GJENSTÅENDE BELØP: " +
+                    convertPriceToDisplay(remaining).toFixed(2));
+                return;
+            }
+
+            if (!Array.isArray(item.payments)) item.payments = [];
+            item.payments.push({
+                amount: Math.min(amountNOK, remaining),
+                date: paymentDate,
+                createdBy: getCurrentUser(),
+                createdAt: new Date().toISOString()
+            });
+            syncCustomerPaymentState(item);
             localStorage.setItem("homar_kunde", JSON.stringify(list));
             loadData();
             closeStatusModal();
@@ -2140,13 +2200,6 @@
             let vare = document.getElementById("cNavnSelect").value.toUpperCase();
             let qty = parseInt(document.getElementById("cQty").value);
             let priceInput = parseFloat(document.getElementById("cPrice").value);
-            let status = document.getElementById("cStatus").value;
-            let betaltDato = document.getElementById("cBetaltDato").value;
-
-            if (status === "Betalt" && !betaltDato) {
-                betaltDato = todayStr;
-            }
-
             if (!date || !kundeNavn || !vare || isNaN(qty) || qty < 0 || isNaN(priceInput)) {
                 alert("VENNLIGST FYLL UT ALLE OBLIGATORISKE FELT (QUANTY KAN IKKE VÆRE UNDER 0)!");
                 return;
@@ -2155,12 +2208,18 @@
             let priceNOK = convertInputPriceToNOK(priceInput);
             let list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
 
-            if (index > -1) {
-                let oldItem = list[index];
-                if (!canEditDetails(oldItem)) {
-                    alert("DU KAN KUN REDIGERE DINE EGNE ORDRER INNEN 24 TIMER.");
+            if (index > -1 && list[index]) {
+                const alreadyPaid = customerPaidTotal(list[index]);
+                const newTotal = Math.max(0, qty * priceNOK);
+                if (newTotal + 0.005 < alreadyPaid) {
+                    alert("ORDRETOTALEN KAN IKKE SETTES LAVERE ENN DET SOM ALLEREDE ER BETALT.");
                     return;
                 }
+            }
+
+            if (index > -1 && getCurrentUserRole() !== "Admin") {
+                alert("BARE ADMIN KAN ENDRE EN EKSISTERENDE KUNDEORDRE.");
+                return;
             }
             
             let stockMap = getStockMap();
@@ -2199,8 +2258,9 @@
                 list[index].navn = vare;
                 list[index].qty = qty;
                 list[index].price = priceNOK;
-                list[index].status = status;
-                list[index].betaltDato = status === "Betalt" ? (betaltDato || todayStr) : "";
+                list[index].updatedBy = getCurrentUser();
+                list[index].updatedAt = new Date().toISOString();
+                syncCustomerPaymentState(list[index]);
             } else {
                 updateLagerItemQty(vare, -qty);
 
@@ -2211,8 +2271,9 @@
                     navn: vare,
                     qty: qty,
                     price: priceNOK,
-                    status: status,
-                    betaltDato: status === "Betalt" ? (betaltDato || todayStr) : "",
+                    status: "Deen",
+                    betaltDato: "",
+                    payments: [],
                     createdBy: getCurrentUser(),
                     createdAt: new Date().toISOString()
                 });
@@ -2261,8 +2322,8 @@
             let item = list[index];
             if (!item) return;
 
-            if (!canEditDetails(item)) {
-                alert("DU KAN KUN REDIGERE DINE EGNE ORDRER INNEN 24 TIMER.");
+            if (getCurrentUserRole() !== "Admin") {
+                alert("BARE ADMIN KAN ENDRE HELE KUNDEORDREN.");
                 return;
             }
 
@@ -2280,13 +2341,13 @@
             
             document.getElementById("cQty").value = item.qty;
             document.getElementById("cPrice").value = convertPriceToDisplay(item.price);
-            document.getElementById("cStatus").value = item.status || "Deen";
+            let st = syncCustomerPaymentState(item);
+            document.getElementById("cStatus").value = item.status;
             document.getElementById("cBetaltDato").value = item.betaltDato || "";
-            
+
             let btn = document.getElementById("cStatusBtn");
-            let st = String(item.status || "Deen").toUpperCase();
             btn.textContent = st;
-            btn.className = "status-btn " + (st === "BETALT" ? "status-betalt" : "status-deen");
+            btn.className = "status-btn " + (st === "BETALT" ? "status-betalt" : (st === "DELBETALT" ? "status-delbetalt" : "status-deen"));
 
             document.getElementById("custFormTitle").textContent = "REDIGER KUNDE";
             document.getElementById("custSubmitBtn").textContent = "OPPDATER";
@@ -2298,8 +2359,8 @@
             let item = list[index];
             if (!item) return;
 
-            if (!canModifyOrDelete(item)) {
-                alert("DU KAN KUN SLETTE DINE EGNE ORDRER INNEN 24 TIMER.");
+            if (getCurrentUserRole() !== "Admin") {
+                alert("BARE ADMIN KAN SLETTE HELE KUNDEORDREN.");
                 return;
             }
 
@@ -3089,12 +3150,14 @@
         }
 
         function renderCustomerTable() {
-            let list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
-            let tbody = document.getElementById("customerBody");
+            const list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
+            const tbody = document.getElementById("customerBody");
             tbody.innerHTML = "";
 
-            let searchDate = document.getElementById("searchDateInput").value;
-            let searchText = document.getElementById("searchTextInput").value.toUpperCase().trim();
+            const searchDate = document.getElementById("searchDateInput").value;
+            const searchText = document.getElementById("searchTextInput").value.toUpperCase().trim();
+            const isAdmin = getCurrentUserRole() === "Admin";
+            const canRegisterPayment = canUserChangeStatus();
 
             let sumQty = 0;
             let sumTotal = 0;
@@ -3102,47 +3165,55 @@
             list.forEach((item, index) => {
                 if (!filterByCalendar(item)) return;
 
-                let status = String(item.status || "Deen").toUpperCase();
-                
-                if (currentCustomerFilter !== 'ALL' && status !== currentCustomerFilter.toUpperCase()) {
-                    return;
-                }
+                const totalNOK = customerOrderTotal(item);
+                const paidNOK = customerPaidTotal(item);
+                const remainingNOK = Math.max(0, totalNOK - paidNOK);
+                const status = customerPaymentStatus(item);
+                const payments = customerPayments(item);
+                const latestPayment = payments.length ? payments[payments.length - 1] : null;
+
+                if (currentCustomerFilter === 'Betalt' && status !== 'BETALT') return;
+                if (currentCustomerFilter === 'Deen' && status === 'BETALT') return;
 
                 if (searchDate) {
-                    let matchDate = item.date === searchDate;
-                    let matchBetalt = (status === "BETALT" && item.betaltDato === searchDate);
-                    if (!matchDate && !matchBetalt) {
-                        return;
-                    }
+                    const paymentDateMatch = payments.some(payment => payment.date === searchDate);
+                    if (item.date !== searchDate && !paymentDateMatch) return;
                 }
 
                 if (searchText) {
-                    let combined = `${item.date || ''} ${item.kundeNavn || ''} ${item.telefon || ''} ${item.navn || ''} ${status} ${item.betaltDato || ''} ${item.createdBy || ''}`.toUpperCase();
-                    if (!combined.includes(searchText)) {
-                        return;
-                    }
+                    const paymentSearch = payments.map(payment => payment.date + ' ' + payment.amount + ' ' + (payment.createdBy || '')).join(' ');
+                    const combined = `${item.date || ''} ${item.kundeNavn || ''} ${item.telefon || ''} ${item.navn || ''} ${status} ${paymentSearch} ${item.createdBy || ''}`.toUpperCase();
+                    if (!combined.includes(searchText)) return;
                 }
 
-                let totalNOK = item.qty * item.price;
-                sumQty += item.qty;
+                sumQty += Number(item.qty) || 0;
                 sumTotal += totalNOK;
 
-                let dispPrice = convertPriceToDisplay(item.price);
-                let dispTotal = convertPriceToDisplay(totalNOK);
-                let showCol = showSjukiColumns ? "" : "hidden";
-                let statusClass = status === "BETALT" ? "status-betalt" : "status-deen";
-
+                const dispPrice = convertPriceToDisplay(item.price);
+                const dispTotal = convertPriceToDisplay(totalNOK);
+                const dispPaid = convertPriceToDisplay(paidNOK);
+                const dispRemaining = convertPriceToDisplay(remainingNOK);
+                const showCol = showSjukiColumns ? "" : "hidden";
+                const statusClass = status === "BETALT" ? "status-betalt" : (status === "DELBETALT" ? "status-delbetalt" : "status-deen");
                 let statusText = status;
-                if (status === "BETALT" && item.betaltDato) {
-                    statusText += ` (${item.betaltDato})`;
+                if (status === "DELBETALT") {
+                    statusText = `DELBETALT ${dispPaid.toFixed(2)} AV ${dispTotal.toFixed(2)}`;
+                    if (latestPayment && latestPayment.date) statusText += ` (${latestPayment.date})`;
+                } else if (status === "BETALT" && latestPayment && latestPayment.date) {
+                    statusText += ` (${latestPayment.date})`;
                 }
 
-                let canEditFull = canEditDetails(item);
-                let canDeleteFull = canModifyOrDelete(item);
-                let canChangeStatus = canUserChangeStatus();
-
-                let hasAnyAction = canChangeStatus || canEditFull || canDeleteFull;
-                let createdByUp = String(item.createdBy || "admin").toUpperCase();
+                const paymentButton = canRegisterPayment && remainingNOK > 0
+                    ? `<button onclick="openCustomerPayment(${index})">REGISTRER BETALING</button>`
+                    : '';
+                const historyButton = payments.length
+                    ? `<button onclick="openCustomerPayment(${index})">SE BETALINGER</button>`
+                    : '';
+                const hasAnyAction = !!paymentButton || !!historyButton || isAdmin;
+                const createdByUp = String(item.createdBy || "admin").toUpperCase();
+                const statusAction = canRegisterPayment
+                    ? `onclick="openCustomerPayment(${index})"`
+                    : 'disabled';
 
                 tbody.innerHTML += `<tr>
                     <td>${item.date || ''}</td>
@@ -3152,18 +3223,21 @@
                     <td>${item.qty}</td>
                     <td>${dispPrice.toFixed(2)}</td>
                     <td>${dispTotal.toFixed(2)}</td>
-                    <td><button type="button" class="status-btn ${statusClass}" onclick="toggleTableRowStatus(${index})">${statusText}</button></td>
+                    <td style="color:#218838;font-weight:bold;">${dispPaid.toFixed(2)}</td>
+                    <td style="color:#b02a37;font-weight:bold;">${dispRemaining.toFixed(2)}</td>
+                    <td><button type="button" class="status-btn ${statusClass}" ${statusAction}>${statusText}</button></td>
                     <td class="sjuki-col ${showCol}">${createdByUp}</td>
                     <td>
-                         ${hasAnyAction ? `
+                        ${hasAnyAction ? `
                         <div class="action-dropdown">
                             <button class="action-btn" onclick="toggleActionMenu(event, 'actionCust_${index}')">HANDLING ▼</button>
                             <div id="actionCust_${index}" class="action-content">
-                                ${canChangeStatus ? `<button onclick="toggleTableRowStatus(${index})">ENDRE STATUS/DATO</button>` : ''}
-                                ${canEditFull ? `<button onclick="editCustomer(${index})">ENDRE FULLT</button>` : ''}
-                                ${canDeleteFull ? `<button onclick="deleteCustomer(${index})" style="color:red;">SLETT</button>` : ''}
+                                ${paymentButton}
+                                ${historyButton}
+                                ${isAdmin ? `<button onclick="editCustomer(${index})">ENDRE ORDRE</button>` : ''}
+                                ${isAdmin ? `<button onclick="deleteCustomer(${index})" style="color:red;">SLETT ORDRE</button>` : ''}
                             </div>
-                        </div>` : '<span style="font-size:12px; color:#888;">KUN SE</span>'}
+                        </div>` : '<span style="font-size:12px;color:#888;">KUN SE</span>'}
                     </td>
                 </tr>`;
             });
