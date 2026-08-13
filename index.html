@@ -632,7 +632,7 @@
                     </div>
                     <button type="button" onclick="renderAdminDataIntegrityAudit()" style="background:#d98200;">KJØR DATASJEKK</button>
                 </div>
-                <div id="adminDataIntegritySummary" style="margin-top:12px;font-weight:bold;">DATASJEKK IKKE KJØRT.</div>
+                <div id="adminDataIntegritySummary" class="hidden" style="margin-top:12px;font-weight:bold;"></div>
                 <div class="table-scroll" style="margin-top:10px;">
                     <table id="adminDataIntegrityTable" class="hidden">
                         <thead><tr><th>FANE</th><th>RAD</th><th>VARE / NAVN</th><th>PROBLEM</th><th>DATO</th><th>HANDLING</th></tr></thead>
@@ -3384,6 +3384,7 @@
             const table = document.getElementById("adminDataIntegrityTable");
             const body = document.getElementById("adminDataIntegrityBody");
             if (!summary || !table || !body) return;
+            summary.classList.remove("hidden");
             body.innerHTML = "";
             if (!findings.length) {
                 summary.style.color = "#155724";
