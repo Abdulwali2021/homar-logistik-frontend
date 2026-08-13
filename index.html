@@ -428,6 +428,44 @@
                 grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
             }
         }
+
+        /* Hindre at registreringsfelt eller knapper går utenfor kortet */
+        #customerInputCard, #lagerInputCard, #logisticsInputCard,
+        #gariInputCard, #qarashInputCard, #shamitoInputCard,
+        #dhagaxshidInputCard { overflow: hidden; box-sizing: border-box; }
+        #customerInputCard .form-row, #lagerInputCard .form-row,
+        #logisticsInputCard .form-row, #gariInputCard .form-row,
+        #qarashInputCard .form-row, #shamitoInputCard .form-row,
+        #dhagaxshidInputCard .form-row {
+            min-width: 0;
+            box-sizing: border-box;
+        }
+        #customerInputCard .form-row > *, #lagerInputCard .form-row > *,
+        #logisticsInputCard .form-row > *, #gariInputCard .form-row > *,
+        #qarashInputCard .form-row > *, #shamitoInputCard .form-row > *,
+        #dhagaxshidInputCard .form-row > * {
+            min-width: 0;
+            max-width: 100%;
+        }
+        #customerInputCard input, #customerInputCard select, #customerInputCard button,
+        #lagerInputCard input, #lagerInputCard select, #lagerInputCard button,
+        #logisticsInputCard input, #logisticsInputCard select, #logisticsInputCard button,
+        #gariInputCard input, #gariInputCard select, #gariInputCard button,
+        #qarashInputCard input, #qarashInputCard select, #qarashInputCard button,
+        #shamitoInputCard input, #shamitoInputCard select, #shamitoInputCard button,
+        #dhagaxshidInputCard input, #dhagaxshidInputCard select, #dhagaxshidInputCard button {
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            box-sizing: border-box;
+        }
+        @media (min-width: 901px) {
+            #customerInputCard .form-row {
+                grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+                grid-auto-columns: unset !important;
+            }
+            #customerInputCard .form-row > * { grid-column: auto !important; }
+        }
     </style>
 </head>
 <body>
