@@ -1172,11 +1172,11 @@
             </div>
 
             <div class="input-card" style="margin-top:20px;">
-                <h4 style="margin-top:0;">BRUKERHANDLINGER I SYSTEMET</h4>
-                <p style="font-size:12px; color:#666;">VISER HVOR BRUKEREN VAR, OG OM NOE BLE REGISTRERT, ENDRET ELLER SLETTET.</p>
+                <h4 style="margin-top:0;">SAMLET INNLOGGINGSOVERSIKT</h4>
+                <p style="font-size:12px; color:#666;">ÉN RAD PER BRUKER. ANTALLET ØKER FOR HVER VELLYKKET INNLOGGING.</p>
                 <table id="userActionsTable">
-                    <thead><tr><th>TIDSPUNKT</th><th>BRUKER</th><th>OMRÅDE</th><th>HANDLING</th><th>REGISTRERING</th></tr></thead>
-                    <tbody id="userActionsBody"><tr><td colspan="5">LASTER...</td></tr></tbody>
+                    <thead><tr><th>BRUKER</th><th>ANTALL INNLOGGINGER</th><th>SIST INNLOGGET – TIDSPUNKT</th><th>STATUS NÅ</th></tr></thead>
+                    <tbody id="userActionsBody"><tr><td colspan="4">LASTER...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -3135,10 +3135,10 @@
             };
             const formatTime = value => value ? new Date(value).toLocaleString('nb-NO') : '-';
             try {
-                const [online, logs, actions] = await Promise.all([
+                const [online, logs, loginSummary] = await Promise.all([
                     window.homarApiRequest('/admin/online-users'),
                     window.homarApiRequest('/admin/activity?limit=150'),
-                    window.homarApiRequest('/admin/activity?category=actions&limit=250')
+                    window.homarApiRequest('/admin/login-summary')
                 ]);
                 onlineBody.innerHTML = online.length ? online.map(row => `<tr>
                     <td><span style="display:inline-block;width:10px;height:10px;background:#28a745;border-radius:50%;margin-right:7px;"></span>${String(row.username || '').toUpperCase()}</td>
@@ -3153,20 +3153,23 @@
                     <td>${eventNames[row.eventType] || row.eventType}</td>
                     <td style="font-weight:bold;color:${row.success ? '#155724' : '#dc3545'};">${row.success ? 'OK' : 'FEILET'}</td>
                 </tr>`).join('') : '<tr><td colspan="5">INGEN HENDELSER ENNÅ.</td></tr>';
-                actionsBody.innerHTML = actions.length ? actions.map(row => {
-                    const parts = String(row.eventType || '').split(':');
+                const onlineNames = new Set(online.map(row => String(row.username || '').toUpperCase()));
+                actionsBody.innerHTML = loginSummary.length ? loginSummary.map(row => {
+                    const username = String(row.username || 'UKJENT').toUpperCase();
+                    const active = onlineNames.has(username);
                     return `<tr>
-                        <td>${formatTime(row.createdAt)}</td>
-                        <td>${String(row.username || 'UKJENT').toUpperCase()}</td>
-                        <td>${parts[1] || '-'}</td>
-                        <td>${parts[2] || '-'}</td>
-                        <td>${row.details || '-'}</td>
+                        <td><strong>${username}</strong></td>
+                        <td><strong>${Number(row.loginCount) || 0}</strong></td>
+                        <td>${formatTime(row.lastLoginAt)}</td>
+                        <td style="font-weight:bold;color:${active ? '#155724' : '#6c757d'};">
+                            ${active ? '● AKTIV NÅ' : 'IKKE AKTIV'}
+                        </td>
                     </tr>`;
-                }).join('') : '<tr><td colspan="5">INGEN BRUKERHANDLINGER ENNÅ.</td></tr>';
+                }).join('') : '<tr><td colspan="4">INGEN INNLOGGINGER ENNÅ.</td></tr>';
             } catch (err) {
                 onlineBody.innerHTML = '<tr><td colspan="4">KUNNE IKKE HENTE AKTIVE BRUKERE.</td></tr>';
                 activityBody.innerHTML = '<tr><td colspan="5">KUNNE IKKE HENTE LOGGEN.</td></tr>';
-                actionsBody.innerHTML = '<tr><td colspan="5">KUNNE IKKE HENTE HANDLINGENE.</td></tr>';
+                actionsBody.innerHTML = '<tr><td colspan="4">KUNNE IKKE HENTE INNLOGGINGSOVERSIKTEN.</td></tr>';
             }
         }
         window.loadSecurityOverview = loadSecurityOverview;
