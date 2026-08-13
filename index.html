@@ -1284,6 +1284,10 @@
         function filterByCalendar(item) {
             let mode = document.getElementById("archiveModeSelect").value;
             let itemDate = item.date || item.betaltDato || "";
+
+            // VIS ALLE skal også avsløre gamle/ugyldige rader uten dato,
+            // slik at admin kan rydde dem i stedet for at de forblir skjult.
+            if (mode === "all") return true;
             if (!itemDate) return false;
 
             if (mode === "today") {
@@ -1293,8 +1297,6 @@
                 let endDate = document.getElementById("archiveEndDateInput").value;
                 if (!startDate || !endDate) return true;
                 return itemDate >= startDate && itemDate <= endDate;
-            } else if (mode === "all") {
-                return true;
             }
             return true;
         }
@@ -3752,7 +3754,9 @@
                 let createdByUp = String(item.createdBy || "admin").toUpperCase();
 
                 tbody.innerHTML += `<tr>
-                    <td>${item.date || ''}</td>
+                    <td>${item.date
+                        ? item.date
+                        : '<span style="color:#dc3545;font-weight:bold;">MANGLER DATO</span>'}</td>
                     <td>${String(item.type || '').toUpperCase()}</td>
                     <td>${item.qty}</td>
                     <td>${dispDriver.toFixed(2)}</td>
