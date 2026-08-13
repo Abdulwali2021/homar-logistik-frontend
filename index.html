@@ -314,6 +314,51 @@
             }
             #sectionKunde .filter-container > div:last-child button { width: 100%; }
         }
+
+        /* KUNDE-filter: alt på én kompakt linje */
+        @media (min-width: 901px) {
+            #sectionKunde .filter-container {
+                display: grid !important;
+                grid-template-columns: auto 285px minmax(300px, 1fr) 105px !important;
+                align-items: center !important;
+                width: 100%;
+                min-height: 46px;
+                padding: 6px 8px !important;
+                gap: 8px !important;
+            }
+            #sectionKunde .filter-container > div {
+                width: auto !important;
+                min-width: 0;
+                margin: 0;
+            }
+            #sectionKunde .filter-container > div:not(.filter-buttons) {
+                display: flex;
+                align-items: center;
+                gap: 7px;
+            }
+            #sectionKunde .filter-container label {
+                margin: 0 !important;
+                white-space: nowrap;
+                line-height: 34px;
+            }
+            #sectionKunde .filter-container input,
+            #sectionKunde .filter-container button {
+                height: 34px !important;
+                min-height: 34px !important;
+            }
+            #searchDateInput {
+                width: 165px !important;
+                flex: 0 0 165px;
+            }
+            #searchTextInput {
+                width: 100% !important;
+                min-width: 180px;
+                flex: 1 1 auto;
+            }
+            #sectionKunde .filter-container > div:last-child button {
+                width: 100% !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -452,10 +497,6 @@
                 <div>
                     <label for="searchDateInput">SØK DATO:</label>
                     <input type="date" id="searchDateInput" onchange="renderCustomerTable()" style="padding: 6px; width: 130px;">
-                </div>
-                <div>
-                    <label>&nbsp;</label>
-                    <button type="button" id="showAllRegisteredBtn" onclick="showAllRegistered()" style="background-color:#28a745;">VIS ALT</button>
                 </div>
                 <div style="width: 140px;">
                     <label for="searchTextInput">SØK NAVN/TLF:</label>
@@ -1410,15 +1451,6 @@
             });
             let activeBtn = document.getElementById("filterBtn" + (status === 'ALL' ? 'All' : status));
             if (activeBtn) activeBtn.classList.add("active-filter");
-            renderCustomerTable();
-        }
-
-        function showAllRegistered() {
-            const archiveSelect = document.getElementById("archiveModeSelect");
-            archiveSelect.value = "all";
-            document.getElementById("searchDateInput").value = "";
-            document.getElementById("searchTextInput").value = "";
-            toggleArchiveModeInputs();
             renderCustomerTable();
         }
 
