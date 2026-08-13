@@ -1096,11 +1096,11 @@
                             <small>KAN REDIGERE EGNE VARER OG OPPFØRINGER INNEN 24 TIMER.</small>
                         </label>
                     </div>
-                    <div class="checkbox-group permission-option">
-                        <input type="checkbox" id="userPermDeleteAnytime">
-                        <label for="userPermDeleteAnytime">
-                            <strong>SLETTE EGNE REGISTRERINGER</strong>
-                            <small>KAN SLETTE EGNE VARER OG OPPFØRINGER INNEN 24 TIMER. KUNDEORDRER ER BESKYTTET.</small>
+                    <div class="checkbox-group permission-option" style="background:#f8f9fa;">
+                        <input type="checkbox" id="userPermDeleteAnytime" class="hidden" disabled>
+                        <label>
+                            <strong>SLETTING ER KUN FOR ADMIN</strong>
+                            <small>REGISTRERTE VARER, KUNDER OG OPPFØRINGER KAN IKKE SLETTES AV ANDRE BRUKERE.</small>
                         </label>
                     </div>
                 </div>
@@ -1122,7 +1122,7 @@
                         <th>REGISTRERE</th>
                         <th>BETALINGER</th>
                         <th>REDIGERE EGNE (24T)</th>
-                        <th>SLETTE EGNE (24T)</th>
+                        <th>SLETTING</th>
                     </tr>
                 </thead>
                 <tbody id="permissionsOverviewBody"></tbody>
@@ -1442,12 +1442,8 @@
         }
 
         function canModifyOrDelete(item) {
-            const role = getCurrentUserRole();
-            if (role === "Admin") return true;
-            const perms = getUserPermissions(getCurrentUser());
-            if (perms.fullAccess) return true;
-            if (perms.noAccess || !perms.deleteAnytime) return false;
-            return isOwnRecentRecord(item);
+            // Registrerte data skal bevares. Bare en faktisk ADMIN kan slette.
+            return getCurrentUserRole() === "Admin";
         }
 
         function canEditDetails(item) {
@@ -2883,7 +2879,7 @@
             document.getElementById("userPermRegister").checked = perms.canRegister;
             document.getElementById("userPermStatus").checked = perms.canChangeStatus;
             document.getElementById("userPermEditAnytime").checked = perms.editAnytime;
-            document.getElementById("userPermDeleteAnytime").checked = perms.deleteAnytime;
+            document.getElementById("userPermDeleteAnytime").checked = false;
             toggleNoAccessCheck();
         }
 
@@ -2900,7 +2896,7 @@
                 canRegister: fullAccess ? true : (noAccess ? false : document.getElementById("userPermRegister").checked),
                 canChangeStatus: fullAccess ? true : (noAccess ? false : document.getElementById("userPermStatus").checked),
                 editAnytime: fullAccess ? true : (noAccess ? false : document.getElementById("userPermEditAnytime").checked),
-                deleteAnytime: fullAccess ? true : (noAccess ? false : document.getElementById("userPermDeleteAnytime").checked)
+                deleteAnytime: false
             };
             let msg = document.getElementById("userPermMsg");
             try {
@@ -3101,7 +3097,7 @@
                     <td>${p.canRegister ? 'JA' : 'NEI'}</td>
                     <td>${p.canChangeStatus ? 'JA' : 'NEI'}</td>
                     <td>${p.editAnytime ? 'JA' : 'NEI'}</td>
-                    <td>${p.deleteAnytime ? 'JA' : 'NEI'}</td>
+                    <td>${String(u.role || '').toUpperCase() === 'ADMIN' ? 'KUN ADMIN' : 'NEI'}</td>
                 </tr>`;
             });
 
