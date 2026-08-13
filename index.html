@@ -302,6 +302,93 @@
         @media (max-width: 600px) {
             #qarashInputCard .form-row { grid-template-columns: 1fr !important; }
         }
+
+        /* Kompakte registreringsskjemaer – alle hovedfaner */
+        #customerInputCard, #lagerInputCard, #logisticsInputCard,
+        #gariInputCard, #qarashInputCard, #shamitoInputCard,
+        #dhagaxshidInputCard {
+            width: fit-content;
+            max-width: 100%;
+            padding: 11px 13px;
+            margin-right: auto;
+        }
+        #customerInputCard h4, #lagerInputCard h4, #logisticsInputCard h4,
+        #gariInputCard h4, #qarashInputCard h4, #shamitoInputCard h4,
+        #dhagaxshidInputCard h4 {
+            margin: 0 0 9px;
+            font-size: 15px;
+        }
+        #customerInputCard .form-row, #lagerInputCard .form-row,
+        #logisticsInputCard .form-row, #gariInputCard .form-row,
+        #qarashInputCard .form-row, #shamitoInputCard .form-row,
+        #dhagaxshidInputCard .form-row {
+            gap: 7px !important;
+            align-items: end;
+        }
+        #customerInputCard input, #customerInputCard select, #customerInputCard button,
+        #lagerInputCard input, #lagerInputCard select, #lagerInputCard button,
+        #logisticsInputCard input, #logisticsInputCard select, #logisticsInputCard button,
+        #gariInputCard input, #gariInputCard select, #gariInputCard button,
+        #qarashInputCard input, #qarashInputCard select, #qarashInputCard button,
+        #shamitoInputCard input, #shamitoInputCard select, #shamitoInputCard button,
+        #dhagaxshidInputCard input, #dhagaxshidInputCard select, #dhagaxshidInputCard button {
+            min-height: 36px;
+            height: 36px;
+        }
+        #customerInputCard label, #lagerInputCard label, #logisticsInputCard label,
+        #gariInputCard label, #qarashInputCard label, #shamitoInputCard label,
+        #dhagaxshidInputCard label { margin-bottom: 3px; font-size: 11px; }
+
+        #lagerInputCard .form-row {
+            grid-template-columns: 145px 210px 130px 140px 115px !important;
+        }
+        #logisticsInputCard .form-row {
+            grid-template-columns: 145px 180px 130px 135px 145px 115px !important;
+        }
+        #gariInputCard .form-row {
+            grid-template-columns: 145px 150px 175px 130px 140px 115px !important;
+        }
+        #qarashInputCard .form-row {
+            grid-template-columns: 145px 200px 135px 145px 115px !important;
+        }
+        #shamitoInputCard .form-row {
+            grid-template-columns: 145px 220px 140px 145px 115px !important;
+        }
+        #dhagaxshidInputCard .form-row {
+            grid-template-columns: 145px 185px 135px 140px 140px 115px !important;
+        }
+        #customerInputCard .form-row {
+            grid-template-columns: 145px 180px 155px 215px 125px 140px 110px 115px !important;
+        }
+        #customerInputCard .btn-success, #lagerInputCard .btn-success,
+        #logisticsInputCard .btn-success, #gariInputCard .btn-success,
+        #qarashInputCard .btn-success, #shamitoInputCard .btn-success,
+        #dhagaxshidInputCard .btn-success {
+            width: 115px;
+            padding: 5px 8px;
+        }
+
+        @media (max-width: 1100px) {
+            #customerInputCard, #lagerInputCard, #logisticsInputCard,
+            #gariInputCard, #qarashInputCard, #shamitoInputCard,
+            #dhagaxshidInputCard { width: 100%; }
+            #customerInputCard .form-row, #lagerInputCard .form-row,
+            #logisticsInputCard .form-row, #gariInputCard .form-row,
+            #qarashInputCard .form-row, #shamitoInputCard .form-row,
+            #dhagaxshidInputCard .form-row {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            }
+            #customerInputCard .btn-success, #lagerInputCard .btn-success,
+            #logisticsInputCard .btn-success, #gariInputCard .btn-success,
+            #qarashInputCard .btn-success, #shamitoInputCard .btn-success,
+            #dhagaxshidInputCard .btn-success { width: 100%; }
+        }
+        @media (max-width: 600px) {
+            #customerInputCard .form-row, #lagerInputCard .form-row,
+            #logisticsInputCard .form-row, #gariInputCard .form-row,
+            #qarashInputCard .form-row, #shamitoInputCard .form-row,
+            #dhagaxshidInputCard .form-row { grid-template-columns: 1fr !important; }
+        }
     </style>
 </head>
 <body>
