@@ -2275,9 +2275,15 @@
             if (lagerIndex !== -1) {
                 const item = lager[lagerIndex];
                 addLagerContribution(item, amount, 'SAMEN', actor);
-                item.date = todayStr;
-                item.updatedBy = actor;
-                item.updatedAt = new Date().toISOString();
+                if (Number(item.qty) <= 0 || !lagerContributions(item).length) {
+                    // Når den slettede SAMEN-registreringen var hele beholdningen,
+                    // fjernes også produktlinjen og navnet fra LAGER.
+                    lager.splice(lagerIndex, 1);
+                } else {
+                    item.date = todayStr;
+                    item.updatedBy = actor;
+                    item.updatedAt = new Date().toISOString();
+                }
             } else if (amount > 0) {
                 lager.push({
                     date: todayStr,
