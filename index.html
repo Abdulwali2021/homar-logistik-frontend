@@ -1187,10 +1187,16 @@
             <div class="input-card" style="margin-top:20px;">
                 <h4 style="margin-top:0;">INNLOGGING OG GLEMT PASSORD</h4>
                 <p style="font-size:12px; color:#666;">PASSORD OG ENGANGSKODER VISES ALDRI.</p>
-                <table id="securityActivityTable">
-                    <thead><tr><th>TIDSPUNKT</th><th>BRUKER</th><th>E-POST</th><th>HENDELSE</th><th>STATUS</th></tr></thead>
-                    <tbody id="securityActivityBody"><tr><td colspan="5">LASTER...</td></tr></tbody>
-                </table>
+                <div class="login-summary-picker">
+                    <label for="securityActivityUserSelect">VELG BRUKER</label>
+                    <select id="securityActivityUserSelect" onchange="showSelectedSecurityActivity()">
+                        <option value="">-- VELG BRUKER --</option>
+                    </select>
+                    <div id="selectedSecurityActivity" class="login-summary-result">
+                        VELG EN BRUKER FOR Å SE INNLOGGING OG GLEMT PASSORD.
+                    </div>
+                </div>
+                <div id="securityActivityBody" class="hidden"></div>
             </div>
 
             <div class="input-card" style="margin-top:20px;">
@@ -3149,6 +3155,47 @@
 
         let cachedLoginSummary = [];
         let cachedOnlineNames = new Set();
+        let cachedSecurityLogs = [];
+
+        function showSelectedSecurityActivity() {
+            const select = document.getElementById("securityActivityUserSelect");
+            const result = document.getElementById("selectedSecurityActivity");
+            if (!select || !result) return;
+            const username = String(select.value || '').toUpperCase();
+            const rows = cachedSecurityLogs.filter(row =>
+                String(row.username || 'UKJENT').toUpperCase() === username
+            );
+            if (!username || !rows.length) {
+                result.textContent = "VELG EN BRUKER FOR Å SE INNLOGGING OG GLEMT PASSORD.";
+                return;
+            }
+            const latest = rows[0];
+            const loginAttempts = rows.filter(row =>
+                row.eventType === 'LOGIN_SUCCESS' || row.eventType === 'LOGIN_FAILED'
+            ).length;
+            const resetEvents = rows.filter(row =>
+                String(row.eventType || '').startsWith('PASSWORD_RESET_')
+            ).length;
+            const lastTime = latest.createdAt ? new Date(latest.createdAt).toLocaleString('nb-NO') : '-';
+            const eventLabel = ({
+                LOGIN_SUCCESS: 'INNLOGGING',
+                LOGIN_FAILED: 'MISLYKKET INNLOGGING',
+                PASSWORD_RESET_REQUEST: 'GLEMT PASSORD – E-POST IKKE FUNNET',
+                PASSWORD_RESET_EMAIL_SENT: 'GJENOPPRETTINGSKODE SENDT',
+                PASSWORD_RESET_EMAIL_FAILED: 'E-POSTSENDING FEILET',
+                PASSWORD_RESET_COMPLETED: 'PASSORD ENDRET'
+            })[latest.eventType] || latest.eventType || '-';
+            result.innerHTML = `
+                <div><small>BRUKER</small><strong>${username}</strong></div>
+                <div><small>INNLOGGINGSFORSØK</small><strong>${loginAttempts}</strong></div>
+                <div><small>GLEMT PASSORD</small><strong>${resetEvents}</strong></div>
+                <div><small>SISTE TIDSPUNKT</small><strong>${lastTime}</strong></div>
+                <div><small>SISTE HENDELSE</small><strong>${eventLabel}</strong></div>
+                <div><small>E-POST</small><strong>${latest.emailMasked || '-'}</strong></div>
+                <div><small>STATUS</small><strong style="color:${latest.success ? '#155724' : '#dc3545'};">${latest.success ? 'OK' : 'FEILET'}</strong></div>
+            `;
+        }
+        window.showSelectedSecurityActivity = showSelectedSecurityActivity;
 
         function showSelectedLoginSummary() {
             const select = document.getElementById("loginSummaryUserSelect");
@@ -3198,13 +3245,23 @@
                     <td>${formatTime(row.loggedInAt)}</td>
                     <td>${formatTime(row.lastSeenAt)}</td>
                 </tr>`).join('') : '<tr><td colspan="4">INGEN AKTIVE BRUKERE AKKURAT NÅ.</td></tr>';
-                activityBody.innerHTML = logs.length ? logs.map(row => `<tr>
-                    <td>${formatTime(row.createdAt)}</td>
-                    <td>${String(row.username || 'UKJENT').toUpperCase()}</td>
-                    <td>${row.emailMasked || '-'}</td>
-                    <td>${eventNames[row.eventType] || row.eventType}</td>
-                    <td style="font-weight:bold;color:${row.success ? '#155724' : '#dc3545'};">${row.success ? 'OK' : 'FEILET'}</td>
-                </tr>`).join('') : '<tr><td colspan="5">INGEN HENDELSER ENNÅ.</td></tr>';
+                activityBody.innerHTML = '';
+                cachedSecurityLogs = Array.isArray(logs) ? logs : [];
+                const securitySelect = document.getElementById("securityActivityUserSelect");
+                const previousSecurityUser = securitySelect ? securitySelect.value : "";
+                if (securitySelect) {
+                    const securityUsers = [...new Set(cachedSecurityLogs.map(row =>
+                        String(row.username || 'UKJENT').toUpperCase()
+                    ))].sort();
+                    securitySelect.innerHTML = '<option value="">-- VELG BRUKER --</option>' +
+                        securityUsers.map(username =>
+                            '<option value="' + username + '">' + username + '</option>'
+                        ).join('');
+                    if (securityUsers.includes(previousSecurityUser)) {
+                        securitySelect.value = previousSecurityUser;
+                    }
+                }
+                showSelectedSecurityActivity();
                 cachedOnlineNames = new Set(online.map(row => String(row.username || '').toUpperCase()));
                 cachedLoginSummary = Array.isArray(loginSummary) ? loginSummary : [];
                 const loginSelect = document.getElementById("loginSummaryUserSelect");
@@ -3222,7 +3279,9 @@
                 showSelectedLoginSummary();
             } catch (err) {
                 onlineBody.innerHTML = '<tr><td colspan="4">KUNNE IKKE HENTE AKTIVE BRUKERE.</td></tr>';
-                activityBody.innerHTML = '<tr><td colspan="5">KUNNE IKKE HENTE LOGGEN.</td></tr>';
+                activityBody.innerHTML = '';
+                const selectedSecurityActivity = document.getElementById("selectedSecurityActivity");
+                if (selectedSecurityActivity) selectedSecurityActivity.textContent = "KUNNE IKKE HENTE INNLOGGING OG GLEMT PASSORD.";
                 document.getElementById("selectedLoginSummary").textContent = "KUNNE IKKE HENTE INNLOGGINGSOVERSIKTEN.";
             }
         }
