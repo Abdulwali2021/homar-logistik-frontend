@@ -1454,9 +1454,16 @@
 
         function canDeleteOwnRecentRecord(item) {
             if (getCurrentUserRole() === "Admin") return true;
+            if (!item || item.deleted) return false;
             const perms = getUserPermissions(getCurrentUser());
             if (perms.noAccess || (!perms.fullAccess && !perms.deleteAnytime && !perms.editAnytime)) return false;
-            return isOwnRecentRecord(item);
+
+            // Sletting krever ekte eierskap. updatedBy eller tidligere redigering
+            // gir aldri rett til å slette en annen brukers registrering.
+            const currentUser = String(getCurrentUser() || '').toUpperCase();
+            const creator = String(item.createdBy || '').toUpperCase();
+            return !!currentUser && creator === currentUser &&
+                isWithin24Hours(item.createdAt || item.date);
         }
 
         function canEditDetails(item) {
