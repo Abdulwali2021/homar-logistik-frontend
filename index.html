@@ -3855,6 +3855,22 @@
             writePendingSyncKeys(keys);
         }
 
+        function ensureScrollableTables() {
+            document.querySelectorAll('#dashboardSection table').forEach(table => {
+                if (table.parentElement && table.parentElement.classList.contains('table-scroll')) return;
+                const wrapper = document.createElement('div');
+                wrapper.className = 'table-scroll';
+                table.parentNode.insertBefore(wrapper, table);
+                wrapper.appendChild(table);
+            });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', ensureScrollableTables, { once:true });
+        } else {
+            ensureScrollableTables();
+        }
+
         function clearLoginFields() {
             const usernameField = document.getElementById('username');
             const passwordField = document.getElementById('password');
