@@ -628,7 +628,7 @@
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
                     <div>
                         <h4 style="margin:0 0 5px;">ADMIN / LEDER DATASJEKK – SKJULTE OG UGYLDIGE RADER</h4>
-                        <p style="margin:0;font-size:12px;color:#666;">FINNER AKTIVE RADER MED MANGLENDE DATO, UGYLDIG ANTALL ELLER SKADET FORMAT.</p>
+                        <p style="margin:0;font-size:12px;color:#666;">FINNER AKTIVE RADER MED MANGLENDE DATO, MANGLENDE/UGYLDIG PRIS, UGYLDIG ANTALL ELLER SKADET FORMAT.</p>
                     </div>
                     <button type="button" onclick="renderAdminDataIntegrityAudit()" style="background:#d98200;">KJØR DATASJEKK</button>
                 </div>
@@ -3359,6 +3359,11 @@
                     if (quantity !== undefined && !Number.isFinite(Number(quantity))) {
                         problems.push("UGYLDIG ANTALL");
                     }
+                    const price = row.price ?? row.priceNok ?? row.samenPrice;
+                    const missingPrice = price === undefined || price === null || String(price).trim() === "";
+                    const invalidPrice = !missingPrice && !Number.isFinite(Number(price));
+                    if (missingPrice) problems.push("MANGLER PRIS");
+                    else if (invalidPrice) problems.push("UGYLDIG PRIS");
                     if (!name || name === "UKJENT") problems.push("MANGLER VARE/NAVN");
                     if (problems.length) {
                         findings.push({
@@ -3369,7 +3374,7 @@
                             name,
                             problem: problems.join(" / "),
                             date: date || "MANGLER DATO",
-                            canDelete: !date
+                            canDelete: !date || missingPrice || invalidPrice
                         });
                     }
                 });
@@ -3403,10 +3408,10 @@
                 if (finding.canDelete && finding.index !== null) {
                     const button = document.createElement("button");
                     button.type = "button";
-                    button.textContent = "SLETT RAD UTEN DATO";
+                    button.textContent = "SLETT UGYLDIG RAD";
                     button.style.cssText = "background:#dc3545;padding:7px 9px;font-size:11px;";
                     button.addEventListener("click", () =>
-                        deleteDatelessIntegrityRow(finding.area, finding.key, finding.index)
+                        deleteInvalidIntegrityRow(finding.area, finding.key, finding.index)
                     );
                     actionTd.appendChild(button);
                 } else {
@@ -3419,7 +3424,7 @@
         }
         window.renderAdminDataIntegrityAudit = renderAdminDataIntegrityAudit;
 
-        window.deleteDatelessIntegrityRow = async function (area, key, index) {
+        window.deleteInvalidIntegrityRow = async function (area, key, index) {
             const role = String(getCurrentUserRole() || "").toUpperCase();
             const allowedKeys = new Set([
                 "homar_lager", "homar_samen", "homar_gari", "homar_shamito",
@@ -3439,11 +3444,16 @@
             const row = rows[index];
             const hasDate = row && typeof row === "object" &&
                 String(row.date || row.betaltDato || "").trim();
-            if (hasDate) {
-                alert("LEDER KAN BARE SLETTE UGYLDIGE RADER UTEN DATO.");
+            const price = row && typeof row === "object"
+                ? (row.price ?? row.priceNok ?? row.samenPrice)
+                : undefined;
+            const hasValidPrice = price !== undefined && price !== null &&
+                String(price).trim() !== "" && Number.isFinite(Number(price));
+            if (hasDate && hasValidPrice) {
+                alert("LEDER KAN BARE SLETTE UGYLDIGE RADER UTEN DATO ELLER PRIS.");
                 return;
             }
-            if (!confirm("VIL DU SLETTE DEN UGYLDIGE RADEN UTEN DATO FRA " + area + "?")) return;
+            if (!confirm("VIL DU SLETTE DEN UGYLDIGE RADEN UTEN DATO ELLER PRIS FRA " + area + "?")) return;
             const updatedRows = rows.slice();
             updatedRows.splice(index, 1);
             try {
@@ -3455,11 +3465,11 @@
                 }
                 localStorage.setItem(key, JSON.stringify(updatedRows));
                 if (window.logUserAction) {
-                    window.logUserAction(area, "SLETTET", "UGYLDIG RAD UTEN DATO");
+                    window.logUserAction(area, "SLETTET", "UGYLDIG RAD UTEN DATO ELLER PRIS");
                 }
                 loadData();
                 renderAdminDataIntegrityAudit();
-                alert("RADEN UTEN DATO ER SLETTET.");
+                alert("DEN UGYLDIGE RADEN ER SLETTET.");
             } catch (err) {
                 alert("KUNNE IKKE SLETTE RADEN: " + (err.message || "UKJENT FEIL"));
             }
