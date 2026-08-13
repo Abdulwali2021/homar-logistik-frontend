@@ -1033,10 +1033,24 @@
                 <h5 class="permission-section-title">ENKELTTILGANGER</h5>
                 <div class="permission-options-grid">
                     <div class="checkbox-group permission-option">
+                        <input type="checkbox" id="userPermViewAdmin">
+                        <label for="userPermViewAdmin">
+                            <strong>SE ADMIN PANEL</strong>
+                            <small>KAN ÅPNE ADMIN PANEL OG BRUKE ADMINFUNKSJONENE.</small>
+                        </label>
+                    </div>
+                    <div class="checkbox-group permission-option">
                         <input type="checkbox" id="userPermViewBudget">
                         <label for="userPermViewBudget">
                             <strong>SE BUDSJETT</strong>
                             <small>KAN ÅPNE OG SE BUDSJETT-FANEN.</small>
+                        </label>
+                    </div>
+                    <div class="checkbox-group permission-option">
+                        <input type="checkbox" id="userPermViewExpense">
+                        <label for="userPermViewExpense">
+                            <strong>SE UTGIFT</strong>
+                            <small>KAN ÅPNE OG SE UTGIFT-FANEN.</small>
                         </label>
                     </div>
                     <div class="checkbox-group permission-option">
@@ -1080,7 +1094,9 @@
                         <th>ROLLE</th>
                         <th>FULL TILGANG</th>
                         <th>KUN SE</th>
-                        <th>SE BUDSJET</th>
+                        <th>SE ADMIN</th>
+                        <th>SE BUDSJETT</th>
+                        <th>SE UTGIFT</th>
                         <th>REGISTRERE</th>
                         <th>BETALINGER</th>
                         <th>REDIGERE EGNE (24T)</th>
@@ -1329,9 +1345,9 @@
         function getUserPermissions(username) {
             let userPerms = JSON.parse(localStorage.getItem("homar_user_permissions") || "{}");
             if (username === "admin") {
-                return { fullAccess: true, noAccess: false, canViewBudget: true, canRegister: true, canChangeStatus: true, editAnytime: true, deleteAnytime: true };
+                return { fullAccess: true, noAccess: false, canViewAdmin: true, canViewBudget: true, canViewExpense: true, canRegister: true, canChangeStatus: true, editAnytime: true, deleteAnytime: true };
             }
-            return userPerms[username] || { fullAccess: false, noAccess: true, canViewBudget: false, canRegister: false, canChangeStatus: false, editAnytime: false, deleteAnytime: false };
+            return userPerms[username] || { fullAccess: false, noAccess: true, canViewAdmin: false, canViewBudget: false, canViewExpense: false, canRegister: false, canChangeStatus: false, editAnytime: false, deleteAnytime: false };
         }
 
         function canUserViewBudget() {
@@ -1341,6 +1357,20 @@
             if (perms.fullAccess) return true;
             if (perms.noAccess) return false;
             return perms.canViewBudget;
+        }
+
+        function canUserViewAdmin() {
+            const role = getCurrentUserRole();
+            if (role === "Admin") return true;
+            const perms = getUserPermissions(getCurrentUser());
+            return !!perms.fullAccess || (!perms.noAccess && !!perms.canViewAdmin);
+        }
+
+        function canUserViewExpense() {
+            const role = getCurrentUserRole();
+            if (role === "Admin") return true;
+            const perms = getUserPermissions(getCurrentUser());
+            return !!perms.fullAccess || (!perms.noAccess && !!perms.canViewExpense);
         }
 
         function canUserRegister() {
@@ -1423,16 +1453,21 @@
             });
 
             let tabBudsjet = document.getElementById("tabBudsjet");
-            if (tabBudsjet) {
-                if (canUserViewBudget()) {
-                    tabBudsjet.classList.remove("hidden");
-                } else {
-                    tabBudsjet.classList.add("hidden");
-                    let activeSec = document.getElementById("sectionBudsjet");
-                    if (activeSec && !activeSec.classList.contains("hidden")) {
-                        switchView('kunde');
-                    }
-                }
+            if (tabBudsjet) tabBudsjet.classList.toggle("hidden", !canUserViewBudget());
+
+            const tabUtgift = document.getElementById("tabUtgift");
+            if (tabUtgift) tabUtgift.classList.toggle("hidden", !canUserViewExpense());
+
+            const tabAdmin = document.getElementById("tabAdmin");
+            if (tabAdmin) tabAdmin.classList.toggle("hidden", !canUserViewAdmin());
+
+            const activeBudget = document.getElementById("sectionBudsjet");
+            const activeExpense = document.getElementById("sectionUtgift");
+            const activeAdmin = document.getElementById("sectionAdmin");
+            if ((activeBudget && !activeBudget.classList.contains("hidden") && !canUserViewBudget()) ||
+                (activeExpense && !activeExpense.classList.contains("hidden") && !canUserViewExpense()) ||
+                (activeAdmin && !activeAdmin.classList.contains("hidden") && !canUserViewAdmin())) {
+                switchView('lager');
             }
         }
 
@@ -1538,7 +1573,7 @@
         function checkAdminAccess() {
             const role = getCurrentUserRole();
             const permissions = getUserPermissions(getCurrentUser());
-            const hasAdminAccess = role === "Admin" || !!permissions.fullAccess;
+            const hasAdminAccess = canUserViewAdmin();
             const adminTab = document.getElementById("tabAdmin");
             if (hasAdminAccess) {
                 if (adminTab) adminTab.classList.remove("hidden");
@@ -1578,6 +1613,14 @@
         }
 
         function switchView(viewName) {
+            if (viewName === 'admin' && !canUserViewAdmin()) {
+                alert("DU HAR IKKE TILGANG TIL Å SE ADMIN PANEL.");
+                return;
+            }
+            if (viewName === 'utgift' && !canUserViewExpense()) {
+                alert("DU HAR IKKE TILGANG TIL Å SE UTGIFT-FANEN.");
+                return;
+            }
             if (viewName === 'budsjet' && !canUserViewBudget()) {
                 alert("DU HAR IKKE TILGANG TIL Å SE BUDSJET-FANEN.");
                 return;
@@ -2770,6 +2813,8 @@
             let fullAccess = document.getElementById("userPermFullAccess").checked;
             if (fullAccess) {
                 document.getElementById("userPermNoAccess").checked = false;
+                document.getElementById("userPermViewAdmin").checked = true;
+                document.getElementById("userPermViewExpense").checked = true;
                 document.getElementById("userPermViewBudget").checked = true;
                 document.getElementById("userPermRegister").checked = true;
                 document.getElementById("userPermStatus").checked = true;
@@ -2784,6 +2829,8 @@
             let fullAccess = document.getElementById("userPermFullAccess").checked;
             
             let disabledState = noAccess || fullAccess;
+            document.getElementById("userPermViewAdmin").disabled = disabledState;
+            document.getElementById("userPermViewExpense").disabled = disabledState;
             document.getElementById("userPermViewBudget").disabled = disabledState;
             document.getElementById("userPermRegister").disabled = disabledState;
             document.getElementById("userPermStatus").disabled = disabledState;
@@ -2792,6 +2839,8 @@
 
             if (noAccess) {
                 document.getElementById("userPermFullAccess").checked = false;
+                document.getElementById("userPermViewAdmin").checked = false;
+                document.getElementById("userPermViewExpense").checked = false;
                 document.getElementById("userPermViewBudget").checked = false;
                 document.getElementById("userPermRegister").checked = false;
                 document.getElementById("userPermStatus").checked = false;
@@ -2808,7 +2857,9 @@
             
             document.getElementById("userPermFullAccess").checked = fullAccess;
             document.getElementById("userPermNoAccess").checked = noAccess;
-            document.getElementById("userPermViewBudget").checked = perms.canViewBudget;
+            document.getElementById("userPermViewAdmin").checked = !!perms.canViewAdmin;
+            document.getElementById("userPermViewBudget").checked = !!perms.canViewBudget;
+            document.getElementById("userPermViewExpense").checked = !!perms.canViewExpense;
             document.getElementById("userPermRegister").checked = perms.canRegister;
             document.getElementById("userPermStatus").checked = perms.canChangeStatus;
             document.getElementById("userPermEditAnytime").checked = perms.editAnytime;
@@ -2823,7 +2874,9 @@
             let noAccess = document.getElementById("userPermNoAccess").checked;
             let perms = {
                 fullAccess, noAccess,
+                canViewAdmin: fullAccess ? true : (noAccess ? false : document.getElementById("userPermViewAdmin").checked),
                 canViewBudget: fullAccess ? true : (noAccess ? false : document.getElementById("userPermViewBudget").checked),
+                canViewExpense: fullAccess ? true : (noAccess ? false : document.getElementById("userPermViewExpense").checked),
                 canRegister: fullAccess ? true : (noAccess ? false : document.getElementById("userPermRegister").checked),
                 canChangeStatus: fullAccess ? true : (noAccess ? false : document.getElementById("userPermStatus").checked),
                 editAnytime: fullAccess ? true : (noAccess ? false : document.getElementById("userPermEditAnytime").checked),
@@ -3930,7 +3983,9 @@
                     const noAccess = fullAccess ? false : !!p.noAccess;
                     return {
                         fullAccess, noAccess,
+                        canViewAdmin: fullAccess ? true : (noAccess ? false : !!p.canViewAdmin),
                         canViewBudget: fullAccess ? true : (noAccess ? false : !!p.canViewBudget),
+                        canViewExpense: fullAccess ? true : (noAccess ? false : !!p.canViewExpense),
                         canRegister: fullAccess ? true : (noAccess ? false : !!p.canRegister),
                         canChangeStatus: fullAccess ? true : (noAccess ? false : !!p.canChangeStatus),
                         editAnytime: fullAccess ? true : (noAccess ? false : !!p.editAnytime),
@@ -3943,7 +3998,9 @@
                 const noAccess = fullAccess ? false : (p.noAccess !== undefined ? !!p.noAccess : true);
                 return {
                     fullAccess, noAccess,
+                    canViewAdmin: fullAccess ? true : (noAccess ? false : !!p.canViewAdmin),
                     canViewBudget: fullAccess ? true : (noAccess ? false : !!p.canViewBudget),
+                    canViewExpense: fullAccess ? true : (noAccess ? false : !!p.canViewExpense),
                     canRegister: fullAccess ? true : (noAccess ? false : !!p.canRegister),
                     canChangeStatus: fullAccess ? true : (noAccess ? false : !!p.canChangeStatus),
                     editAnytime: fullAccess ? true : (noAccess ? false : !!p.editAnytime),
@@ -3968,7 +4025,7 @@
                 nativeSetItem.call(localStorage, 'homar_api_token', result.token);
                 applyApiUser(result.user);
                 await loadServerState();
-                if (String((result.user && result.user.role) || '').toUpperCase() === 'ADMIN' || !!(result.user && result.user.permissions && result.user.permissions.fullAccess)) await syncApiUsersToLocal();
+                if (String((result.user && result.user.role) || '').toUpperCase() === 'ADMIN' || !!(result.user && result.user.permissions && (result.user.permissions.fullAccess || result.user.permissions.canViewAdmin))) await syncApiUsersToLocal();
                 errorEl.textContent = '';
                 document.getElementById('username').value = '';
                 document.getElementById('password').value = '';
@@ -4078,12 +4135,14 @@
                 const me = await apiRequest('/auth/me');
                 applyApiUser(me);
                 await loadServerState();
-                if (String((me && me.role) || '').toUpperCase() === 'ADMIN' || !!(me && me.permissions && me.permissions.fullAccess)) await syncApiUsersToLocal();
+                if (String((me && me.role) || '').toUpperCase() === 'ADMIN' || !!(me && me.permissions && (me.permissions.fullAccess || me.permissions.canViewAdmin))) await syncApiUsersToLocal();
                 checkAdminAccess();
 
-                if (requestedTab === 'admin' && String((me && me.role) || '').toUpperCase() !== 'ADMIN' && !(me && me.permissions && me.permissions.fullAccess)) {
+                if (requestedTab === 'admin' && !canUserViewAdmin()) {
                     switchView('lager');
                 } else if (requestedTab === 'budsjet' && !canUserViewBudget()) {
+                    switchView('lager');
+                } else if (requestedTab === 'utgift' && !canUserViewExpense()) {
                     switchView('lager');
                 } else {
                     renderAllTables();
