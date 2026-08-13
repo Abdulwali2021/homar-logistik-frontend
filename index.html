@@ -2946,7 +2946,7 @@
             let roles = JSON.parse(localStorage.getItem("homar_roles") || "[]");
 
             if (oldName) {
-                if (["Admin", "Bruker", "Leder"].includes(String(oldName).toUpperCase())) {
+                if (["ADMIN", "LEDER"].includes(String(oldName).toUpperCase())) {
                     alert("KAN IKKE ENDRE STANDARDROLLER!");
                     return;
                 }
@@ -2977,7 +2977,7 @@
 
         function editRole(roleName) {
             if (getCurrentUserRole() !== "Admin") return;
-            if (["Admin", "Bruker", "Leder"].includes(String(roleName).toUpperCase())) {
+            if (["ADMIN", "LEDER"].includes(String(roleName).toUpperCase())) {
                 alert("KAN IKKE REDIGERE STANDARDROLLER!");
                 return;
             }
@@ -2992,7 +2992,7 @@
                 alert("KUN ADMIN KAN SLETTE ROLLER!");
                 return;
             }
-            if (["Admin", "Bruker", "Leder"].includes(String(roleName).toUpperCase())) {
+            if (["ADMIN", "LEDER"].includes(String(roleName).toUpperCase())) {
                 alert("KAN IKKE SLETTE STANDARDROLLER!");
                 return;
             }
@@ -3085,12 +3085,12 @@
             roleSelect.innerHTML = "";
             adminUserSelect.innerHTML = "";
             
-            roles = [...new Set(roles.map(r => {
-                const role = String(r || "").toUpperCase();
-                return role === "BRUKER" ? "VANLIG" : role;
-            }))].sort((a, b) => {
-                const order = ["Admin", "Bruker", "Leder"];
-                return order.indexOf(a) - order.indexOf(b);
+            roles = [...new Set(roles.map(r => String(r || "").toUpperCase()))];
+            const standardOrder = ["ADMIN", "LEDER", "BRUKER"];
+            roles.sort((a, b) => {
+                const ai = standardOrder.indexOf(a);
+                const bi = standardOrder.indexOf(b);
+                return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi) || a.localeCompare(b);
             });
 
             roles.forEach(r => {
@@ -3127,7 +3127,7 @@
             rolesBody.innerHTML = "";
             roles.forEach(r => {
                 let rUp = String(r || "").toUpperCase();
-                let canModify = !["Admin", "Bruker", "Leder"].includes(rUp);
+                let canModify = !["ADMIN", "LEDER"].includes(rUp);
                 rolesBody.innerHTML += `<tr>
                     <td>${rUp}</td>
                     <td>${canModify ? `
