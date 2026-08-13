@@ -3822,6 +3822,38 @@
         let serverSyncReady = false;
         const syncTimers = new Map();
         const nativeSetItem = Storage.prototype.setItem;
+        const HOMAR_PENDING_SYNC_KEY = 'homar_pending_sync_keys';
+        const ADMIN_ONLY_SYNC_KEYS = new Set(['homar_roles', 'homar_user_permissions', 'homar_custom_labels']);
+
+        function isCurrentApiAdmin() {
+            try {
+                const user = JSON.parse(localStorage.getItem('homar_api_user') || '{}');
+                return String(user.role || '').toUpperCase() === 'ADMIN';
+            } catch (_) { return false; }
+        }
+
+        function pendingSyncKeys() {
+            try {
+                const keys = JSON.parse(localStorage.getItem(HOMAR_PENDING_SYNC_KEY) || '[]');
+                return new Set(Array.isArray(keys) ? keys.filter(key => HOMAR_SYNC_KEYS.has(key)) : []);
+            } catch (_) { return new Set(); }
+        }
+
+        function writePendingSyncKeys(keys) {
+            nativeSetItem.call(localStorage, HOMAR_PENDING_SYNC_KEY, JSON.stringify(Array.from(keys)));
+        }
+
+        function markPendingSync(key) {
+            const keys = pendingSyncKeys();
+            keys.add(key);
+            writePendingSyncKeys(keys);
+        }
+
+        function clearPendingSync(key) {
+            const keys = pendingSyncKeys();
+            keys.delete(key);
+            writePendingSyncKeys(keys);
+        }
 
         function clearLoginFields() {
             const usernameField = document.getElementById('username');
@@ -3938,6 +3970,7 @@
 
         async function syncOneKey(key) {
             if (!serverSyncReady || !HOMAR_SYNC_KEYS.has(key) || !apiToken()) return;
+            if (ADMIN_ONLY_SYNC_KEYS.has(key) && !isCurrentApiAdmin()) return;
             const value = parseStored(key);
             if (value === undefined) return;
             try {
@@ -3945,8 +3978,11 @@
                     method: 'PUT',
                     body: JSON.stringify({ state: { [key]: value } })
                 });
+                clearPendingSync(key);
             } catch (err) {
                 console.error('HOMAR sync-feil for', key, err);
+                clearTimeout(syncTimers.get(key));
+                syncTimers.set(key, setTimeout(() => syncOneKey(key), 5000));
             }
         }
 
@@ -3994,6 +4030,8 @@
             const previousRaw = this === localStorage ? this.getItem(key) : null;
             nativeSetItem.call(this, key, value);
             if (this === localStorage && HOMAR_SYNC_KEYS.has(key) && serverSyncReady) {
+                if (ADMIN_ONLY_SYNC_KEYS.has(key) && !isCurrentApiAdmin()) return;
+                markPendingSync(key);
                 clearTimeout(syncTimers.get(key));
                 syncTimers.set(key, setTimeout(() => syncOneKey(key), 180));
                 const area = activityAreas[key];
@@ -4031,14 +4069,19 @@
             const payload = await apiRequest('/state');
             const serverState = (payload && payload.state) || {};
             const firstUpload = {};
+            const pending = pendingSyncKeys();
 
             serverSyncReady = false;
             for (const key of HOMAR_SYNC_KEYS) {
-                if (Object.prototype.hasOwnProperty.call(serverState, key)) {
+                const localValue = parseStored(key);
+                const mayUpload = !ADMIN_ONLY_SYNC_KEYS.has(key) || isCurrentApiAdmin();
+                if (pending.has(key) && localValue !== undefined && mayUpload) {
+                    // Bevar lokale endringer som ennå ikke nådde serveren.
+                    firstUpload[key] = localValue;
+                } else if (Object.prototype.hasOwnProperty.call(serverState, key)) {
                     nativeSetItem.call(localStorage, key, JSON.stringify(serverState[key]));
-                } else {
-                    const localValue = parseStored(key);
-                    if (localValue !== undefined) firstUpload[key] = localValue;
+                } else if (localValue !== undefined && mayUpload) {
+                    firstUpload[key] = localValue;
                 }
             }
 
@@ -4047,6 +4090,7 @@
                     method: 'PUT',
                     body: JSON.stringify({ state: firstUpload })
                 });
+                Object.keys(firstUpload).forEach(clearPendingSync);
             }
             serverSyncReady = true;
             applyCustomLabels();
