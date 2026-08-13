@@ -3164,14 +3164,20 @@
                 ? new Date(summary.lastLoginAt).toLocaleString('nb-NO')
                 : '-';
             const active = cachedOnlineNames.has(username);
-            const eventLabel = ({
+            const securityEventLabel = ({
                 LOGIN_SUCCESS: 'INNLOGGING',
                 LOGIN_FAILED: 'MISLYKKET INNLOGGING',
                 PASSWORD_RESET_REQUEST: 'GLEMT PASSORD – E-POST IKKE FUNNET',
                 PASSWORD_RESET_EMAIL_SENT: 'GJENOPPRETTINGSKODE SENDT',
                 PASSWORD_RESET_EMAIL_FAILED: 'E-POSTSENDING FEILET',
                 PASSWORD_RESET_COMPLETED: 'PASSORD ENDRET'
-            })[latest.eventType] || latest.eventType || '-';
+            })[latest.eventType];
+            const actionParts = String(latest.eventType || '').split(':');
+            const eventLabel = securityEventLabel || (
+                actionParts[0] === 'ACTION'
+                    ? (actionParts[2] || 'UTFØRTE') + ' I ' + (actionParts[1] || 'SYSTEMET')
+                    : (latest.eventType || '-')
+            );
             result.innerHTML = `
                 <div><small>BRUKER</small><strong>${username}</strong></div>
                 <div><small>ANTALL INNLOGGINGER</small><strong>${loginCount}</strong></div>
@@ -3180,6 +3186,7 @@
                 <div><small>MISLYKKEDE INNLOGGINGER</small><strong>${failedLogins}</strong></div>
                 <div><small>GLEMT PASSORD</small><strong>${resetEvents}</strong></div>
                 <div><small>SISTE AKTIVITET UTFØRT</small><strong>${eventLabel}</strong></div>
+                <div><small>DETALJER</small><strong>${latest.details || '-'}</strong></div>
                 <div><small>E-POST</small><strong>${latest.emailMasked || '-'}</strong></div>
             `;
         }
@@ -3222,11 +3229,14 @@
             };
             const formatTime = value => value ? new Date(value).toLocaleString('nb-NO') : '-';
             try {
-                const [online, logs, loginSummary] = await Promise.all([
+                const [online, securityLogs, actionLogs, loginSummary] = await Promise.all([
                     window.homarApiRequest('/admin/online-users'),
                     window.homarApiRequest('/admin/activity?limit=150'),
+                    window.homarApiRequest('/admin/activity?category=actions&limit=300'),
                     window.homarApiRequest('/admin/login-summary')
                 ]);
+                const logs = [...(Array.isArray(securityLogs) ? securityLogs : []), ...(Array.isArray(actionLogs) ? actionLogs : [])]
+                    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
                 onlineBody.innerHTML = online.length ? online.map(row => `<tr>
                     <td><span style="display:inline-block;width:10px;height:10px;background:#28a745;border-radius:50%;margin-right:7px;"></span>${String(row.username || '').toUpperCase()}</td>
                     <td>${String(row.role || '').toUpperCase()}</td>
