@@ -480,6 +480,39 @@
                 grid-template-columns: max-content 135px minmax(95px, 1fr);
             }
         }
+
+        /* Samlet og tydelig visning av brukertilganger */
+        .permission-section-title {
+            margin: 14px 0 7px;
+            color: #495057;
+            font-size: 12px;
+            letter-spacing: .04em;
+        }
+        .permission-options-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 7px;
+        }
+        .permission-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            min-height: 58px;
+            padding: 8px 10px;
+            margin: 0;
+            background: #f8f9fa;
+            border: 1px solid #e1e5e8;
+            border-radius: 6px;
+        }
+        .permission-option.permission-full { background:#e8f5e9; border-color:#c8e6c9; }
+        .permission-option.permission-view { background:#fff3f3; border-color:#f1cccc; }
+        .permission-option input { flex:0 0 auto; margin-top:3px; min-height:auto; }
+        .permission-option label { margin:0; line-height:1.25; cursor:pointer; }
+        .permission-option label strong { display:block; font-size:12px; color:#263238; }
+        .permission-option label small { display:block; margin-top:3px; color:#687078; font-size:10px; font-weight:normal; }
+        @media (max-width:700px) {
+            .permission-options-grid { grid-template-columns:1fr; }
+        }
     </style>
 </head>
 <body>
@@ -980,35 +1013,60 @@
                     <select id="adminUserSelect" onchange="loadUserPermissions()"></select>
                 </div>
                 
-                <div class="checkbox-group" style="background: #e8f5e9; padding: 8px; border-radius: 4px; border: 1px solid #c8e6c9; margin-bottom: 12px;">
+                <h5 class="permission-section-title">HOVEDTILGANG</h5>
+                <div class="checkbox-group permission-option permission-full">
                     <input type="checkbox" id="userPermFullAccess" onclick="toggleFullAccessCheck()">
-                    <label for="userPermFullAccess" style="margin:0; font-weight:bold; color: #155724;">FULL TILGANG (GIR ALLE RETTIGHETER SOM ADMIN)</label>
+                    <label for="userPermFullAccess">
+                        <strong>FULL TILGANG</strong>
+                        <small>ALLE FANER, ADMIN PANEL, REGISTRERING, BETALINGER, REDIGERING OG SLETTING. BARE ADMIN KAN ENDRE ELLER SLETTE HELE KUNDEORDRER.</small>
+                    </label>
                 </div>
 
-                <div class="checkbox-group">
+                <div class="checkbox-group permission-option permission-view">
                     <input type="checkbox" id="userPermNoAccess" onclick="toggleNoAccessCheck()">
-                    <label for="userPermNoAccess" style="margin:0; font-weight:bold; color: #dc3545;">HAR INGEN TILGANG TIL Å GJØRE NOE I SYSTEMET (KUN SE ALT)</label>
+                    <label for="userPermNoAccess">
+                        <strong>KUN LESETILGANG</strong>
+                        <small>KAN SE REGISTRERINGER, MEN KAN IKKE REGISTRERE, ENDRE, BETALE ELLER SLETTE.</small>
+                    </label>
                 </div>
-                <hr style="border: 0; border-top: 1px solid #ddd; margin: 12px 0;">
-                <div class="checkbox-group">
-                    <input type="checkbox" id="userPermViewBudget">
-                    <label for="userPermViewBudget" style="margin:0; font-weight:normal;">KAN SE BUDSJET-FANEN</label>
-                </div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="userPermRegister">
-                    <label for="userPermRegister" style="margin:0; font-weight:normal;">REGISTRERE NYE ORDRER / OPPFØRINGER</label>
-                </div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="userPermStatus">
-                    <label for="userPermStatus" style="margin:0; font-weight:normal;">ENDRE STATUS OG DATO (DEEN / BETALT)</label>
-                </div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="userPermEditAnytime">
-                    <label for="userPermEditAnytime" style="margin:0; font-weight:normal;">FULL REDIGERING AV EGNE ORDRER INNEN 24 TIMER</label>
-                </div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="userPermDeleteAnytime">
-                    <label for="userPermDeleteAnytime" style="margin:0; font-weight:normal;">SLETTE EGNE ORDRER INNEN 24 TIMER</label>
+
+                <h5 class="permission-section-title">ENKELTTILGANGER</h5>
+                <div class="permission-options-grid">
+                    <div class="checkbox-group permission-option">
+                        <input type="checkbox" id="userPermViewBudget">
+                        <label for="userPermViewBudget">
+                            <strong>SE BUDSJETT</strong>
+                            <small>KAN ÅPNE OG SE BUDSJETT-FANEN.</small>
+                        </label>
+                    </div>
+                    <div class="checkbox-group permission-option">
+                        <input type="checkbox" id="userPermRegister">
+                        <label for="userPermRegister">
+                            <strong>REGISTRERE NYTT</strong>
+                            <small>KAN REGISTRERE NYE VARER, ORDRE OG OPPFØRINGER.</small>
+                        </label>
+                    </div>
+                    <div class="checkbox-group permission-option">
+                        <input type="checkbox" id="userPermStatus">
+                        <label for="userPermStatus">
+                            <strong>REGISTRERE BETALINGER</strong>
+                            <small>KAN REGISTRERE DELBETALING OG ENDRE EGEN BETALING INNEN 24 TIMER.</small>
+                        </label>
+                    </div>
+                    <div class="checkbox-group permission-option">
+                        <input type="checkbox" id="userPermEditAnytime">
+                        <label for="userPermEditAnytime">
+                            <strong>REDIGERE EGNE REGISTRERINGER</strong>
+                            <small>KAN REDIGERE EGNE VARER OG OPPFØRINGER INNEN 24 TIMER.</small>
+                        </label>
+                    </div>
+                    <div class="checkbox-group permission-option">
+                        <input type="checkbox" id="userPermDeleteAnytime">
+                        <label for="userPermDeleteAnytime">
+                            <strong>SLETTE EGNE REGISTRERINGER</strong>
+                            <small>KAN SLETTE EGNE VARER OG OPPFØRINGER INNEN 24 TIMER. KUNDEORDRER ER BESKYTTET.</small>
+                        </label>
+                    </div>
                 </div>
                 <button class="btn-success" onclick="saveUserPermissions()" style="margin-top: 10px; width: auto;">LAGRE TILGANGER FOR BRUKER</button>
                 <div id="userPermMsg" style="margin-top: 5px; font-size: 13px; font-weight: bold;"></div>
@@ -1024,9 +1082,9 @@
                         <th>KUN SE</th>
                         <th>SE BUDSJET</th>
                         <th>REGISTRERE</th>
-                        <th>ENDRE STATUS</th>
-                        <th>REDIGERE (24T)</th>
-                        <th>SLETTE (24T)</th>
+                        <th>BETALINGER</th>
+                        <th>REDIGERE EGNE (24T)</th>
+                        <th>SLETTE EGNE (24T)</th>
                     </tr>
                 </thead>
                 <tbody id="permissionsOverviewBody"></tbody>
