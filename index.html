@@ -2030,7 +2030,8 @@
                 });
             } else if (total > 0) {
                 rows.push({
-                    user: updater || creator, qty: total, source: item && item.lastAddedFrom || 'TIDLIGERE',
+                    user: updater || creator, qty: total,
+                    source: item && (item.createdFromSamen ? 'SAMEN' : item.lastAddedFrom) || 'TIDLIGERE',
                     date: item && item.date || todayStr,
                     createdAt: item && (item.updatedAt || item.createdAt) || new Date().toISOString()
                 });
@@ -2107,6 +2108,15 @@
                 for (let i = item.contributions.length - 1; i >= 0 && remaining > 0; i--) {
                     const entry = item.contributions[i];
                     if (entry.user !== user || (source && entry.source !== String(source).toUpperCase())) continue;
+                    const used = Math.min(remaining, Number(entry.qty) || 0);
+                    entry.qty -= used;
+                    remaining -= used;
+                }
+                // Eldre data kan mangle kilden SAMEN. Trekk da bare fra samme
+                // brukers eldre bidrag, aldri fra en annen bruker.
+                for (let i = item.contributions.length - 1; i >= 0 && remaining > 0; i--) {
+                    const entry = item.contributions[i];
+                    if (entry.user !== user || String(entry.source || '').toUpperCase() !== 'TIDLIGERE') continue;
                     const used = Math.min(remaining, Number(entry.qty) || 0);
                     entry.qty -= used;
                     remaining -= used;
