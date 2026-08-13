@@ -3305,7 +3305,7 @@
                     <td>${dispPrice.toFixed(2)}</td>
                     <td>${dispTotal.toFixed(2)}</td>
                     <td style="color:#218838;font-weight:bold;">${dispPaid.toFixed(2)}</td>
-                    <td class="${showRemainingColumn ? '' : 'hidden'}" style="color:#b02a37;font-weight:bold;">${payments.length > 0 ? dispRemaining.toFixed(2) : ''}</td>
+                    <td class="${showRemainingColumn ? '' : 'hidden'}" style="color:#b02a37;font-weight:bold;">${status === "DELBETALT" ? dispRemaining.toFixed(2) : ''}</td>
                     <td><button type="button" class="status-btn ${statusClass}" ${statusAction}>${statusText}</button></td>
                     <td class="sjuki-col ${showCol}">${createdByUp}</td>
                     <td>
