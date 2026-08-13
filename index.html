@@ -342,6 +342,7 @@
                 <label style="margin:0;">VELG KALENDER / ARKIV:</label>
                 <select id="archiveModeSelect" onchange="toggleArchiveModeInputs()">
                     <option value="today">DAGENS DATO</option>
+                    <option value="all">VIS ALT REGISTRERT</option>
                     <option value="range">VELG DATO-INTERVALL (FRA - TIL)</option>
                 </select>
             </div>
@@ -975,6 +976,8 @@
                 let endDate = document.getElementById("archiveEndDateInput").value;
                 if (!startDate || !endDate) return true;
                 return itemDate >= startDate && itemDate <= endDate;
+            } else if (mode === "all") {
+                return true;
             }
             return true;
         }
