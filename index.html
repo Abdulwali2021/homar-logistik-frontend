@@ -295,6 +295,25 @@
         }
         #sectionKunde .filter-buttons { gap: 5px; }
         #showAllRegisteredBtn { white-space: nowrap; }
+
+        /* Bruk hele bredden i KUNDE-filteret */
+        @media (min-width: 901px) {
+            #sectionKunde .filter-container {
+                display: grid;
+                grid-template-columns: auto 180px 105px minmax(240px, 1fr) 105px;
+                width: 100%;
+                align-items: end;
+                column-gap: 10px;
+            }
+            #sectionKunde .filter-container > div { min-width: 0; width: auto !important; }
+            #sectionKunde .filter-container > div:nth-child(4) { width: 100% !important; }
+            #searchDateInput, #searchTextInput {
+                width: 100% !important;
+                max-width: none !important;
+                box-sizing: border-box;
+            }
+            #sectionKunde .filter-container > div:last-child button { width: 100%; }
+        }
     </style>
 </head>
 <body>
