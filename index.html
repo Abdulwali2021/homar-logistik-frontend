@@ -3436,24 +3436,55 @@
         }
         window.showSelectedLoginSummary = showSelectedLoginSummary;
 
+        function readBankAlertIds() {
+            try {
+                const ids = JSON.parse(localStorage.getItem('homar_read_bank_alerts') || '[]');
+                return new Set(Array.isArray(ids) ? ids.map(String) : []);
+            } catch (_) { return new Set(); }
+        }
+
+        function markBankAlertRead(alertId) {
+            const ids = readBankAlertIds();
+            ids.add(String(alertId));
+            localStorage.setItem('homar_read_bank_alerts', JSON.stringify(Array.from(ids).slice(-500)));
+            const row = document.querySelector('[data-bank-alert-id="' + String(alertId) + '"]');
+            if (row) row.remove();
+            const target = document.getElementById("bankChangeAlerts");
+            if (target && !target.children.length) {
+                target.textContent = "INGEN ULESTE BANK- ELLER WAFI-VARSLER.";
+            }
+        }
+        window.markBankAlertRead = markBankAlertRead;
+
         function renderBankChangeAlerts(actionLogs) {
             const target = document.getElementById("bankChangeAlerts");
             if (!target) return;
+            const readIds = readBankAlertIds();
             const changes = (Array.isArray(actionLogs) ? actionLogs : [])
                 .filter(row => String(row.eventType || '').toUpperCase() === 'ACTION:BUDSJET:ENDRET')
                 .filter(row => /BANK|WAFI/i.test(String(row.details || '')))
+                .filter(row => !readIds.has(String(row.id)))
                 .slice(0, 5);
             target.innerHTML = '';
             if (!changes.length) {
-                target.textContent = "INGEN BANK- ELLER WAFI-ENDRINGER REGISTRERT ENNÅ.";
+                target.textContent = "INGEN ULESTE BANK- ELLER WAFI-VARSLER.";
                 return;
             }
             changes.forEach(row => {
                 const line = document.createElement('div');
-                line.style.cssText = 'padding:9px 10px;margin-top:6px;background:#fff;border:1px solid #f0c9a8;border-radius:6px;';
+                line.dataset.bankAlertId = String(row.id);
+                line.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;margin-top:6px;background:#fff;border:1px solid #f0c9a8;border-radius:6px;';
+                const message = document.createElement('span');
                 const time = row.createdAt ? new Date(row.createdAt).toLocaleString('nb-NO') : '-';
-                line.textContent = String(row.username || 'UKJENT').toUpperCase() + ' – ' +
+                message.textContent = String(row.username || 'UKJENT').toUpperCase() + ' – ' +
                     String(row.details || 'BANK/WAFI ENDRET') + ' – ' + time;
+                const okButton = document.createElement('button');
+                okButton.type = 'button';
+                okButton.textContent = 'OK';
+                okButton.style.cssText = 'min-width:58px;min-height:34px;padding:4px 10px;background:#28a745;';
+                okButton.addEventListener('click', () => markBankAlertRead(row.id));
+                line.appendChild(message);
+                line.appendChild(okButton);
                 target.appendChild(line);
             });
         }
