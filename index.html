@@ -427,6 +427,32 @@
         @media (max-width: 600px) {
             .currency-bar { grid-template-columns: 1fr; }
         }
+
+        /* Sørg for at hele kursen alltid er synlig */
+        @media (min-width: 901px) {
+            .currency-bar {
+                grid-template-columns: 195px 225px minmax(465px, 1fr) 145px;
+            }
+            .currency-bar > div:nth-child(3) {
+                display: grid;
+                grid-template-columns: max-content 120px minmax(95px, 1fr);
+                align-items: center;
+                gap: 8px;
+                overflow: visible;
+            }
+            .currency-bar > div:nth-child(3) label {
+                overflow: visible;
+                text-overflow: clip;
+            }
+            .currency-bar > div:nth-child(3) input {
+                width: 120px;
+                min-width: 120px;
+            }
+            #rateStatusText {
+                overflow: visible;
+                text-overflow: clip;
+            }
+        }
     </style>
 </head>
 <body>
