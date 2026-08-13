@@ -3652,9 +3652,18 @@
             let currentUser = getCurrentUser();
             let isAdmin = getCurrentUserRole() === "Admin";
 
-            list.forEach((item, index) => {
-                if (!filterByCalendar(item)) return;
-
+            list
+                .map((item, index) => ({ item, index }))
+                .filter(row => filterByCalendar(row.item))
+                .sort((a, b) => {
+                    const aName = String(a.item.type || "").trim().toUpperCase();
+                    const bName = String(b.item.type || "").trim().toUpperCase();
+                    if (aName === "SHAMITO" && bName !== "SHAMITO") return 1;
+                    if (bName === "SHAMITO" && aName !== "SHAMITO") return -1;
+                    const quantityDifference = (Number(a.item.qty) || 0) - (Number(b.item.qty) || 0);
+                    return quantityDifference || aName.localeCompare(bName, "nb");
+                })
+                .forEach(({ item, index }) => {
                 let tName = String(item.type || "").toUpperCase();
                 let currentStockQty = stockMap[tName] !== undefined ? stockMap[tName] : item.qty;
                 
@@ -3861,11 +3870,9 @@
             let sumQty = 0;
             let sumTotal = 0;
 
-            list
-                .map((item, index) => ({ item, index }))
-                .filter(row => filterByCalendar(row.item))
-                .sort((a, b) => (Number(a.item.qty) || 0) - (Number(b.item.qty) || 0))
-                .forEach(({ item, index }) => {
+            list.forEach((item, index) => {
+                if (!filterByCalendar(item)) return;
+
                 let totalNOK = item.qty * item.price;
                 sumQty += item.qty;
                 sumTotal += totalNOK;
