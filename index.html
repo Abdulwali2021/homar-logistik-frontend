@@ -535,7 +535,14 @@
             #loginSummaryUserSelect { width:100%; }
             .login-summary-result { grid-template-columns:1fr 1fr; }
         }
-    </style>
+    
+        /* Midtstill alle navn/etiketter i registreringsskjemaene */
+        .input-card[id$="InputCard"] > h4,
+        .input-card[id$="InputCard"] .form-row label {
+            width: 100%;
+            text-align: center;
+        }
+</style>
 </head>
 <body>
 
