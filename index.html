@@ -297,6 +297,44 @@
             gap: 8px;
             padding-bottom: 2px;
         }
+
+        /* Bruk bredden først, og fortsett naturlig nedover ved behov */
+        #customerInputCard .form-row, #lagerInputCard .form-row,
+        #logisticsInputCard .form-row, #gariInputCard .form-row,
+        #qarashInputCard .form-row, #shamitoInputCard .form-row,
+        #dhagaxshidInputCard .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
+            grid-auto-flow: row;
+            row-gap: 10px;
+            width: 100%;
+        }
+        #customerInputCard .form-row > *, #lagerInputCard .form-row > *,
+        #logisticsInputCard .form-row > *, #gariInputCard .form-row > *,
+        #qarashInputCard .form-row > *, #shamitoInputCard .form-row > *,
+        #dhagaxshidInputCard .form-row > * {
+            min-width: 0;
+            max-width: 100%;
+        }
+        #customerInputCard input, #customerInputCard select,
+        #lagerInputCard input, #lagerInputCard select,
+        #logisticsInputCard input, #logisticsInputCard select,
+        #gariInputCard input, #gariInputCard select,
+        #qarashInputCard input, #qarashInputCard select,
+        #shamitoInputCard input, #shamitoInputCard select,
+        #dhagaxshidInputCard input, #dhagaxshidInputCard select {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        @media (max-width: 600px) {
+            #customerInputCard .form-row, #lagerInputCard .form-row,
+            #logisticsInputCard .form-row, #gariInputCard .form-row,
+            #qarashInputCard .form-row, #shamitoInputCard .form-row,
+            #dhagaxshidInputCard .form-row {
+                grid-template-columns: 1fr !important;
+            }
+        }
     </style>
 </head>
 <body>
