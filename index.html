@@ -389,6 +389,45 @@
             #qarashInputCard .form-row, #shamitoInputCard .form-row,
             #dhagaxshidInputCard .form-row { grid-template-columns: 1fr !important; }
         }
+
+        /* Full bredde og ryddige rader for alle registreringsskjemaer */
+        #customerInputCard, #lagerInputCard, #logisticsInputCard,
+        #gariInputCard, #qarashInputCard, #shamitoInputCard,
+        #dhagaxshidInputCard {
+            width: 100%;
+            max-width: none;
+        }
+        #customerInputCard .form-row, #lagerInputCard .form-row,
+        #logisticsInputCard .form-row, #gariInputCard .form-row,
+        #qarashInputCard .form-row, #shamitoInputCard .form-row,
+        #dhagaxshidInputCard .form-row {
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)) !important;
+            width: 100%;
+            row-gap: 10px !important;
+        }
+        #customerInputCard .btn-success, #lagerInputCard .btn-success,
+        #logisticsInputCard .btn-success, #gariInputCard .btn-success,
+        #qarashInputCard .btn-success, #shamitoInputCard .btn-success,
+        #dhagaxshidInputCard .btn-success {
+            width: 100%;
+            min-width: 135px;
+        }
+
+        @media (min-width: 901px) {
+            #customerInputCard .form-row { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+            #lagerInputCard .form-row, #qarashInputCard .form-row,
+            #shamitoInputCard .form-row { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+            #logisticsInputCard .form-row, #gariInputCard .form-row,
+            #dhagaxshidInputCard .form-row { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+        }
+        @media (max-width: 900px) and (min-width: 601px) {
+            #customerInputCard .form-row, #lagerInputCard .form-row,
+            #logisticsInputCard .form-row, #gariInputCard .form-row,
+            #qarashInputCard .form-row, #shamitoInputCard .form-row,
+            #dhagaxshidInputCard .form-row {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            }
+        }
     </style>
 </head>
 <body>
