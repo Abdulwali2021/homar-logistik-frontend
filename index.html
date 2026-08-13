@@ -905,6 +905,7 @@
         <div class="modal-content">
             <h3>REGISTRER BETALING</h3>
             <input type="hidden" id="modalIndex">
+            <input type="hidden" id="modalPaymentIndex" value="-1">
             <div id="paymentCustomerInfo" style="font-weight:bold; margin-top:8px;"></div>
             <div class="payment-summary">
                 <div><small>TOTALT</small><br><strong id="paymentTotal">0.00</strong></div>
@@ -921,8 +922,9 @@
             </div>
             <div id="paymentHistory" class="payment-history"></div>
             <div style="display:flex; gap:10px; margin-top:16px;">
-                <button type="button" onclick="saveCustomerPayment()" style="flex:1;">LAGRE BETALING</button>
-                <button type="button" onclick="closeStatusModal()" style="background-color:#6c757d; flex:1;">AVBRYT</button>
+                <button type="button" id="paymentSaveBtn" onclick="saveCustomerPayment()" style="flex:1;">LAGRE BETALING</button>
+                <button type="button" id="paymentCancelEditBtn" class="hidden" onclick="cancelCustomerPaymentEdit()" style="background-color:#6c757d; flex:1;">AVBRYT ENDRING</button>
+                <button type="button" onclick="closeStatusModal()" style="background-color:#6c757d; flex:1;">LUKK</button>
             </div>
         </div>
     </div>
@@ -2110,6 +2112,15 @@
             openCustomerPayment(index);
         }
 
+        function canManageCustomerPayment(payment) {
+            const role = getCurrentUserRole();
+            const permissions = getUserPermissions(getCurrentUser());
+            if (role === "Admin" || permissions.fullAccess) return true;
+            const actor = String(payment && payment.createdBy || '').toUpperCase();
+            const current = String(getCurrentUser() || '').toUpperCase();
+            return actor === current && isWithin24Hours(payment && payment.createdAt);
+        }
+
         function openCustomerPayment(index) {
             const list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
             const item = list[index];
@@ -2121,6 +2132,7 @@
             const symbol = document.getElementById("activeCurrency").value === "USD" ? "$" : "KR";
 
             document.getElementById("modalIndex").value = index;
+            document.getElementById("modalPaymentIndex").value = "-1";
             document.getElementById("paymentCustomerInfo").textContent =
                 String(item.kundeNavn || '').toUpperCase() + ' – ' + String(item.navn || '').toUpperCase();
             document.getElementById("paymentTotal").textContent = convertPriceToDisplay(total).toFixed(2) + ' ' + symbol;
@@ -2128,59 +2140,125 @@
             document.getElementById("paymentRemaining").textContent = convertPriceToDisplay(remaining).toFixed(2) + ' ' + symbol;
             document.getElementById("modalPaymentAmount").value = "";
             document.getElementById("modalPaymentAmount").max = convertPriceToDisplay(remaining).toFixed(2);
-            document.getElementById("modalPaymentAmount").disabled = remaining <= 0;
+            document.getElementById("modalPaymentAmount").disabled = remaining <= 0 || !canUserChangeStatus();
             document.getElementById("modalBetaltDato").value = todayStr;
+            document.getElementById("paymentSaveBtn").textContent = "LAGRE BETALING";
+            document.getElementById("paymentSaveBtn").disabled = remaining <= 0 || !canUserChangeStatus();
+            document.getElementById("paymentCancelEditBtn").classList.add("hidden");
 
             const history = customerPayments(item);
             document.getElementById("paymentHistory").innerHTML = history.length
-                ? history.map(payment => {
+                ? history.map((payment, paymentIndex) => {
                     const amount = convertPriceToDisplay(Number(payment.amount) || 0).toFixed(2);
                     const actor = String(payment.createdBy || '').toUpperCase();
+                    const manage = canManageCustomerPayment(payment);
+                    const actions = manage
+                        ? '<span style="display:flex;gap:4px;"><button type="button" onclick="startCustomerPaymentEdit(' + paymentIndex + ')" style="min-height:28px;padding:3px 6px;font-size:10px;">ENDRE</button>' +
+                          '<button type="button" onclick="deleteCustomerPayment(' + paymentIndex + ')" style="min-height:28px;padding:3px 6px;font-size:10px;background:#dc3545;">ANGRE</button></span>'
+                        : '';
                     return '<div class="payment-history-row"><span>' + String(payment.date || '') +
-                        (actor ? ' – ' + actor : '') + '</span><strong>' + amount + ' ' + symbol + '</strong></div>';
+                        (actor ? ' – ' + actor : '') + '</span><strong>' + amount + ' ' + symbol + '</strong>' + actions + '</div>';
                 }).join('')
                 : '<div class="payment-history-row"><span>INGEN BETALINGER REGISTRERT</span></div>';
 
             document.getElementById("statusModal").style.display = "flex";
         }
 
+        function startCustomerPaymentEdit(paymentIndex) {
+            const orderIndex = parseInt(document.getElementById("modalIndex").value);
+            const list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
+            const item = list[orderIndex];
+            const payment = item && customerPayments(item)[paymentIndex];
+            if (!payment || !canManageCustomerPayment(payment)) {
+                alert("DU KAN KUN ENDRE DIN EGEN BETALING INNEN 24 TIMER.");
+                return;
+            }
+
+            const available = customerOrderTotal(item) - customerPaidTotal(item) + (Number(payment.amount) || 0);
+            document.getElementById("modalPaymentIndex").value = String(paymentIndex);
+            document.getElementById("modalPaymentAmount").disabled = false;
+            document.getElementById("modalPaymentAmount").value = convertPriceToDisplay(payment.amount).toFixed(2);
+            document.getElementById("modalPaymentAmount").max = convertPriceToDisplay(available).toFixed(2);
+            document.getElementById("modalBetaltDato").value = payment.date || todayStr;
+            document.getElementById("paymentSaveBtn").disabled = false;
+            document.getElementById("paymentSaveBtn").textContent = "OPPDATER BETALING";
+            document.getElementById("paymentCancelEditBtn").classList.remove("hidden");
+        }
+
+        function cancelCustomerPaymentEdit() {
+            openCustomerPayment(parseInt(document.getElementById("modalIndex").value));
+        }
+
         function saveCustomerPayment() {
-            if (!canUserChangeStatus()) {
+            const orderIndex = parseInt(document.getElementById("modalIndex").value);
+            const paymentIndex = parseInt(document.getElementById("modalPaymentIndex").value);
+            const list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
+            const item = list[orderIndex];
+            if (!item) return;
+
+            const existingPayment = paymentIndex > -1 ? customerPayments(item)[paymentIndex] : null;
+            if (existingPayment) {
+                if (!canManageCustomerPayment(existingPayment)) {
+                    alert("DU KAN KUN ENDRE DIN EGEN BETALING INNEN 24 TIMER.");
+                    return;
+                }
+            } else if (!canUserChangeStatus()) {
                 alert("DU HAR IKKE TILLATELSE TIL Å REGISTRERE BETALING.");
                 return;
             }
 
-            const index = parseInt(document.getElementById("modalIndex").value);
-            const list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
-            const item = list[index];
-            if (!item) return;
-
             const amountInput = parseFloat(document.getElementById("modalPaymentAmount").value);
             const paymentDate = document.getElementById("modalBetaltDato").value;
             const amountNOK = convertInputPriceToNOK(amountInput);
-            const remaining = Math.max(0, customerOrderTotal(item) - customerPaidTotal(item));
+            const oldAmount = existingPayment ? (Number(existingPayment.amount) || 0) : 0;
+            const available = Math.max(0, customerOrderTotal(item) - customerPaidTotal(item) + oldAmount);
 
             if (!paymentDate || !Number.isFinite(amountNOK) || amountNOK <= 0) {
                 alert("SKRIV ET GYLDIG BETALINGSBELØP OG DATO.");
                 return;
             }
-            if (amountNOK > remaining + 0.005) {
-                alert("BETALINGEN KAN IKKE VÆRE STØRRE ENN GJENSTÅENDE BELØP: " +
-                    convertPriceToDisplay(remaining).toFixed(2));
+            if (amountNOK > available + 0.005) {
+                alert("BETALINGEN KAN IKKE VÆRE STØRRE ENN TILGJENGELIG BELØP: " +
+                    convertPriceToDisplay(available).toFixed(2));
                 return;
             }
 
             if (!Array.isArray(item.payments)) item.payments = [];
-            item.payments.push({
-                amount: Math.min(amountNOK, remaining),
-                date: paymentDate,
-                createdBy: getCurrentUser(),
-                createdAt: new Date().toISOString()
-            });
+            if (existingPayment) {
+                existingPayment.amount = Math.min(amountNOK, available);
+                existingPayment.date = paymentDate;
+                existingPayment.updatedBy = getCurrentUser();
+                existingPayment.updatedAt = new Date().toISOString();
+            } else {
+                item.payments.push({
+                    amount: Math.min(amountNOK, available),
+                    date: paymentDate,
+                    createdBy: getCurrentUser(),
+                    createdAt: new Date().toISOString()
+                });
+            }
             syncCustomerPaymentState(item);
             localStorage.setItem("homar_kunde", JSON.stringify(list));
             loadData();
             closeStatusModal();
+        }
+
+        function deleteCustomerPayment(paymentIndex) {
+            const orderIndex = parseInt(document.getElementById("modalIndex").value);
+            const list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
+            const item = list[orderIndex];
+            const payment = item && customerPayments(item)[paymentIndex];
+            if (!payment || !canManageCustomerPayment(payment)) {
+                alert("DU KAN KUN ANGRE DIN EGEN BETALING INNEN 24 TIMER.");
+                return;
+            }
+            if (!confirm("ER DU SIKKER PÅ AT DU VIL ANGRE DENNE BETALINGEN?")) return;
+
+            item.payments.splice(paymentIndex, 1);
+            syncCustomerPaymentState(item);
+            localStorage.setItem("homar_kunde", JSON.stringify(list));
+            loadData();
+            openCustomerPayment(orderIndex);
         }
 
         function closeStatusModal() {
