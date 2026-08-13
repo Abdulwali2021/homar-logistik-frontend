@@ -513,6 +513,28 @@
         @media (max-width:700px) {
             .permission-options-grid { grid-template-columns:1fr; }
         }
+
+        /* Innloggingsdetaljer vises bare for valgt bruker */
+        .login-summary-picker { max-width:900px; }
+        .login-summary-picker > label { margin-bottom:5px; }
+        #loginSummaryUserSelect { width:260px; margin-bottom:10px; }
+        .login-summary-result {
+            display:grid;
+            grid-template-columns:repeat(4,minmax(140px,1fr));
+            gap:8px;
+            padding:10px;
+            background:#f8f9fa;
+            border:1px solid #e0e4e8;
+            border-radius:6px;
+            font-size:12px;
+        }
+        .login-summary-result > div { padding:6px 8px; background:#fff; border-radius:5px; }
+        .login-summary-result small { display:block; color:#6c757d; margin-bottom:4px; }
+        .login-summary-result strong { display:block; }
+        @media (max-width:700px) {
+            #loginSummaryUserSelect { width:100%; }
+            .login-summary-result { grid-template-columns:1fr 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -1174,10 +1196,16 @@
             <div class="input-card" style="margin-top:20px;">
                 <h4 style="margin-top:0;">SAMLET INNLOGGINGSOVERSIKT</h4>
                 <p style="font-size:12px; color:#666;">ÉN RAD PER BRUKER. ANTALLET ØKER FOR HVER VELLYKKET INNLOGGING.</p>
-                <table id="userActionsTable">
-                    <thead><tr><th>BRUKER</th><th>ANTALL INNLOGGINGER</th><th>SIST INNLOGGET – TIDSPUNKT</th><th>STATUS NÅ</th></tr></thead>
-                    <tbody id="userActionsBody"><tr><td colspan="4">LASTER...</td></tr></tbody>
-                </table>
+                <div class="login-summary-picker">
+                    <label for="loginSummaryUserSelect">VELG BRUKER</label>
+                    <select id="loginSummaryUserSelect" onchange="showSelectedLoginSummary()">
+                        <option value="">-- VELG BRUKER --</option>
+                    </select>
+                    <div id="selectedLoginSummary" class="login-summary-result">
+                        VELG EN BRUKER FOR Å SE INNLOGGINGSOVERSIKTEN.
+                    </div>
+                </div>
+                <div id="userActionsBody" class="hidden"></div>
             </div>
         </div>
     </div>
@@ -3119,6 +3147,30 @@
             if (window.homarApiRequest) loadSecurityOverview();
         }
 
+        let cachedLoginSummary = [];
+        let cachedOnlineNames = new Set();
+
+        function showSelectedLoginSummary() {
+            const select = document.getElementById("loginSummaryUserSelect");
+            const result = document.getElementById("selectedLoginSummary");
+            if (!select || !result) return;
+            const username = String(select.value || '').toUpperCase();
+            const row = cachedLoginSummary.find(item => String(item.username || '').toUpperCase() === username);
+            if (!row) {
+                result.textContent = "VELG EN BRUKER FOR Å SE INNLOGGINGSOVERSIKTEN.";
+                return;
+            }
+            const active = cachedOnlineNames.has(username);
+            const lastTime = row.lastLoginAt ? new Date(row.lastLoginAt).toLocaleString('nb-NO') : '-';
+            result.innerHTML = `
+                <div><small>BRUKER</small><strong>${username}</strong></div>
+                <div><small>ANTALL INNLOGGINGER</small><strong>${Number(row.loginCount) || 0}</strong></div>
+                <div><small>SIST INNLOGGET – TIDSPUNKT</small><strong>${lastTime}</strong></div>
+                <div><small>STATUS NÅ</small><strong style="color:${active ? '#155724' : '#6c757d'};">${active ? '● AKTIV NÅ' : 'IKKE AKTIV'}</strong></div>
+            `;
+        }
+        window.showSelectedLoginSummary = showSelectedLoginSummary;
+
         async function loadSecurityOverview() {
             if (getCurrentUserRole() !== "Admin" || !window.homarApiRequest) return;
             const onlineBody = document.getElementById("onlineUsersBody");
@@ -3153,23 +3205,25 @@
                     <td>${eventNames[row.eventType] || row.eventType}</td>
                     <td style="font-weight:bold;color:${row.success ? '#155724' : '#dc3545'};">${row.success ? 'OK' : 'FEILET'}</td>
                 </tr>`).join('') : '<tr><td colspan="5">INGEN HENDELSER ENNÅ.</td></tr>';
-                const onlineNames = new Set(online.map(row => String(row.username || '').toUpperCase()));
-                actionsBody.innerHTML = loginSummary.length ? loginSummary.map(row => {
-                    const username = String(row.username || 'UKJENT').toUpperCase();
-                    const active = onlineNames.has(username);
-                    return `<tr>
-                        <td><strong>${username}</strong></td>
-                        <td><strong>${Number(row.loginCount) || 0}</strong></td>
-                        <td>${formatTime(row.lastLoginAt)}</td>
-                        <td style="font-weight:bold;color:${active ? '#155724' : '#6c757d'};">
-                            ${active ? '● AKTIV NÅ' : 'IKKE AKTIV'}
-                        </td>
-                    </tr>`;
-                }).join('') : '<tr><td colspan="4">INGEN INNLOGGINGER ENNÅ.</td></tr>';
+                cachedOnlineNames = new Set(online.map(row => String(row.username || '').toUpperCase()));
+                cachedLoginSummary = Array.isArray(loginSummary) ? loginSummary : [];
+                const loginSelect = document.getElementById("loginSummaryUserSelect");
+                const previousUser = loginSelect ? loginSelect.value : "";
+                if (loginSelect) {
+                    loginSelect.innerHTML = '<option value="">-- VELG BRUKER --</option>' +
+                        cachedLoginSummary.map(row => {
+                            const username = String(row.username || 'UKJENT').toUpperCase();
+                            return '<option value="' + username + '">' + username + '</option>';
+                        }).join('');
+                    if (cachedLoginSummary.some(row => String(row.username || '').toUpperCase() === previousUser)) {
+                        loginSelect.value = previousUser;
+                    }
+                }
+                showSelectedLoginSummary();
             } catch (err) {
                 onlineBody.innerHTML = '<tr><td colspan="4">KUNNE IKKE HENTE AKTIVE BRUKERE.</td></tr>';
                 activityBody.innerHTML = '<tr><td colspan="5">KUNNE IKKE HENTE LOGGEN.</td></tr>';
-                actionsBody.innerHTML = '<tr><td colspan="4">KUNNE IKKE HENTE INNLOGGINGSOVERSIKTEN.</td></tr>';
+                document.getElementById("selectedLoginSummary").textContent = "KUNNE IKKE HENTE INNLOGGINGSOVERSIKTEN.";
             }
         }
         window.loadSecurityOverview = loadSecurityOverview;
