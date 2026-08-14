@@ -1,6 +1,14 @@
 (function(){
 'use strict';
 
+function currentToday(){
+  try{
+    if(typeof todayStr!=='undefined'&&todayStr)return String(todayStr);
+  }catch(_){ }
+  var now=new Date();
+  return now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+}
+
 function setupUnifiedCalendar(){
   var select=document.getElementById('archiveModeSelect');
   var range=document.getElementById('archiveRangeContainer');
@@ -21,19 +29,16 @@ function setupUnifiedCalendar(){
     monthBox.style.cssText='display:flex;gap:8px;align-items:center;';
     monthBox.innerHTML='<label style="margin:0;font-size:12px;">MÅNED:</label><input type="month" id="archiveMonthInput">';
     range.parentNode.insertBefore(monthBox,range);
-    document.getElementById('archiveMonthInput').addEventListener('change',function(){ if(typeof window.renderAllTables==='function') window.renderAllTables(); });
+    document.getElementById('archiveMonthInput').addEventListener('change',function(){if(typeof window.renderAllTables==='function')window.renderAllTables();});
   }
 
   var monthInput=document.getElementById('archiveMonthInput');
-  if(monthInput&&!monthInput.value&&window.todayStr)monthInput.value=String(window.todayStr).slice(0,7);
+  if(monthInput&&!monthInput.value)monthInput.value=currentToday().slice(0,7);
 
-  var expense=document.getElementById('sectionUtgift');
-  if(expense){
-    var oldMonth=document.getElementById('utgiftMonthInput');
-    if(oldMonth){
-      var oldBox=oldMonth.closest('.filter-container');
-      if(oldBox)oldBox.remove();
-    }
+  var oldMonth=document.getElementById('utgiftMonthInput');
+  if(oldMonth){
+    var oldBox=oldMonth.closest('.filter-container');
+    if(oldBox)oldBox.remove();
   }
 }
 
@@ -43,8 +48,7 @@ window.filterByCalendar=function(item){
   var itemDate=String(item&&((item.date)||(item.betaltDato))||'');
   if(mode==='all')return true;
   if(!itemDate)return false;
-  var today=String(window.todayStr||'');
-  if(mode==='today')return itemDate===today;
+  if(mode==='today')return itemDate===currentToday();
   if(mode==='month'){
     var m=document.getElementById('archiveMonthInput');
     var chosen=m?m.value:'';
@@ -62,19 +66,21 @@ window.filterByCalendar=function(item){
 
 window.toggleArchiveModeInputs=function(){
   setupUnifiedCalendar();
-  var mode=document.getElementById('archiveModeSelect').value;
+  var select=document.getElementById('archiveModeSelect');
+  if(!select)return;
+  var mode=select.value;
   var month=document.getElementById('archiveMonthContainer');
   var range=document.getElementById('archiveRangeContainer');
   if(month)month.classList.toggle('hidden',mode!=='month');
   if(range)range.classList.toggle('hidden',mode!=='range');
   if(mode==='month'){
     var mi=document.getElementById('archiveMonthInput');
-    if(mi&&!mi.value)mi.value=String(window.todayStr||new Date().toISOString().slice(0,10)).slice(0,7);
+    if(mi&&!mi.value)mi.value=currentToday().slice(0,7);
   }
   if(mode==='range'){
     var a=document.getElementById('archiveStartDateInput');
     var b=document.getElementById('archiveEndDateInput');
-    var today=String(window.todayStr||new Date().toISOString().slice(0,10));
+    var today=currentToday();
     if(a&&!a.value)a.value=today;
     if(b&&!b.value)b.value=today;
   }
@@ -85,7 +91,7 @@ window.resetArchiveFilter=function(){
   setupUnifiedCalendar();
   var select=document.getElementById('archiveModeSelect');
   if(select)select.value='today';
-  var m=document.getElementById('archiveMonthInput'); if(m)m.value=String(window.todayStr||new Date().toISOString().slice(0,10)).slice(0,7);
+  var m=document.getElementById('archiveMonthInput'); if(m)m.value=currentToday().slice(0,7);
   var a=document.getElementById('archiveStartDateInput'); if(a)a.value='';
   var b=document.getElementById('archiveEndDateInput'); if(b)b.value='';
   window.toggleArchiveModeInputs();
@@ -99,8 +105,6 @@ window.renderUtgiftValues=function(){
 };
 
 setupUnifiedCalendar();
-var s=document.getElementById('archiveModeSelect');
-if(s)s.addEventListener('change',function(){window.toggleArchiveModeInputs();});
 window.toggleArchiveModeInputs();
 console.info('HOMAR: én felles kalender er aktiv; ekstra UTGIFT-månedskalender er fjernet.');
 })();
