@@ -1,0 +1,267 @@
+name: Apply calendar unification
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-calendar-unification.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-calendar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Unify calendar and expense period filters
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old, new, label):
+              global text
+              if old not in text:
+                  raise SystemExit(f'Mangler forventet kode for: {label}')
+              text = text.replace(old, new, 1)
+
+          replace_once('''                <select id="archiveModeSelect" onchange="toggleArchiveModeInputs()">
+                    <option value="today">DAGENS DATO</option>
+                    <option value="all">VIS ALT REGISTRERT</option>
+                    <option value="range">VELG DATO-INTERVALL (FRA - TIL)</option>
+                </select>
+            </div>
+            <div id="archiveRangeContainer" class="hidden" style="display: flex; gap: 8px; align-items: center;">
+                <label style="margin:0; font-size:12px;">FRA:</label>
+                <input type="date" id="archiveStartDateInput" onchange="renderAllTables()">
+                <label style="margin:0; font-size:12px;">TIL:</label>
+                <input type="date" id="archiveEndDateInput" onchange="renderAllTables()">
+            </div>''', '''                <select id="archiveModeSelect" onchange="toggleArchiveModeInputs()">
+                    <option value="today">DAGENS DATO</option>
+                    <option value="month">VELG HELE MÅNEDEN</option>
+                    <option value="range">VELG DATO-INTERVALL (FRA - TIL)</option>
+                    <option value="all">VIS ALT REGISTRERT</option>
+                </select>
+            </div>
+            <div id="archiveMonthContainer" class="hidden" style="display:flex; gap:8px; align-items:center;">
+                <label style="margin:0; font-size:12px;">MÅNED:</label>
+                <input type="month" id="archiveMonthInput" onchange="renderAllTables()">
+            </div>
+            <div id="archiveRangeContainer" class="hidden" style="display: flex; gap: 8px; align-items: center;">
+                <label style="margin:0; font-size:12px;">FRA:</label>
+                <input type="date" id="archiveStartDateInput" onchange="renderAllTables()">
+                <label style="margin:0; font-size:12px;">TIL:</label>
+                <input type="date" id="archiveEndDateInput" onchange="renderAllTables()">
+            </div>''', 'kalenderens månedvalg')
+
+          replace_once('''        <div id="sectionUtgift" class="hidden">
+            <div class="filter-container" style="align-items:center;">
+                <div style="min-width:230px;">
+                    <label for="utgiftMonthInput">SØK UTGIFT ETTER MÅNED:</label>
+                    <input type="month" id="utgiftMonthInput" onchange="renderUtgiftValues()">
+                </div>
+                <div>
+                    <button type="button" onclick="showCurrentUtgiftMonth()">DENNE MÅNED</button>
+                </div>
+                <div>
+                    <button type="button" onclick="showAllUtgiftMonths()" style="background-color:#6c757d;">VIS ALLE MÅNEDER</button>
+                </div>
+                <div style="margin-left:auto;">
+                    <strong id="utgiftPeriodLabel">VISER DENNE MÅNED</strong>
+                </div>
+            </div>
+            <div class="budget-grid">''', '''        <div id="sectionUtgift" class="hidden">
+            <div class="budget-grid">''', 'ekstra UTGIFT-kalender')
+
+          replace_once('''            const previousMonth = todayStr.slice(0, 7);
+            todayStr = currentDay;
+            const lagerDateInput = document.getElementById("lDate");
+            if (lagerDateInput) lagerDateInput.value = todayStr;
+            const monthInput = document.getElementById("utgiftMonthInput");
+            if (monthInput && monthInput.value === previousMonth) {
+                monthInput.value = todayStr.slice(0, 7);
+            }
+            syncLagerDateToToday();''', '''            const previousMonth = todayStr.slice(0, 7);
+            todayStr = currentDay;
+            const lagerDateInput = document.getElementById("lDate");
+            if (lagerDateInput) lagerDateInput.value = todayStr;
+            const monthInput = document.getElementById("archiveMonthInput");
+            if (monthInput && monthInput.value === previousMonth) {
+                monthInput.value = todayStr.slice(0, 7);
+            }
+            syncLagerDateToToday();''', 'månedsskifte')
+
+          replace_once('''        function toggleArchiveModeInputs() {
+            let mode = document.getElementById("archiveModeSelect").value;
+            let rangeCont = document.getElementById("archiveRangeContainer");
+
+            if (mode === "range") {
+                rangeCont.classList.remove("hidden");
+                let startDateInput = document.getElementById("archiveStartDateInput");
+                let endDateInput = document.getElementById("archiveEndDateInput");
+                if (!startDateInput.value) startDateInput.value = todayStr;
+                if (!endDateInput.value) endDateInput.value = todayStr;
+            } else {
+                rangeCont.classList.add("hidden");
+            }
+            renderAllTables();
+        }
+
+        function resetArchiveFilter() {
+            document.getElementById("archiveModeSelect").value = "today";
+            document.getElementById("archiveStartDateInput").value = "";
+            document.getElementById("archiveEndDateInput").value = "";
+            toggleArchiveModeInputs();
+            renderAllTables();
+        }
+
+        function filterByCalendar(item) {
+            let mode = document.getElementById("archiveModeSelect").value;
+            let itemDate = item.date || item.betaltDato || "";
+
+            // VIS ALLE skal også avsløre gamle/ugyldige rader uten dato,
+            // slik at admin kan rydde dem i stedet for at de forblir skjult.
+            if (mode === "all") return true;
+            if (!itemDate) return false;
+
+            if (mode === "today") {
+                return itemDate === todayStr;
+            } else if (mode === "range") {
+                let startDate = document.getElementById("archiveStartDateInput").value;
+                let endDate = document.getElementById("archiveEndDateInput").value;
+                if (!startDate || !endDate) return true;
+                return itemDate >= startDate && itemDate <= endDate;
+            }
+            return true;
+        }''', '''        function toggleArchiveModeInputs() {
+            const mode = document.getElementById("archiveModeSelect").value;
+            const monthCont = document.getElementById("archiveMonthContainer");
+            const rangeCont = document.getElementById("archiveRangeContainer");
+            const monthInput = document.getElementById("archiveMonthInput");
+
+            if (monthCont) monthCont.classList.toggle("hidden", mode !== "month");
+            if (rangeCont) rangeCont.classList.toggle("hidden", mode !== "range");
+
+            if (mode === "month" && monthInput && !monthInput.value) {
+                monthInput.value = todayStr.slice(0, 7);
+            }
+            if (mode === "range") {
+                const startDateInput = document.getElementById("archiveStartDateInput");
+                const endDateInput = document.getElementById("archiveEndDateInput");
+                if (!startDateInput.value) startDateInput.value = todayStr;
+                if (!endDateInput.value) endDateInput.value = todayStr;
+            }
+            renderAllTables();
+        }
+
+        function resetArchiveFilter() {
+            document.getElementById("archiveModeSelect").value = "today";
+            const monthInput = document.getElementById("archiveMonthInput");
+            if (monthInput) monthInput.value = todayStr.slice(0, 7);
+            document.getElementById("archiveStartDateInput").value = "";
+            document.getElementById("archiveEndDateInput").value = "";
+            toggleArchiveModeInputs();
+        }
+
+        function filterByCalendar(item) {
+            const mode = document.getElementById("archiveModeSelect").value;
+            const itemDate = String(item && (item.date || item.betaltDato) || "");
+
+            // VIS ALLE skal også avsløre gamle/ugyldige rader uten dato,
+            // slik at admin kan rydde dem i stedet for at de forblir skjult.
+            if (mode === "all") return true;
+            if (!itemDate) return false;
+
+            if (mode === "today") {
+                return itemDate === todayStr;
+            }
+            if (mode === "month") {
+                const monthInput = document.getElementById("archiveMonthInput");
+                const selectedMonth = monthInput ? monthInput.value : "";
+                return !selectedMonth || itemDate.slice(0, 7) === selectedMonth;
+            }
+            if (mode === "range") {
+                const startDate = document.getElementById("archiveStartDateInput").value;
+                const endDate = document.getElementById("archiveEndDateInput").value;
+                if (!startDate || !endDate) return true;
+                return itemDate >= startDate && itemDate <= endDate;
+            }
+            return true;
+        }''', 'kalenderlogikk')
+
+          replace_once('''        const utgiftMonthInput = document.getElementById("utgiftMonthInput");
+        if (utgiftMonthInput) utgiftMonthInput.value = todayStr.slice(0, 7);''', '''        const archiveMonthInput = document.getElementById("archiveMonthInput");
+        if (archiveMonthInput) archiveMonthInput.value = todayStr.slice(0, 7);''', 'standardmåned')
+
+          # La sammendragsfeltene i historiske faner følge samme kalender som tabellene.
+          text = text.replace('''            const activeList = list.filter(item =>
+                item && !item.deleted && !item.deletedAt && String(item.date || '').trim()
+            );''', '''            const activeList = list.filter(item =>
+                item && !item.deleted && !item.deletedAt && String(item.date || '').trim() && filterByCalendar(item)
+            );''')
+
+          replace_once('''            const activeList = list.filter(item =>
+                item && !item.deleted && !item.deletedAt && String(item.date || '').trim()
+            );
+            const tbody = document.getElementById("customerBody");''', '''            const activeList = list.filter(item =>
+                item && !item.deleted && !item.deletedAt && String(item.date || '').trim() && filterByCalendar(item)
+            );
+            const tbody = document.getElementById("customerBody");''', 'KUNDE-sammendrag')
+
+          replace_once('''                if (!item || item.deleted || item.deletedAt) return;
+                if (!searchActive && !filterByCalendar(item)) return;''', '''                if (!item || item.deleted || item.deletedAt) return;
+                if (!filterByCalendar(item)) return;''', 'KUNDE-kalender')
+
+          replace_once('''        function renderUtgiftValues() {
+            const monthInput = document.getElementById("utgiftMonthInput");
+            const selectedMonth = monthInput ? monthInput.value : todayStr.slice(0, 7);
+            const totals = calculateUtgiftTotals(row =>
+                !selectedMonth || String(row && row.date || "").slice(0, 7) === selectedMonth
+            );
+            if (document.getElementById("boxUtgiftSamen")) {
+                document.getElementById("boxUtgiftSamen").textContent = convertPriceToDisplay(totals.samen).toFixed(2);
+                document.getElementById("boxUtgiftGari").textContent = convertPriceToDisplay(totals.gari).toFixed(2);
+                document.getElementById("boxUtgiftQarash").textContent = convertPriceToDisplay(totals.qarash).toFixed(2);
+                document.getElementById("boxUtgiftShamito").textContent = convertPriceToDisplay(totals.shamito).toFixed(2);
+                document.getElementById("boxUtgiftDhagax").textContent = convertPriceToDisplay(totals.dhagax).toFixed(2);
+                document.getElementById("boxGrandUtgift").textContent = convertPriceToDisplay(totals.total).toFixed(2);
+            }
+            const periodLabel = document.getElementById("utgiftPeriodLabel");
+            if (periodLabel) periodLabel.textContent = `VISER: ${formatUtgiftMonth(selectedMonth)}`;
+            return totals.total;
+        }''', '''        function renderUtgiftValues() {
+            // UTGIFT bruker nøyaktig samme kalender/arkiv som de andre fanene.
+            const totals = calculateUtgiftTotals(row => filterByCalendar(row));
+            if (document.getElementById("boxUtgiftSamen")) {
+                document.getElementById("boxUtgiftSamen").textContent = convertPriceToDisplay(totals.samen).toFixed(2);
+                document.getElementById("boxUtgiftGari").textContent = convertPriceToDisplay(totals.gari).toFixed(2);
+                document.getElementById("boxUtgiftQarash").textContent = convertPriceToDisplay(totals.qarash).toFixed(2);
+                document.getElementById("boxUtgiftShamito").textContent = convertPriceToDisplay(totals.shamito).toFixed(2);
+                document.getElementById("boxUtgiftDhagax").textContent = convertPriceToDisplay(totals.dhagax).toFixed(2);
+                document.getElementById("boxGrandUtgift").textContent = convertPriceToDisplay(totals.total).toFixed(2);
+            }
+            return totals.total;
+        }''', 'UTGIFT-perioden')
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit calendar fix to main
+        shell: bash
+        run: |
+          if git diff --quiet -- index.html; then
+            echo 'Ingen endringer å publisere.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Unify calendar month and date range across tabs'
+          git push origin HEAD:main
