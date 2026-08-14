@@ -1279,8 +1279,44 @@
         let showSjukiColumns = false;
         let currentCustomerFilter = 'Deen';
 
+        function getLocalTodayString() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
         const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
+        let todayStr = getLocalTodayString();
+
+        // LAGER er en løpende beholdning, ikke et dagsarkiv. Aktive
+        // lagervarer skal derfor alltid følge dagens lokale dato.
+        function syncLagerDateToToday() {
+            const list = JSON.parse(localStorage.getItem("homar_lager") || "[]");
+            let changed = false;
+
+            list.forEach(item => {
+                if (item && !item.deleted && !item.deletedAt && item.date !== todayStr) {
+                    item.date = todayStr;
+                    changed = true;
+                }
+            });
+
+            if (changed) localStorage.setItem("homar_lager", JSON.stringify(list));
+            return changed;
+        }
+
+        function refreshTodayString() {
+            const currentDay = getLocalTodayString();
+            if (currentDay === todayStr) return false;
+
+            todayStr = currentDay;
+            const lagerDateInput = document.getElementById("lDate");
+            if (lagerDateInput) lagerDateInput.value = todayStr;
+            syncLagerDateToToday();
+            return true;
+        }
 
         function toggleArchiveModeInputs() {
             let mode = document.getElementById("archiveModeSelect").value;
@@ -1361,6 +1397,7 @@
 
         function updateDigitalClock() {
             const now = new Date();
+            const dayChanged = refreshTodayString();
             const clockEl = document.getElementById('digitalClock');
             const dateBadgeEl = document.getElementById('liveDateBadge');
 
@@ -1371,6 +1408,10 @@
             if (dateBadgeEl) {
                 const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
                 dateBadgeEl.textContent = now.toLocaleDateString('no-NO', options);
+            }
+
+            if (dayChanged && localStorage.getItem("homar_logged_in") === "true") {
+                loadData();
             }
         }
 
@@ -3719,6 +3760,8 @@
         window.loadSecurityOverview = loadSecurityOverview;
 
         function loadData() {
+            refreshTodayString();
+            syncLagerDateToToday();
             let userUp = String(getCurrentUser()).toUpperCase();
             let roleUp = String(getCurrentUserRole()).toUpperCase();
             document.getElementById("currentUserRoleDisplay").textContent = `INNLOGGET SOM: ${userUp} (${roleUp})`;
@@ -3781,6 +3824,8 @@
         }
 
         function renderLagerTable() {
+            refreshTodayString();
+            syncLagerDateToToday();
             let list = consolidateLagerRows();
             let tbody = document.getElementById("lagerBody");
             tbody.innerHTML = "";
@@ -3793,7 +3838,6 @@
 
             list
                 .map((item, index) => ({ item, index }))
-                .filter(row => filterByCalendar(row.item))
                 .sort((a, b) => {
                     const aName = String(a.item.type || "").trim().toUpperCase();
                     const bName = String(b.item.type || "").trim().toUpperCase();
@@ -4246,8 +4290,12 @@
         }
 
         function renderBudsjetValues() {
-            let lagerList = JSON.parse(localStorage.getItem("homar_lager") || "[]");
-            let lagerTotalNOK = lagerList.filter(filterByCalendar).reduce((acc, x) => acc + (x.qty * x.price), 0);
+            refreshTodayString();
+            syncLagerDateToToday();
+            let lagerList = consolidateLagerRows();
+            // Lagerverdien er dagens totale aktive beholdning og skal aldri
+            // skjules eller endres av kalender-/arkivfilteret.
+            let lagerTotalNOK = lagerList.reduce((acc, x) => acc + (x.qty * x.price), 0);
 
             let kundeList = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
             let deenTotalNOK = kundeList
