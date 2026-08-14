@@ -1011,6 +1011,21 @@
 
         <!-- UTGIFT SEKSJON -->
         <div id="sectionUtgift" class="hidden">
+            <div class="filter-container" style="align-items:center;">
+                <div style="min-width:230px;">
+                    <label for="utgiftMonthInput">SØK UTGIFT ETTER MÅNED:</label>
+                    <input type="month" id="utgiftMonthInput" onchange="renderUtgiftValues()">
+                </div>
+                <div>
+                    <button type="button" onclick="showCurrentUtgiftMonth()">DENNE MÅNED</button>
+                </div>
+                <div>
+                    <button type="button" onclick="showAllUtgiftMonths()" style="background-color:#6c757d;">VIS ALLE MÅNEDER</button>
+                </div>
+                <div style="margin-left:auto;">
+                    <strong id="utgiftPeriodLabel">VISER DENNE MÅNED</strong>
+                </div>
+            </div>
             <div class="budget-grid">
                 <div class="budget-card">
                     <div class="budget-card-title">SAMEN TOTALE PRIS</div>
@@ -1061,7 +1076,7 @@
                     <div class="low-balance-warning hidden" id="wafiLowBalanceWarning" role="alert" aria-live="polite">⚠ LAV SALDO – WAFI ER UNDER 100</div>
                 </div>
                 <div class="budget-card" style="background-color:#fff3cd;border-color:#f0ad4e;">
-                    <div class="budget-card-title" style="color:#856404;">UTGIFT TOTAL (AUTOMATISK KOBLET)</div>
+                    <div class="budget-card-title" style="color:#856404;">UTGIFT TOTAL ALLE MÅNEDER (AUTOMATISK KOBLET)</div>
                     <div class="budget-card-value" id="boxBudsjetUtgift" style="color:#856404;">0.00</div>
                 </div>
                 <div class="budget-card" style="background-color: #e8f5e9; border-color: #28a745; grid-column: 1 / -1;">
@@ -1353,9 +1368,14 @@
             const currentDay = getLocalTodayString();
             if (currentDay === todayStr) return false;
 
+            const previousMonth = todayStr.slice(0, 7);
             todayStr = currentDay;
             const lagerDateInput = document.getElementById("lDate");
             if (lagerDateInput) lagerDateInput.value = todayStr;
+            const monthInput = document.getElementById("utgiftMonthInput");
+            if (monthInput && monthInput.value === previousMonth) {
+                monthInput.value = todayStr.slice(0, 7);
+            }
             syncLagerDateToToday();
             return true;
         }
@@ -1424,6 +1444,9 @@
                 el.value = todayStr;
             }
         });
+
+        const utgiftMonthInput = document.getElementById("utgiftMonthInput");
+        if (utgiftMonthInput) utgiftMonthInput.value = todayStr.slice(0, 7);
 
         window.onload = function() {
             startDigitalClock();
@@ -4687,10 +4710,33 @@
             };
         }
 
+        function formatUtgiftMonth(monthKey) {
+            if (!monthKey) return "ALLE MÅNEDER";
+            const [year, month] = monthKey.split("-").map(Number);
+            if (!year || !month) return monthKey;
+            return new Date(year, month - 1, 1)
+                .toLocaleDateString("no-NO", { month: "long", year: "numeric" })
+                .toUpperCase();
+        }
+
+        function showCurrentUtgiftMonth() {
+            const input = document.getElementById("utgiftMonthInput");
+            if (input) input.value = todayStr.slice(0, 7);
+            renderUtgiftValues();
+        }
+
+        function showAllUtgiftMonths() {
+            const input = document.getElementById("utgiftMonthInput");
+            if (input) input.value = "";
+            renderUtgiftValues();
+        }
+
         function renderUtgiftValues() {
-            // UTGIFT er alltid en løpende totalsum. Kalender-/datofilter skal
-            // aldri skjule eldre registreringer fra de oppdaterte summene.
-            const totals = calculateUtgiftTotals(() => true);
+            const monthInput = document.getElementById("utgiftMonthInput");
+            const selectedMonth = monthInput ? monthInput.value : todayStr.slice(0, 7);
+            const totals = calculateUtgiftTotals(row =>
+                !selectedMonth || String(row && row.date || "").slice(0, 7) === selectedMonth
+            );
             if (document.getElementById("boxUtgiftSamen")) {
                 document.getElementById("boxUtgiftSamen").textContent = convertPriceToDisplay(totals.samen).toFixed(2);
                 document.getElementById("boxUtgiftGari").textContent = convertPriceToDisplay(totals.gari).toFixed(2);
@@ -4699,6 +4745,8 @@
                 document.getElementById("boxUtgiftDhagax").textContent = convertPriceToDisplay(totals.dhagax).toFixed(2);
                 document.getElementById("boxGrandUtgift").textContent = convertPriceToDisplay(totals.total).toFixed(2);
             }
+            const periodLabel = document.getElementById("utgiftPeriodLabel");
+            if (periodLabel) periodLabel.textContent = `VISER: ${formatUtgiftMonth(selectedMonth)}`;
             return totals.total;
         }
 
