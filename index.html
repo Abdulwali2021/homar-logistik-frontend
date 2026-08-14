@@ -2395,6 +2395,13 @@
                     return;
                 }
                 if (isAdmin) {
+                    const reduction = normType(item.type) === normType(type)
+                        ? Math.max(0, Number(item.qty || 0) - qty)
+                        : Number(item.qty || 0);
+                    if (reduction > getAvailableStock(item.type)) {
+                        alert(`KAN IKKE REDUSERE LAGER. ${item.type} ER ALLEREDE BRUKT I KUNDE ELLER SHAMITO. TILGJENGELIG: ${getAvailableStock(item.type)}`);
+                        return;
+                    }
                     item.type = type;
                     item.price = priceNOK;
                     item.priceEntered = priceInput;
@@ -2405,6 +2412,12 @@
                     }];
                     item.qty = qty;
                 } else {
+                    const oldOwnQty = ownLagerQuantity(item, actor, true);
+                    const reduction = Math.max(0, oldOwnQty - qty);
+                    if (reduction > getAvailableStock(item.type)) {
+                        alert(`KAN IKKE REDUSERE LAGER. ${item.type} ER ALLEREDE BRUKT I KUNDE ELLER SHAMITO. TILGJENGELIG: ${getAvailableStock(item.type)}`);
+                        return;
+                    }
                     item.contributions = lagerContributions(item).filter(entry =>
                         entry.user !== actor || !isWithin24Hours(entry.createdAt || entry.date)
                     );
@@ -2495,6 +2508,10 @@
 
             if (isAdmin) {
                 if (!confirm("ER DU SIKKER PÅ AT DU VIL SLETTE HELE PRODUKTLINJEN?")) return;
+                if (Number(item.qty || 0) > getAvailableStock(item.type)) {
+                    alert(`KAN IKKE SLETTE LAGERLINJEN. ${item.type} ER ALLEREDE BRUKT I KUNDE ELLER SHAMITO.`);
+                    return;
+                }
                 list.splice(index, 1);
             } else {
                 if (!canDeleteOwnLagerQuantity(item)) {
@@ -2503,6 +2520,10 @@
                 }
                 const actor = String(getCurrentUser() || '').toUpperCase();
                 const ownRecentQty = ownLagerQuantity(item, actor, true);
+                if (ownRecentQty > getAvailableStock(item.type)) {
+                    alert(`KAN IKKE SLETTE ANTALLET. ${item.type} ER ALLEREDE BRUKT I KUNDE ELLER SHAMITO.`);
+                    return;
+                }
                 if (!confirm("VIL DU SLETTE DITT EGET ANTALL: " + ownRecentQty + "?")) return;
                 item.contributions = lagerContributions(item).filter(entry =>
                     entry.user !== actor || !isWithin24Hours(entry.createdAt || entry.date)
@@ -2522,19 +2543,18 @@
         // Samen (Logistikk) funksjoner
         function updateLogMaxQty() {
             let type = document.getElementById("logType").value.trim().toUpperCase();
-            let stockMap = getStockMap();
-            let available = type ? (stockMap[type] || 0) : 0;
+            let available = type ? getAvailableStock(type) : 0;
             document.getElementById("logStockInfo").textContent = type ? `(LAGER NÅ: ${available})` : "";
             document.getElementById("logQty").removeAttribute("max");
         }
 
-        function updateLagerFromSamen(type, qtyDelta, date) {
+        function updateLagerFromSamen(type, qtyDelta, date, contributionOwner) {
             const cleanType = String(type || "").trim().toUpperCase();
             const amount = Number(qtyDelta) || 0;
             if (!cleanType || amount === 0) return;
 
             const lager = consolidateLagerRows();
-            const actor = String(getCurrentUser() || 'ADMIN').toUpperCase();
+            const actor = String(contributionOwner || getCurrentUser() || 'ADMIN').toUpperCase();
             const lagerIndex = lager.findIndex(item => normType(item.type) === normType(cleanType));
 
             if (lagerIndex !== -1) {
@@ -2592,7 +2612,17 @@
                 let oldItem = list[index];
                 if (!oldItem) return;
 
-                updateLagerFromSamen(oldItem.type, -Number(oldItem.qty || 0), oldItem.date);
+                const sameProduct = normType(oldItem.type) === normType(type);
+                const reduction = sameProduct
+                    ? Math.max(0, Number(oldItem.qty || 0) - qty)
+                    : Number(oldItem.qty || 0);
+                if (reduction > getAvailableStock(oldItem.type)) {
+                    alert(`KAN IKKE REDUSERE SAMEN. ${oldItem.type} ER ALLEREDE BRUKT I KUNDE ELLER SHAMITO. TILGJENGELIG: ${getAvailableStock(oldItem.type)}`);
+                    return;
+                }
+
+                const contributionOwner = oldItem.createdBy || getCurrentUser();
+                updateLagerFromSamen(oldItem.type, -Number(oldItem.qty || 0), oldItem.date, contributionOwner);
 
                 list[index].date = date;
                 list[index].type = type;
@@ -2602,7 +2632,7 @@
                 list[index].updatedBy = getCurrentUser();
                 list[index].updatedAt = new Date().toISOString();
 
-                updateLagerFromSamen(type, qty, date);
+                updateLagerFromSamen(type, qty, date, contributionOwner);
             } else {
                 list.push({
                     date: date,
@@ -2614,7 +2644,7 @@
                     createdAt: new Date().toISOString()
                 });
 
-                updateLagerFromSamen(type, qty, date);
+                updateLagerFromSamen(type, qty, date, getCurrentUser());
             }
 
             localStorage.setItem("homar_samen", JSON.stringify(list));
@@ -2669,7 +2699,11 @@
             }
 
             if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE SAMEN-REGISTRERINGEN?")) {
-                updateLagerFromSamen(item.type, -Number(item.qty || 0), item.date);
+                if (Number(item.qty || 0) > getAvailableStock(item.type)) {
+                    alert(`KAN IKKE SLETTE SAMEN. ${item.type} ER ALLEREDE BRUKT I KUNDE ELLER SHAMITO. TILGJENGELIG: ${getAvailableStock(item.type)}`);
+                    return;
+                }
+                updateLagerFromSamen(item.type, -Number(item.qty || 0), item.date, item.createdBy || getCurrentUser());
                 if (canUseDeleteUndo()) moveDeletedRowToTrash("homar_samen", index, item, "SAMEN", "samen");
                 list.splice(index, 1);
                 localStorage.setItem("homar_samen", JSON.stringify(list));
@@ -2680,14 +2714,13 @@
         // Shamito funksjoner
         function updateShamMaxQty() {
             let type = document.getElementById("shamType").value;
-            let stockMap = getStockMap();
-            let available = stockMap[type] || 0;
+            let available = getAvailableStock(type);
 
             let index = parseInt(document.getElementById("shamEditIndex").value);
             if (index > -1) {
                 let list = JSON.parse(localStorage.getItem("homar_shamito") || "[]");
                 let oldItem = list[index];
-                if (oldItem && oldItem.type === type) {
+                if (oldItem && normType(oldItem.type) === normType(type)) {
                     available += oldItem.qty;
                 }
             }
@@ -2697,18 +2730,33 @@
         }
 
         function getStockMap() {
-            let lager = JSON.parse(localStorage.getItem("homar_lager") || "[]");
-            let shamito = JSON.parse(localStorage.getItem("homar_shamito") || "[]");
-            let stock = {};
+            const lager = consolidateLagerRows();
+            const shamito = JSON.parse(localStorage.getItem("homar_shamito") || "[]");
+            const kunder = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
+            const stock = {};
+
+            // Én autoritativ formel for hele nettsiden:
+            // LAGER + SAMEN-bidrag - SHAMITO - KUNDE.
             lager.forEach(item => {
-                let t = String(item.type || "").toUpperCase();
-                stock[t] = (stock[t] || 0) + (Number(item.qty) || 0);
+                const key = normType(item && item.type);
+                if (key) stock[key] = (stock[key] || 0) + Math.max(0, Number(item.qty) || 0);
             });
             shamito.forEach(item => {
-                let t = String(item.type || "").toUpperCase();
-                if (stock[t] !== undefined) stock[t] -= (Number(item.qty) || 0);
+                if (!item || item.deleted || item.deletedAt) return;
+                const key = normType(item.type);
+                if (key) stock[key] = (stock[key] || 0) - Math.max(0, Number(item.qty) || 0);
             });
+            kunder.forEach(item => {
+                if (!item || item.deleted || item.deletedAt) return;
+                const key = normType(item.navn || item.type);
+                if (key) stock[key] = (stock[key] || 0) - Math.max(0, Number(item.qty) || 0);
+            });
+            Object.keys(stock).forEach(key => { stock[key] = Math.max(0, stock[key]); });
             return stock;
+        }
+
+        function getAvailableStock(type) {
+            return getStockMap()[normType(type)] || 0;
         }
 
         function saveShamito() {
@@ -2729,12 +2777,11 @@
 
             let priceNOK = convertInputPriceToNOK(priceInput);
             let list = JSON.parse(localStorage.getItem("homar_shamito") || "[]");
-            let stockMap = getStockMap();
-            let currentStock = stockMap[type] || 0;
+            let currentStock = getAvailableStock(type);
 
             if (index > -1) {
                 let oldItem = list[index];
-                if (String(oldItem.type || "").toUpperCase() === type) {
+                if (normType(oldItem.type) === normType(type)) {
                     currentStock += oldItem.qty;
                 }
             }
@@ -2822,13 +2869,12 @@
             document.getElementById("cNavn").value = type;
             let index = parseInt(document.getElementById("custEditIndex").value);
             
-            let stockMap = getStockMap();
-            let available = stockMap[type] || 0;
+            let available = getAvailableStock(type);
 
             if (index > -1) {
                 let list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
                 let oldItem = list[index];
-                if (String(oldItem.navn || "").toUpperCase() === type) {
+                if (normType(oldItem.navn) === normType(type)) {
                     available += oldItem.qty;
                 }
             }
@@ -3072,12 +3118,11 @@
                 return;
             }
             
-            let stockMap = getStockMap();
-            let currentStock = stockMap[vare] || 0;
+            let currentStock = getAvailableStock(vare);
 
             if (index > -1) {
                 let oldItem = list[index];
-                if (String(oldItem.navn || "").toUpperCase() === vare) {
+                if (normType(oldItem.navn) === normType(vare)) {
                     currentStock += oldItem.qty;
                 }
             }
@@ -3089,19 +3134,6 @@
 
             if (index > -1) {
                 let oldItem = list[index];
-                let oldQty = oldItem.qty;
-                let oldVare = String(oldItem.navn || "").toUpperCase();
-
-                if (oldVare !== vare) {
-                    updateLagerItemQty(oldVare, oldQty);
-                    updateLagerItemQty(vare, -qty);
-                } else {
-                    let qtyDiff = qty - oldQty;
-                    if (qtyDiff !== 0) {
-                        updateLagerItemQty(vare, -qtyDiff);
-                    }
-                }
-
                 list[index].date = date;
                 list[index].kundeNavn = kundeNavn;
                 list[index].telefon = telefon;
@@ -3112,8 +3144,6 @@
                 list[index].updatedAt = new Date().toISOString();
                 syncCustomerPaymentState(list[index]);
             } else {
-                updateLagerItemQty(vare, -qty);
-
                 list.push({
                     date: date,
                     kundeNavn: kundeNavn,
@@ -3135,15 +3165,10 @@
         }
 
         function updateLagerItemQty(vareNavn, qtyDelta) {
-            let cleanVare = String(vareNavn || "").trim().toUpperCase();
-            if (!cleanVare || qtyDelta === 0) return;
-            let lager = JSON.parse(localStorage.getItem("homar_lager") || "[]");
-            let idx = lager.findIndex(item => normType(item.type) === normType(cleanVare));
-            if (idx !== -1) {
-                lager[idx].qty = Math.max(0, (Number(lager[idx].qty) || 0) + qtyDelta);
-                lager[idx].date = todayStr; 
-                localStorage.setItem("homar_lager", JSON.stringify(lager));
-            }
+            // Beholdes for eldre kall. Uttak lagres kun i KUNDE/SHAMITO og
+            // trekkes av getStockMap(). Direkte endring her var årsaken til at
+            // consolidateLagerRows() senere kunne sette gammelt antall tilbake.
+            return getAvailableStock(vareNavn);
         }
 
         function resetCustomerForm() {
@@ -3215,7 +3240,6 @@
             }
 
             if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE?")) {
-                updateLagerItemQty(item.navn, item.qty);
                 if (canUseDeleteUndo()) moveDeletedRowToTrash("homar_kunde", index, item, "KUNDEORDRE", "customer");
                 list.splice(index, 1);
                 localStorage.setItem("homar_kunde", JSON.stringify(list));
@@ -3872,8 +3896,6 @@
 
             let shamType = document.getElementById("shamType");
             let cNavnSelect = document.getElementById("cNavnSelect");
-            let stockMap = getStockMap();
-
             let currentSham = String(shamType.value || "").toUpperCase();
             let currentCust = String(cNavnSelect.value || "").toUpperCase();
 
@@ -3881,7 +3903,7 @@
             cNavnSelect.innerHTML = `<option value="">-- VELG VARE FRA LAGER --</option>`;
 
             types.forEach(t => {
-                let available = stockMap[t] || 0;
+                let available = getAvailableStock(t);
                 shamType.innerHTML += `<option value="${t}">${t} (LAGER: ${available})</option>`;
                 cNavnSelect.innerHTML += `<option value="${t}">${t} (LAGER: ${available})</option>`;
             });
@@ -3923,7 +3945,6 @@
 
             let sumQty = 0;
             let sumDisplayTotal = 0;
-            let stockMap = getStockMap();
             let currentUser = getCurrentUser();
             let isAdmin = getCurrentUserRole() === "Admin";
             let lowStockItems = [];
@@ -3940,15 +3961,15 @@
                 })
                 .forEach(({ item, index }) => {
                 let tName = String(item.type || "").toUpperCase();
-                let currentStockQty = stockMap[tName] !== undefined ? stockMap[tName] : item.qty;
+                let currentStockQty = getAvailableStock(tName);
                 if (Number(currentStockQty) < 50) {
                     lowStockItems.push(`${tName}: ${Number(currentStockQty) || 0}`);
                 }
                 
-                sumQty += item.qty;
+                sumQty += currentStockQty;
 
                 let dispPrice = getLagerDisplayPrice(item);
-                let dispTotal = item.qty * dispPrice;
+                let dispTotal = currentStockQty * dispPrice;
                 sumDisplayTotal += dispTotal;
                 let showCol = showSjukiColumns ? "" : "hidden";
                 let createdByUp = String(item.createdBy || "admin").toUpperCase();
@@ -3961,7 +3982,7 @@
                 let canMod = canDeleteOwnLagerQuantity(item);
                 let canEdit = canEditDetails(item);
 
-                let isStockOk = Number(item.qty) >= 1;
+                let isStockOk = Number(currentStockQty) >= 1;
                 let stockStatusHtml = isStockOk ? 
                     `<span class="stock-badge stock-badge-green">GRØN</span>` : 
                     `<span class="stock-badge stock-badge-red">RØDT</span>`;
@@ -3969,7 +3990,7 @@
                 tbody.innerHTML += `<tr>
                     <td>${todayStr}</td>
                     <td>${tName}</td>
-                    <td>${item.qty}</td>
+                    <td>${currentStockQty}</td>
                     <td>${dispPrice.toFixed(2)}</td>
                     <td>${dispTotal.toFixed(2)}</td>
                     <td>${stockStatusHtml}</td>
@@ -4399,7 +4420,8 @@
             let lagerList = consolidateLagerRows();
             // Lagerverdien er dagens totale aktive beholdning og skal aldri
             // skjules eller endres av kalender-/arkivfilteret.
-            let lagerTotalNOK = lagerList.reduce((acc, x) => acc + (x.qty * x.price), 0);
+            let lagerTotalNOK = lagerList.reduce((acc, x) =>
+                acc + (getAvailableStock(x.type) * Number(x.price || 0)), 0);
 
             let kundeList = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
             let deenTotalNOK = kundeList
