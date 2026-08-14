@@ -1,0 +1,153 @@
+name: Remove duplicate UTGIFT calendar
+
+on:
+  push:
+    paths:
+      - '.github/workflows/remove-extra-utgift-calendar.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix-calendar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Patch index
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          old = '''        <div id="sectionUtgift" class="hidden">
+            <div class="filter-container" style="align-items:center;">
+                <div style="min-width:230px;">
+                    <label for="utgiftMonthInput">SØK UTGIFT ETTER MÅNED:</label>
+                    <input type="month" id="utgiftMonthInput" onchange="renderUtgiftValues()">
+                </div>
+                <div>
+                    <button type="button" onclick="showCurrentUtgiftMonth()">DENNE MÅNED</button>
+                </div>
+                <div>
+                    <button type="button" onclick="showAllUtgiftMonths()" style="background-color:#6c757d;">VIS ALLE MÅNEDER</button>
+                </div>
+                <div style="margin-left:auto;">
+                    <strong id="utgiftPeriodLabel">VISER DENNE MÅNED</strong>
+                </div>
+            </div>
+            <div class="budget-grid">'''
+          new = '''        <div id="sectionUtgift" class="hidden">
+            <div class="budget-grid">'''
+          if old not in s:
+              raise SystemExit('Fant ikke gammel UTGIFT-kalender')
+          s = s.replace(old, new, 1)
+
+          old = '''                <select id="archiveModeSelect" onchange="toggleArchiveModeInputs()">
+                    <option value="today">DAGENS DATO</option>
+                    <option value="all">VIS ALT REGISTRERT</option>
+                    <option value="range">VELG DATO-INTERVALL (FRA - TIL)</option>
+                </select>
+            </div>
+            <div id="archiveRangeContainer" class="hidden" style="display: flex; gap: 8px; align-items: center;">'''
+          new = '''                <select id="archiveModeSelect" onchange="toggleArchiveModeInputs()">
+                    <option value="today">DAGENS DATO</option>
+                    <option value="month">VELG HELE MÅNEDEN</option>
+                    <option value="range">VELG DATO-INTERVALL (FRA - TIL)</option>
+                    <option value="all">VIS ALT REGISTRERT</option>
+                </select>
+            </div>
+            <div id="archiveMonthContainer" class="hidden" style="display:flex; gap:8px; align-items:center;">
+                <label style="margin:0; font-size:12px;">MÅNED:</label>
+                <input type="month" id="archiveMonthInput" onchange="renderAllTables()">
+            </div>
+            <div id="archiveRangeContainer" class="hidden" style="display: flex; gap: 8px; align-items: center;">'''
+          if old not in s:
+              raise SystemExit('Fant ikke toppkalender')
+          s = s.replace(old, new, 1)
+
+          start = s.index('        function toggleArchiveModeInputs() {')
+          end = s.index('        function showSavedHistoricalDate(date) {', start)
+          replacement = '''        function toggleArchiveModeInputs() {
+            const mode = document.getElementById("archiveModeSelect").value;
+            const monthCont = document.getElementById("archiveMonthContainer");
+            const rangeCont = document.getElementById("archiveRangeContainer");
+            const monthInput = document.getElementById("archiveMonthInput");
+            if (monthCont) monthCont.classList.toggle("hidden", mode !== "month");
+            if (rangeCont) rangeCont.classList.toggle("hidden", mode !== "range");
+            if (mode === "month" && monthInput && !monthInput.value) monthInput.value = todayStr.slice(0, 7);
+            if (mode === "range") {
+                const a = document.getElementById("archiveStartDateInput");
+                const b = document.getElementById("archiveEndDateInput");
+                if (!a.value) a.value = todayStr;
+                if (!b.value) b.value = todayStr;
+            }
+            renderAllTables();
+        }
+
+        function resetArchiveFilter() {
+            document.getElementById("archiveModeSelect").value = "today";
+            const m = document.getElementById("archiveMonthInput");
+            if (m) m.value = todayStr.slice(0, 7);
+            document.getElementById("archiveStartDateInput").value = "";
+            document.getElementById("archiveEndDateInput").value = "";
+            toggleArchiveModeInputs();
+        }
+
+        function filterByCalendar(item) {
+            const mode = document.getElementById("archiveModeSelect").value;
+            const itemDate = String(item && (item.date || item.betaltDato) || "");
+            if (mode === "all") return true;
+            if (!itemDate) return false;
+            if (mode === "today") return itemDate === todayStr;
+            if (mode === "month") {
+                const m = document.getElementById("archiveMonthInput");
+                const selected = m ? m.value : "";
+                return !selected || itemDate.slice(0, 7) === selected;
+            }
+            if (mode === "range") {
+                const a = document.getElementById("archiveStartDateInput").value;
+                const b = document.getElementById("archiveEndDateInput").value;
+                if (!a || !b) return true;
+                return itemDate >= a && itemDate <= b;
+            }
+            return true;
+        }
+
+'''
+          s = s[:start] + replacement + s[end:]
+
+          s = s.replace('''            const monthInput = document.getElementById("utgiftMonthInput");
+            if (monthInput && monthInput.value === previousMonth) {
+                monthInput.value = todayStr.slice(0, 7);
+            }''', '''            const monthInput = document.getElementById("archiveMonthInput");
+            if (monthInput && monthInput.value === previousMonth) {
+                monthInput.value = todayStr.slice(0, 7);
+            }''', 1)
+          s = s.replace('''        const utgiftMonthInput = document.getElementById("utgiftMonthInput");
+        if (utgiftMonthInput) utgiftMonthInput.value = todayStr.slice(0, 7);''', '''        const archiveMonthInput = document.getElementById("archiveMonthInput");
+        if (archiveMonthInput) archiveMonthInput.value = todayStr.slice(0, 7);''', 1)
+
+          start = s.index('        function renderUtgiftValues() {')
+          end = s.index('        function renderBudsjetValues() {', start)
+          oldblock = s[start:end]
+          body_start = oldblock.index('            if (document.getElementById("boxUtgiftSamen")) {')
+          body_end = oldblock.index('            const periodLabel = document.getElementById("utgiftPeriodLabel");')
+          body = oldblock[body_start:body_end]
+          replacement = '        function renderUtgiftValues() {\n            const totals = calculateUtgiftTotals(row => filterByCalendar(row));\n' + body + '            return totals.total;\n        }\n\n'
+          s = s[:start] + replacement + s[end:]
+
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Unify UTGIFT with top calendar"
+          git push origin HEAD:main
