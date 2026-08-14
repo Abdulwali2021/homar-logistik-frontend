@@ -1,12 +1,12 @@
 (function(){
 'use strict';
 
-function currentToday(){
-  try{
-    if(typeof todayStr!=='undefined'&&todayStr)return String(todayStr);
-  }catch(_){ }
-  var now=new Date();
-  return now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+function localToday(){
+  var d=new Date();
+  var y=d.getFullYear();
+  var m=String(d.getMonth()+1).padStart(2,'0');
+  var day=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+day;
 }
 
 function setupUnifiedCalendar(){
@@ -29,16 +29,19 @@ function setupUnifiedCalendar(){
     monthBox.style.cssText='display:flex;gap:8px;align-items:center;';
     monthBox.innerHTML='<label style="margin:0;font-size:12px;">MÅNED:</label><input type="month" id="archiveMonthInput">';
     range.parentNode.insertBefore(monthBox,range);
-    document.getElementById('archiveMonthInput').addEventListener('change',function(){if(typeof window.renderAllTables==='function')window.renderAllTables();});
+    document.getElementById('archiveMonthInput').addEventListener('change',function(){ if(typeof window.renderAllTables==='function') window.renderAllTables(); });
   }
 
   var monthInput=document.getElementById('archiveMonthInput');
-  if(monthInput&&!monthInput.value)monthInput.value=currentToday().slice(0,7);
+  if(monthInput&&!monthInput.value)monthInput.value=localToday().slice(0,7);
 
-  var oldMonth=document.getElementById('utgiftMonthInput');
-  if(oldMonth){
-    var oldBox=oldMonth.closest('.filter-container');
-    if(oldBox)oldBox.remove();
+  var expense=document.getElementById('sectionUtgift');
+  if(expense){
+    var oldMonth=document.getElementById('utgiftMonthInput');
+    if(oldMonth){
+      var oldBox=oldMonth.closest('.filter-container');
+      if(oldBox)oldBox.remove();
+    }
   }
 }
 
@@ -48,7 +51,8 @@ window.filterByCalendar=function(item){
   var itemDate=String(item&&((item.date)||(item.betaltDato))||'');
   if(mode==='all')return true;
   if(!itemDate)return false;
-  if(mode==='today')return itemDate===currentToday();
+  var today=localToday();
+  if(mode==='today')return itemDate===today;
   if(mode==='month'){
     var m=document.getElementById('archiveMonthInput');
     var chosen=m?m.value:'';
@@ -66,21 +70,19 @@ window.filterByCalendar=function(item){
 
 window.toggleArchiveModeInputs=function(){
   setupUnifiedCalendar();
-  var select=document.getElementById('archiveModeSelect');
-  if(!select)return;
-  var mode=select.value;
+  var mode=document.getElementById('archiveModeSelect').value;
   var month=document.getElementById('archiveMonthContainer');
   var range=document.getElementById('archiveRangeContainer');
   if(month)month.classList.toggle('hidden',mode!=='month');
   if(range)range.classList.toggle('hidden',mode!=='range');
   if(mode==='month'){
     var mi=document.getElementById('archiveMonthInput');
-    if(mi&&!mi.value)mi.value=currentToday().slice(0,7);
+    if(mi&&!mi.value)mi.value=localToday().slice(0,7);
   }
   if(mode==='range'){
     var a=document.getElementById('archiveStartDateInput');
     var b=document.getElementById('archiveEndDateInput');
-    var today=currentToday();
+    var today=localToday();
     if(a&&!a.value)a.value=today;
     if(b&&!b.value)b.value=today;
   }
@@ -91,20 +93,26 @@ window.resetArchiveFilter=function(){
   setupUnifiedCalendar();
   var select=document.getElementById('archiveModeSelect');
   if(select)select.value='today';
-  var m=document.getElementById('archiveMonthInput'); if(m)m.value=currentToday().slice(0,7);
+  var m=document.getElementById('archiveMonthInput'); if(m)m.value=localToday().slice(0,7);
   var a=document.getElementById('archiveStartDateInput'); if(a)a.value='';
   var b=document.getElementById('archiveEndDateInput'); if(b)b.value='';
   window.toggleArchiveModeInputs();
 };
 
 window.renderUtgiftValues=function(){
+  if(typeof window.calculateUtgiftTotals!=='function')return 0;
   var totals=window.calculateUtgiftTotals(function(row){return window.filterByCalendar(row);});
   var map=[['boxUtgiftSamen','samen'],['boxUtgiftGari','gari'],['boxUtgiftQarash','qarash'],['boxUtgiftShamito','shamito'],['boxUtgiftDhagax','dhagax'],['boxGrandUtgift','total']];
-  map.forEach(function(pair){var el=document.getElementById(pair[0]);if(el)el.textContent=window.convertPriceToDisplay(totals[pair[1]]).toFixed(2);});
+  map.forEach(function(pair){
+    var el=document.getElementById(pair[0]);
+    if(el)el.textContent=(typeof window.convertPriceToDisplay==='function'?window.convertPriceToDisplay(totals[pair[1]]):Number(totals[pair[1]])||0).toFixed(2);
+  });
   return totals.total;
 };
 
 setupUnifiedCalendar();
+var s=document.getElementById('archiveModeSelect');
+if(s)s.addEventListener('change',function(){window.toggleArchiveModeInputs();});
 window.toggleArchiveModeInputs();
 console.info('HOMAR: én felles kalender er aktiv; ekstra UTGIFT-månedskalender er fjernet.');
 })();
