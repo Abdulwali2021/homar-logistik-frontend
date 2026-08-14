@@ -2302,6 +2302,7 @@
                         ...item,
                         type: String(item.type || '').trim().toUpperCase(),
                         qty: 0,
+                        stockQty: 0,
                         contributions: []
                     };
                     delete target.lastAddedQty;
@@ -2310,7 +2311,11 @@
                     merged.push(target);
                 }
                 target.contributions.push(...contributions);
-                target.qty += contributions.reduce((sum, entry) => sum + (Number(entry.qty) || 0), 0);
+                const storedStock = Number.isFinite(Number(item.stockQty))
+                    ? Math.max(0, Number(item.stockQty))
+                    : Math.max(0, Number(item.qty) || 0);
+                target.stockQty += storedStock;
+                target.qty = target.stockQty;
                 // Behold den første registrerte lagerprisen når eldre doble
                 // produktlinjer slås sammen. En nyere rad skal ikke overskrive den.
                 if (!Number(target.price) && Number(item.price) > 0) {
@@ -2337,6 +2342,9 @@
         function addLagerContribution(item, qty, source, actor) {
             item.contributions = lagerContributions(item);
             const amount = Number(qty) || 0;
+            const currentStock = Number.isFinite(Number(item.stockQty))
+                ? Number(item.stockQty)
+                : (Number(item.qty) || 0);
             const user = String(actor || getCurrentUser() || 'ADMIN').toUpperCase();
             if (amount > 0) {
                 item.contributions.push({
@@ -2363,7 +2371,8 @@
                 }
                 item.contributions = item.contributions.filter(entry => Number(entry.qty) > 0);
             }
-            item.qty = item.contributions.reduce((sum, entry) => sum + (Number(entry.qty) || 0), 0);
+            item.stockQty = Math.max(0, currentStock + amount);
+            item.qty = item.stockQty;
         }
 
         function saveLager() {
@@ -2395,8 +2404,11 @@
                     return;
                 }
                 if (isAdmin) {
+                    const targetBaseQty = normType(item.type) === normType(type)
+                        ? qty + getShamitoUsage(type)
+                        : qty + getShamitoUsage(type);
                     const reduction = normType(item.type) === normType(type)
-                        ? Math.max(0, Number(item.qty || 0) - qty)
+                        ? Math.max(0, Number(item.qty || 0) - targetBaseQty)
                         : Number(item.qty || 0);
                     if (reduction > getAvailableStock(item.type)) {
                         alert(`KAN IKKE REDUSERE LAGER. ${item.type} ER ALLEREDE BRUKT I KUNDE ELLER SHAMITO. TILGJENGELIG: ${getAvailableStock(item.type)}`);
@@ -2407,10 +2419,11 @@
                     item.priceEntered = priceInput;
                     item.priceCurrency = priceCurrency;
                     item.contributions = [{
-                        user: actor, qty, source: 'ADMIN',
+                        user: actor, qty: targetBaseQty, source: 'ADMIN',
                         date, createdAt: new Date().toISOString()
                     }];
-                    item.qty = qty;
+                    item.stockQty = targetBaseQty;
+                    item.qty = targetBaseQty;
                 } else {
                     const oldOwnQty = ownLagerQuantity(item, actor, true);
                     const reduction = Math.max(0, oldOwnQty - qty);
@@ -2425,7 +2438,11 @@
                         user: actor, qty, source: 'LAGER',
                         date, createdAt: new Date().toISOString()
                     });
-                    item.qty = item.contributions.reduce((sum, entry) => sum + (Number(entry.qty) || 0), 0);
+                    const previousStock = Number.isFinite(Number(item.stockQty))
+                        ? Number(item.stockQty)
+                        : (Number(item.qty) || 0);
+                    item.stockQty = Math.max(0, previousStock - oldOwnQty + qty);
+                    item.qty = item.stockQty;
                 }
                 item.date = date;
                 item.updatedBy = actor;
@@ -2447,7 +2464,7 @@
                     item.updatedAt = new Date().toISOString();
                 } else {
                     list.push({
-                        date, type, qty, price: priceNOK,
+                        date, type, qty, stockQty: qty, price: priceNOK,
                         priceEntered: priceInput,
                         priceCurrency,
                         createdBy: actor,
@@ -2490,11 +2507,15 @@
             document.getElementById("lDate").value = todayStr;
             document.getElementById("lType").value = item.type;
             document.getElementById("lType").disabled = !isAdmin;
-            document.getElementById("lQty").value = isAdmin ? item.qty : ownQty;
+            document.getElementById("lQty").value = isAdmin ? getAvailableStock(item.type) : ownQty;
             document.getElementById("lPrice").value = getLagerDisplayPrice(item);
             document.getElementById("lPrice").disabled = !isAdmin;
+            const shamitoUsed = getShamitoUsage(item.type);
+            const actualStock = getAvailableStock(item.type);
             document.getElementById("lagerFormTitle").textContent =
-                isAdmin ? "REDIGER HELE LAGERLINJEN" : "REDIGER DITT ANTALL (MAKS " + ownQty + ")";
+                isAdmin
+                    ? `REDIGER FAKTISK LAGERBEHOLDNING (${Number(item.qty) || 0} - ${shamitoUsed} = ${actualStock})`
+                    : "REDIGER DITT ANTALL (MAKS " + ownQty + ")";
             document.getElementById("lagerSubmitBtn").textContent = "OPPDATER";
             window.scrollTo({ top: document.getElementById("lagerInputCard").offsetTop, behavior: 'smooth' });
         }
@@ -2528,7 +2549,11 @@
                 item.contributions = lagerContributions(item).filter(entry =>
                     entry.user !== actor || !isWithin24Hours(entry.createdAt || entry.date)
                 );
-                item.qty = item.contributions.reduce((sum, entry) => sum + (Number(entry.qty) || 0), 0);
+                const previousStock = Number.isFinite(Number(item.stockQty))
+                    ? Number(item.stockQty)
+                    : (Number(item.qty) || 0);
+                item.stockQty = Math.max(0, previousStock - ownRecentQty);
+                item.qty = item.stockQty;
                 item.updatedBy = actor;
                 item.updatedAt = new Date().toISOString();
             }
@@ -2574,6 +2599,7 @@
                     date: todayStr,
                     type: cleanType,
                     qty: amount,
+                    stockQty: amount,
                     price: 0,
                     createdBy: actor,
                     createdAt: new Date().toISOString(),
@@ -2622,7 +2648,12 @@
                 }
 
                 const contributionOwner = oldItem.createdBy || getCurrentUser();
-                updateLagerFromSamen(oldItem.type, -Number(oldItem.qty || 0), oldItem.date, contributionOwner);
+                if (sameProduct) {
+                    updateLagerFromSamen(type, qty - Number(oldItem.qty || 0), date, contributionOwner);
+                } else {
+                    updateLagerFromSamen(oldItem.type, -Number(oldItem.qty || 0), oldItem.date, contributionOwner);
+                    updateLagerFromSamen(type, qty, date, contributionOwner);
+                }
 
                 list[index].date = date;
                 list[index].type = type;
@@ -2632,7 +2663,6 @@
                 list[index].updatedBy = getCurrentUser();
                 list[index].updatedAt = new Date().toISOString();
 
-                updateLagerFromSamen(type, qty, date, contributionOwner);
             } else {
                 list.push({
                     date: date,
@@ -2732,11 +2762,11 @@
         function getStockMap() {
             const lager = consolidateLagerRows();
             const shamito = JSON.parse(localStorage.getItem("homar_shamito") || "[]");
-            const kunder = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
             const stock = {};
 
-            // Én autoritativ formel for hele nettsiden:
-            // LAGER + SAMEN-bidrag - SHAMITO - KUNDE.
+            // KUNDE oppdaterer selve LAGER-antallet når ordren lagres.
+            // Derfor skal KUNDE aldri trekkes en gang til her.
+            // SHAMITO ligger som egen uttaksliste og trekkes nøyaktig én gang.
             lager.forEach(item => {
                 const key = normType(item && item.type);
                 if (key) stock[key] = (stock[key] || 0) + Math.max(0, Number(item.qty) || 0);
@@ -2746,17 +2776,19 @@
                 const key = normType(item.type);
                 if (key) stock[key] = (stock[key] || 0) - Math.max(0, Number(item.qty) || 0);
             });
-            kunder.forEach(item => {
-                if (!item || item.deleted || item.deletedAt) return;
-                const key = normType(item.navn || item.type);
-                if (key) stock[key] = (stock[key] || 0) - Math.max(0, Number(item.qty) || 0);
-            });
             Object.keys(stock).forEach(key => { stock[key] = Math.max(0, stock[key]); });
             return stock;
         }
 
         function getAvailableStock(type) {
             return getStockMap()[normType(type)] || 0;
+        }
+
+        function getShamitoUsage(type) {
+            const key = normType(type);
+            return JSON.parse(localStorage.getItem("homar_shamito") || "[]")
+                .filter(item => item && !item.deleted && !item.deletedAt && normType(item.type) === key)
+                .reduce((sum, item) => sum + Math.max(0, Number(item.qty) || 0), 0);
         }
 
         function saveShamito() {
@@ -3134,6 +3166,14 @@
 
             if (index > -1) {
                 let oldItem = list[index];
+                const oldQty = Number(oldItem.qty) || 0;
+                const oldVare = String(oldItem.navn || "").toUpperCase();
+                if (normType(oldVare) !== normType(vare)) {
+                    updateLagerItemQty(oldVare, oldQty);
+                    updateLagerItemQty(vare, -qty);
+                } else {
+                    updateLagerItemQty(vare, oldQty - qty);
+                }
                 list[index].date = date;
                 list[index].kundeNavn = kundeNavn;
                 list[index].telefon = telefon;
@@ -3144,6 +3184,7 @@
                 list[index].updatedAt = new Date().toISOString();
                 syncCustomerPaymentState(list[index]);
             } else {
+                updateLagerItemQty(vare, -qty);
                 list.push({
                     date: date,
                     kundeNavn: kundeNavn,
@@ -3165,10 +3206,25 @@
         }
 
         function updateLagerItemQty(vareNavn, qtyDelta) {
-            // Beholdes for eldre kall. Uttak lagres kun i KUNDE/SHAMITO og
-            // trekkes av getStockMap(). Direkte endring her var årsaken til at
-            // consolidateLagerRows() senere kunne sette gammelt antall tilbake.
-            return getAvailableStock(vareNavn);
+            const cleanVare = String(vareNavn || "").trim().toUpperCase();
+            const delta = Number(qtyDelta) || 0;
+            if (!cleanVare || delta === 0) return getAvailableStock(cleanVare);
+
+            const lager = consolidateLagerRows();
+            const idx = lager.findIndex(item => normType(item.type) === normType(cleanVare));
+            if (idx === -1) return 0;
+
+            const item = lager[idx];
+            const previousStock = Number.isFinite(Number(item.stockQty))
+                ? Number(item.stockQty)
+                : (Number(item.qty) || 0);
+            item.stockQty = Math.max(0, previousStock + delta);
+            item.qty = item.stockQty;
+            item.date = todayStr;
+            item.updatedBy = String(getCurrentUser() || "ADMIN").toUpperCase();
+            item.updatedAt = new Date().toISOString();
+            localStorage.setItem("homar_lager", JSON.stringify(lager));
+            return getAvailableStock(cleanVare);
         }
 
         function resetCustomerForm() {
@@ -3240,6 +3296,7 @@
             }
 
             if (confirm("ER DU SIKKER PÅ AT DU VIL SLETTE DENNE?")) {
+                updateLagerItemQty(item.navn, Number(item.qty) || 0);
                 if (canUseDeleteUndo()) moveDeletedRowToTrash("homar_kunde", index, item, "KUNDEORDRE", "customer");
                 list.splice(index, 1);
                 localStorage.setItem("homar_kunde", JSON.stringify(list));
