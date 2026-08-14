@@ -4151,22 +4151,24 @@
 
         function renderGariTable() {
             let list = JSON.parse(localStorage.getItem("homar_gari") || "[]");
+            const activeList = list.filter(item =>
+                item && !item.deleted && !item.deletedAt && String(item.date || '').trim()
+            );
             let tbody = document.getElementById("gariBody");
             if (!tbody) return;
             tbody.innerHTML = "";
 
-            let sumQty = 0;
-            let sumTotal = 0;
+            // Oversikten skal alltid vise siste samlede resultat fra alle datoer.
+            let sumQty = activeList.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+            let sumTotal = activeList.reduce((sum, item) =>
+                sum + ((Number(item.qty) || 0) * (Number(item.price) || 0)), 0);
 
             list.forEach((item, index) => {
-                if (!filterByCalendar(item)) return;
+                if (!item || item.deleted || item.deletedAt || !filterByCalendar(item)) return;
 
                 let q = Number(item.qty) || 0;
                 let p = Number(item.price) || 0;
                 let rowTotalNOK = q * p;
-
-                sumQty += q;
-                sumTotal += rowTotalNOK;
 
                 let dispPrice = convertPriceToDisplay(p);
                 let dispTotal = convertPriceToDisplay(rowTotalNOK);
@@ -4199,22 +4201,24 @@
 
         function renderQarashTable() {
             let list = JSON.parse(localStorage.getItem("homar_qarash") || "[]");
+            const activeList = list.filter(item =>
+                item && !item.deleted && !item.deletedAt && String(item.date || '').trim()
+            );
             let tbody = document.getElementById("qarashBody");
             if (!tbody) return;
             tbody.innerHTML = "";
 
-            let sumQty = 0;
-            let sumTotal = 0;
+            // Oversikten skal alltid vise siste samlede resultat fra alle datoer.
+            let sumQty = activeList.reduce((sum, item) => sum + (Number(item.antall) || 0), 0);
+            let sumTotal = activeList.reduce((sum, item) =>
+                sum + ((Number(item.antall) || 0) * (Number(item.price) || 0)), 0);
 
             list.forEach((item, index) => {
-                if (!filterByCalendar(item)) return;
+                if (!item || item.deleted || item.deletedAt || !filterByCalendar(item)) return;
 
                 let q = Number(item.antall) || 0;
                 let p = Number(item.price) || 0;
                 let rowTotalNOK = q * p;
-
-                sumQty += q;
-                sumTotal += rowTotalNOK;
 
                 let dispPrice = convertPriceToDisplay(p);
                 let dispTotal = convertPriceToDisplay(rowTotalNOK);
@@ -4246,18 +4250,21 @@
 
         function renderShamitoTable() {
             let list = JSON.parse(localStorage.getItem("homar_shamito") || "[]");
+            const activeList = list.filter(item =>
+                item && !item.deleted && !item.deletedAt && String(item.date || '').trim()
+            );
             let tbody = document.getElementById("shamitoBody");
             tbody.innerHTML = "";
 
-            let sumQty = 0;
-            let sumTotal = 0;
+            // Oversikten skal alltid vise siste samlede resultat fra alle datoer.
+            let sumQty = activeList.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+            let sumTotal = activeList.reduce((sum, item) =>
+                sum + ((Number(item.qty) || 0) * (Number(item.price) || 0)), 0);
 
             list.forEach((item, index) => {
-                if (!filterByCalendar(item)) return;
+                if (!item || item.deleted || item.deletedAt || !filterByCalendar(item)) return;
 
                 let totalNOK = item.qty * item.price;
-                sumQty += item.qty;
-                sumTotal += totalNOK;
 
                 let dispPrice = convertPriceToDisplay(item.price);
                 let dispTotal = convertPriceToDisplay(totalNOK);
@@ -4292,27 +4299,41 @@
 
         function renderDhagaxshidTable() {
             let list = JSON.parse(localStorage.getItem("homar_dhagaxshid") || "[]");
+            const activeList = list.filter(item =>
+                item && !item.deleted && !item.deletedAt && String(item.date || '').trim()
+            );
             let tbody = document.getElementById("dhagaxshidBody");
             if (!tbody) return;
             tbody.innerHTML = "";
 
+            // DHAGAX SHID-oversikten skal alltid være oppdatert, også når
+            // dagens kalender ikke har egne rader. Tabellen følger kalenderen,
+            // men totalsammendraget teller alle aktive registreringsdatoer.
             let sumQty = 0;
             let sumDriver = 0;
             let sumPrice = 0;
             let sumTotal = 0;
+            activeList.forEach(item => {
+                const q = Number(item.qty) || 0;
+                const p = item.price !== undefined ? Number(item.price) : convertInputPriceToNOK(8);
+                const d = Number(item.driver) || 0;
+                const itemPrice = q * p;
+                sumQty += q;
+                sumDriver += d;
+                sumPrice += itemPrice;
+                sumTotal += itemPrice + d;
+            });
+
+            let visibleRows = 0;
 
             list.forEach((item, index) => {
-                if (!filterByCalendar(item)) return;
+                if (!item || item.deleted || item.deletedAt || !filterByCalendar(item)) return;
+                visibleRows += 1;
 
                 let q = Number(item.qty) || 0;
                 let p = item.price !== undefined ? Number(item.price) : convertInputPriceToNOK(8);
                 let d = Number(item.driver) || 0;
                 let rowSumNOK = (q * p) + d;
-
-                sumQty += q;
-                sumDriver += d;
-                sumPrice += p;
-                sumTotal += rowSumNOK;
 
                 let dispPrice = convertPriceToDisplay(p);
                 let dispDriver = convertPriceToDisplay(d);
@@ -4343,6 +4364,12 @@
                 </tr>`;
             });
 
+            if (visibleRows === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#666;font-weight:bold;">
+                    INGEN REGISTRERINGER PÅ VALGT DATO. TOTALOVERSIKTEN OVER VISER ALLE DATOER.
+                </td></tr>`;
+            }
+
             document.getElementById("sumDhagaxshidQty").textContent = sumQty;
             document.getElementById("sumDhagaxshidDriver").textContent = convertPriceToDisplay(sumDriver).toFixed(2);
             document.getElementById("sumDhagaxshidPrice").textContent = convertPriceToDisplay(sumPrice).toFixed(2);
@@ -4351,6 +4378,9 @@
 
         function renderCustomerTable() {
             const list = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
+            const activeList = list.filter(item =>
+                item && !item.deleted && !item.deletedAt && String(item.date || '').trim()
+            );
             const tbody = document.getElementById("customerBody");
             tbody.innerHTML = "";
 
@@ -4359,11 +4389,20 @@
             const isAdmin = getCurrentUserRole() === "Admin";
             const canRegisterPayment = canUserChangeStatus();
 
-            let sumQty = 0;
-            let sumTotal = 0;
+            // Kundeoversikten viser alle aktive ordre fra alle datoer, men
+            // respekterer valgt DEEN/BETALT-status. Kalender og søk styrer
+            // bare hvilke enkeltrader som vises i tabellen.
+            const summaryList = activeList.filter(item => {
+                const status = customerPaymentStatus(item);
+                if (currentCustomerFilter === 'Betalt' && status !== 'BETALT') return false;
+                if (currentCustomerFilter === 'Deen' && status === 'BETALT') return false;
+                return true;
+            });
+            let sumQty = summaryList.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+            let sumTotal = summaryList.reduce((sum, item) => sum + customerOrderTotal(item), 0);
 
             list.forEach((item, index) => {
-                if (!filterByCalendar(item)) return;
+                if (!item || item.deleted || item.deletedAt || !filterByCalendar(item)) return;
 
                 const totalNOK = customerOrderTotal(item);
                 const paidNOK = customerPaidTotal(item);
@@ -4385,9 +4424,6 @@
                     const combined = `${item.date || ''} ${item.kundeNavn || ''} ${item.telefon || ''} ${item.navn || ''} ${status} ${paymentSearch} ${item.createdBy || ''}`.toUpperCase();
                     if (!combined.includes(searchText)) return;
                 }
-
-                sumQty += Number(item.qty) || 0;
-                sumTotal += totalNOK;
 
                 const dispPrice = convertPriceToDisplay(item.price);
                 const dispTotal = convertPriceToDisplay(totalNOK);
