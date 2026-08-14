@@ -979,9 +979,9 @@
                 <div class="form-row">
                     <div><label>DATO</label><input type="date" id="shamDate"></div>
                     <div>
-                        <label>NAVN</label>
-                        <select id="shamType" style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;" onchange="updateShamMaxQty()">
-                            <option value="">-- VELG VARE FRA LAGER --</option>
+                        <label>NAVN (HENTES AUTOMATISK)</label>
+                        <select id="shamType" disabled style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;" onchange="updateShamMaxQty()">
+                            <option value="">-- HENTER SHAMITO FRA LAGER --</option>
                         </select>
                     </div>
                     <div>
@@ -3991,7 +3991,7 @@
         }
 
         function populateItemDropdowns() {
-            let lager = JSON.parse(localStorage.getItem("homar_lager") || "[]");
+            let lager = consolidateLagerRows();
             let types = [...new Set(lager.map(x => String(x.type || "").toUpperCase()))];
 
             let typeListLager = document.getElementById("typeListLager");
@@ -4000,19 +4000,29 @@
 
             let shamType = document.getElementById("shamType");
             let cNavnSelect = document.getElementById("cNavnSelect");
-            let currentSham = String(shamType.value || "").toUpperCase();
             let currentCust = String(cNavnSelect.value || "").toUpperCase();
 
-            shamType.innerHTML = `<option value="">-- VELG VARE FRA LAGER --</option>`;
             cNavnSelect.innerHTML = `<option value="">-- VELG VARE FRA LAGER --</option>`;
 
             types.forEach(t => {
                 let available = getAvailableStock(t);
-                shamType.innerHTML += `<option value="${t}">${t} (LAGER: ${available})</option>`;
                 cNavnSelect.innerHTML += `<option value="${t}">${t} (LAGER: ${available})</option>`;
             });
 
-            if (currentSham) shamType.value = currentSham;
+            // SHAMITO-fanen bruker alltid produktet SHAMITO fra LAGER.
+            // Navnet finnes automatisk uavhengig av store/små bokstaver og streker.
+            const automaticShamitoType = types.find(type => normType(type) === normType("SHAMITO"));
+            if (automaticShamitoType) {
+                const available = getAvailableStock(automaticShamitoType);
+                shamType.innerHTML = `<option value="${automaticShamitoType}">${automaticShamitoType} (LAGER: ${available})</option>`;
+                shamType.value = automaticShamitoType;
+            } else {
+                shamType.innerHTML = `<option value="">SHAMITO FINNES IKKE I LAGER</option>`;
+                shamType.value = "";
+            }
+            shamType.disabled = true;
+            updateShamMaxQty();
+
             if (currentCust) cNavnSelect.value = currentCust;
 
             let kunde = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
