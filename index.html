@@ -9,10 +9,12 @@
 <body>
 <div id="loader">LASTER HORMAR LOGISTIK...</div>
 <script>
-fetch('app.html?v=20260814-calendar2',{cache:'no-store'})
+fetch('app.html?v=20260814-accounting1',{cache:'no-store'})
   .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();})
   .then(function(html){
-    var patch='<scr'+'ipt src="calendar-runtime-fix.js?v=20260814-calendar2"></scr'+'ipt>';
+    var patch=''
+      + '<scr'+'ipt src="calendar-runtime-fix.js?v=20260814-accounting1"></scr'+'ipt>'
+      + '<scr'+'ipt src="accounting-runtime-fix.js?v=20260814-accounting1"></scr'+'ipt>';
     if(/<\/body>/i.test(html)) html=html.replace(/<\/body>/i,patch+'</body>');
     else html+=patch;
     document.open();
