@@ -4459,7 +4459,9 @@
         }
 
         function renderUtgiftValues() {
-            const totals = calculateUtgiftTotals(filterByCalendar);
+            // UTGIFT er alltid en løpende totalsum. Kalender-/datofilter skal
+            // aldri skjule eldre registreringer fra de oppdaterte summene.
+            const totals = calculateUtgiftTotals(() => true);
             if (document.getElementById("boxUtgiftSamen")) {
                 document.getElementById("boxUtgiftSamen").textContent = convertPriceToDisplay(totals.samen).toFixed(2);
                 document.getElementById("boxUtgiftGari").textContent = convertPriceToDisplay(totals.gari).toFixed(2);
@@ -4481,9 +4483,11 @@
                 acc + (getAvailableStock(x.type) * Number(x.price || 0)), 0);
 
             let kundeList = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
+            // BUDSJET viser faktisk utestående DEEN fra alle datoer, inkludert
+            // restbeløpet på delbetalte ordre. Bare aktive rader teller.
             let deenTotalNOK = kundeList
-                .filter(x => filterByCalendar(x) && String(x.status || "Deen").toUpperCase() === "DEEN")
-                .reduce((acc, x) => acc + (x.qty * x.price), 0);
+                .filter(x => x && !x.deleted && !x.deletedAt)
+                .reduce((acc, x) => acc + Math.max(0, customerOrderTotal(x) - customerPaidTotal(x)), 0);
 
             let budsjetData = JSON.parse(localStorage.getItem("homar_budsjet") || "{}");
             let bankNOK = Math.max(0, Number(budsjetData.bank) || 0);
