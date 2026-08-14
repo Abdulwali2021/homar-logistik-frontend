@@ -189,6 +189,19 @@
             font-weight: bold;
             color: #28a745;
         }
+        .budget-card-low-balance {
+            border: 2px solid #dc3545;
+            background: #fff5f5;
+        }
+        .low-balance-warning {
+            margin-top: 9px;
+            padding: 7px 9px;
+            border-radius: 5px;
+            background: #f8d7da;
+            color: #721c24;
+            font-size: 12px;
+            font-weight: 800;
+        }
 
         .modal {
             display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%;
@@ -1017,10 +1030,12 @@
                 <div class="budget-card budget-card-clickable" onclick="openBudsjetForm('Bank')">
                     <div class="budget-card-title">BANK PRIS (KLIKK FOR Å OPPDATERE)</div>
                     <div class="budget-card-value" id="boxBudsjetBank">0.00</div>
+                    <div class="low-balance-warning hidden" id="bankLowBalanceWarning" role="alert" aria-live="polite">⚠ LAV SALDO – BANK ER UNDER 100</div>
                 </div>
                 <div class="budget-card budget-card-clickable" onclick="openBudsjetForm('Wafi')">
                     <div class="budget-card-title">WAFI TILGJENGELIG (PÅFYLL − UTGIFTER ALLE DAGER)</div>
                     <div class="budget-card-value" id="boxBudsjetWafi">0.00</div>
+                    <div class="low-balance-warning hidden" id="wafiLowBalanceWarning" role="alert" aria-live="polite">⚠ LAV SALDO – WAFI ER UNDER 100</div>
                 </div>
                 <div class="budget-card" style="background-color: #e8f5e9; border-color: #28a745; grid-column: 1 / -1;">
                     <div class="budget-card-title" style="font-size: 15px; color: #155724;">TOTAL SAMLET SUM (LAGEROVERSIKT TOTALE PRIS + DEEN TOTALE PRIS + BANK PRIS + WAFI PRIS)</div>
@@ -3185,6 +3200,18 @@
             document.getElementById("bAmount").value = "";
         }
 
+        function updateLowBalanceWarning(elementId, accountName, balanceNOK) {
+            const warning = document.getElementById(elementId);
+            if (!warning) return;
+            const displayedBalance = Math.max(0, convertPriceToDisplay(balanceNOK));
+            const isLow = displayedBalance < 100;
+            const symbol = document.getElementById("activeCurrency").value === "USD" ? "$" : "KR";
+            warning.textContent = `⚠ LAV SALDO – ${accountName} HAR ${displayedBalance.toFixed(2)} ${symbol} (UNDER 100)`;
+            warning.classList.toggle("hidden", !isLow);
+            const card = warning.closest(".budget-card");
+            if (card) card.classList.toggle("budget-card-low-balance", isLow);
+        }
+
         function saveBudsjet() {
             if (!canUserRegister()) {
                 alert("DU HAR IKKE TILLATELSE TIL Å ENDRE BANK ELLER WAFI.");
@@ -3201,19 +3228,38 @@
 
             let amountNOK = convertInputPriceToNOK(amountInput);
             let data = JSON.parse(localStorage.getItem("homar_budsjet") || "{}");
-            let currentVal = (target === "Bank" ? data.bank : data.wafi) || 0;
+            data.bank = Math.max(0, Number(data.bank) || 0);
+            data.wafi = Math.max(0, Number(data.wafi) || 0);
+            const totalUtgiftAlleDagerNOK = calculateUtgiftTotals(() => true).total;
+            const currentVal = target === "Bank" ? data.bank : data.wafi;
+            const availableBalance = target === "Bank"
+                ? data.bank
+                : Math.max(0, data.wafi - totalUtgiftAlleDagerNOK);
 
             if (mode === "add") {
                 if (target === "Bank") data.bank = currentVal + amountNOK;
                 else data.wafi = currentVal + amountNOK;
             } else {
+                if (amountNOK > availableBalance) {
+                    const availableDisplay = convertPriceToDisplay(availableBalance).toFixed(2);
+                    const symbol = document.getElementById("activeCurrency").value === "USD" ? "$" : "KR";
+                    alert(`${target.toUpperCase()} KAN IKKE GÅ UNDER 0. TILGJENGELIG SALDO ER ${availableDisplay} ${symbol}.`);
+                    return;
+                }
                 const nySaldo = currentVal - amountNOK;
                 if (target === "Bank") data.bank = nySaldo;
                 else data.wafi = nySaldo;
             }
 
             localStorage.setItem("homar_budsjet", JSON.stringify(data));
-            alert(`${target.toUpperCase()} ER OPPDATERT!`);
+            const newAvailableBalance = target === "Bank"
+                ? data.bank
+                : Math.max(0, data.wafi - totalUtgiftAlleDagerNOK);
+            const newDisplayBalance = convertPriceToDisplay(newAvailableBalance);
+            const symbol = document.getElementById("activeCurrency").value === "USD" ? "$" : "KR";
+            alert(newDisplayBalance < 100
+                ? `⚠ LAV SALDO: ${target.toUpperCase()} HAR ${newDisplayBalance.toFixed(2)} ${symbol}.`
+                : `${target.toUpperCase()} ER OPPDATERT!`);
             closeBudsjetForm();
             loadData();
         }
@@ -4303,18 +4349,20 @@
                 .reduce((acc, x) => acc + (x.qty * x.price), 0);
 
             let budsjetData = JSON.parse(localStorage.getItem("homar_budsjet") || "{}");
-            let bankNOK = Number(budsjetData.bank) || 0;
-            const wafiBeforeExpensesNOK = Number(budsjetData.wafi) || 0;
+            let bankNOK = Math.max(0, Number(budsjetData.bank) || 0);
+            const wafiBeforeExpensesNOK = Math.max(0, Number(budsjetData.wafi) || 0);
             // Samme UTGIFT-formel, summert for alle dager. Kalenderen endrer
             // bare visningen og skal aldri legge tidligere utgifter tilbake i WAFI.
             const totalUtgiftAlleDagerNOK = calculateUtgiftTotals(() => true).total;
-            const wafiNOK = wafiBeforeExpensesNOK - totalUtgiftAlleDagerNOK;
+            const wafiNOK = Math.max(0, wafiBeforeExpensesNOK - totalUtgiftAlleDagerNOK);
             renderUtgiftValues();
 
             document.getElementById("boxBudsjetLager").textContent = convertPriceToDisplay(lagerTotalNOK).toFixed(2);
             document.getElementById("boxBudsjetDeen").textContent = convertPriceToDisplay(deenTotalNOK).toFixed(2);
             document.getElementById("boxBudsjetBank").textContent = convertPriceToDisplay(bankNOK).toFixed(2);
             document.getElementById("boxBudsjetWafi").textContent = convertPriceToDisplay(wafiNOK).toFixed(2);
+            updateLowBalanceWarning("bankLowBalanceWarning", "BANK", bankNOK);
+            updateLowBalanceWarning("wafiLowBalanceWarning", "WAFI", wafiNOK);
 
             let grandTotalNOK = lagerTotalNOK + deenTotalNOK + bankNOK + wafiNOK;
             document.getElementById("boxGrandTotal").textContent = convertPriceToDisplay(grandTotalNOK).toFixed(2);
