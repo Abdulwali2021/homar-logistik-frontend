@@ -883,7 +883,14 @@
                 <input type="hidden" id="gariEditIndex" value="-1">
                 <div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) 120px;">
                     <div><label>DATO</label><input type="date" id="gDate"></div>
-                    <div><label>GARI TYPE</label><input type="text" id="gGariType" placeholder="F.EKS. A"></div>
+                    <div>
+                        <label>GARI TYPE</label>
+                        <select id="gGariType">
+                            <option value="">-- VELG TYPE --</option>
+                            <option value="CARO">CARO</option>
+                            <option value="DHAGAX">DHAGAX</option>
+                        </select>
+                    </div>
                     <div><label>TYPE SHAQO</label><input type="text" id="gTypeShaqo" placeholder="F.EKS. DHAGAX"></div>
                     <div><label>QUANTY (MIN 0)</label><input type="number" id="gQty" min="0"></div>
                     <div><label>PRICE</label><input type="number" step="any" id="gPrice"></div>
