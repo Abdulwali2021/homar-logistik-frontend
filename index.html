@@ -1679,6 +1679,18 @@
             return p;
         }
 
+        // LAGER beholder tallet brukeren skrev inn i den valgte valutaen.
+        // Livekursen skal ikke endre en tidligere registrert enhetspris.
+        function getLagerDisplayPrice(item) {
+            const activeCurrency = document.getElementById("activeCurrency").value;
+            const enteredPrice = Number(item && item.priceEntered);
+            const enteredCurrency = String(item && item.priceCurrency || "").toUpperCase();
+            if (Number.isFinite(enteredPrice) && enteredCurrency === activeCurrency) {
+                return enteredPrice;
+            }
+            return convertPriceToDisplay(item && item.price);
+        }
+
         function refreshAllTablesView() {
             renderAllTables();
         }
@@ -2299,7 +2311,15 @@
                 }
                 target.contributions.push(...contributions);
                 target.qty += contributions.reduce((sum, entry) => sum + (Number(entry.qty) || 0), 0);
-                if (Number(item.price) > 0 || !Number(target.price)) target.price = Number(item.price) || 0;
+                // Behold den første registrerte lagerprisen når eldre doble
+                // produktlinjer slås sammen. En nyere rad skal ikke overskrive den.
+                if (!Number(target.price) && Number(item.price) > 0) {
+                    target.price = Number(item.price);
+                    if (Number.isFinite(Number(item.priceEntered))) {
+                        target.priceEntered = Number(item.priceEntered);
+                        target.priceCurrency = String(item.priceCurrency || "").toUpperCase();
+                    }
+                }
                 const targetTime = new Date(target.updatedAt || target.createdAt || target.date || 0).getTime();
                 const itemTime = new Date(item.updatedAt || item.createdAt || item.date || 0).getTime();
                 if (itemTime >= targetTime) {
@@ -2356,6 +2376,7 @@
             const type = document.getElementById("lType").value.trim().toUpperCase();
             const qty = parseInt(document.getElementById("lQty").value);
             const priceInput = parseFloat(document.getElementById("lPrice").value);
+            const priceCurrency = document.getElementById("activeCurrency").value;
 
             if (!date || !type || isNaN(qty) || isNaN(priceInput) || qty < 0) {
                 alert("VENNLIGST FYLL UT ALLE FELT KORREKT (QUANTY KAN IKKE VÆRE UNDER 0)!");
@@ -2376,6 +2397,8 @@
                 if (isAdmin) {
                     item.type = type;
                     item.price = priceNOK;
+                    item.priceEntered = priceInput;
+                    item.priceCurrency = priceCurrency;
                     item.contributions = [{
                         user: actor, qty, source: 'ADMIN',
                         date, createdAt: new Date().toISOString()
@@ -2399,13 +2422,21 @@
                 if (existingIndex > -1) {
                     const item = list[existingIndex];
                     addLagerContribution(item, qty, 'LAGER', actor);
-                    item.price = priceNOK;
+                    // Når varen allerede finnes, oppdateres bare antallet.
+                    // Pris kan bare settes her dersom varen kom fra SAMEN uten pris.
+                    if (!Number(item.price) && Number(priceNOK) > 0) {
+                        item.price = priceNOK;
+                        item.priceEntered = priceInput;
+                        item.priceCurrency = priceCurrency;
+                    }
                     item.date = date;
                     item.updatedBy = actor;
                     item.updatedAt = new Date().toISOString();
                 } else {
                     list.push({
                         date, type, qty, price: priceNOK,
+                        priceEntered: priceInput,
+                        priceCurrency,
                         createdBy: actor,
                         createdAt: new Date().toISOString(),
                         contributions: qty > 0 ? [{
@@ -2447,7 +2478,7 @@
             document.getElementById("lType").value = item.type;
             document.getElementById("lType").disabled = !isAdmin;
             document.getElementById("lQty").value = isAdmin ? item.qty : ownQty;
-            document.getElementById("lPrice").value = convertPriceToDisplay(item.price);
+            document.getElementById("lPrice").value = getLagerDisplayPrice(item);
             document.getElementById("lPrice").disabled = !isAdmin;
             document.getElementById("lagerFormTitle").textContent =
                 isAdmin ? "REDIGER HELE LAGERLINJEN" : "REDIGER DITT ANTALL (MAKS " + ownQty + ")";
@@ -3890,7 +3921,7 @@
             tbody.innerHTML = "";
 
             let sumQty = 0;
-            let sumTotal = 0;
+            let sumDisplayTotal = 0;
             let stockMap = getStockMap();
             let currentUser = getCurrentUser();
             let isAdmin = getCurrentUserRole() === "Admin";
@@ -3913,12 +3944,11 @@
                     lowStockItems.push(`${tName}: ${Number(currentStockQty) || 0}`);
                 }
                 
-                let totalNOK = item.qty * item.price;
                 sumQty += item.qty;
-                sumTotal += totalNOK;
 
-                let dispPrice = convertPriceToDisplay(item.price);
-                let dispTotal = convertPriceToDisplay(totalNOK);
+                let dispPrice = getLagerDisplayPrice(item);
+                let dispTotal = item.qty * dispPrice;
+                sumDisplayTotal += dispTotal;
                 let showCol = showSjukiColumns ? "" : "hidden";
                 let createdByUp = String(item.createdBy || "admin").toUpperCase();
 
@@ -3957,7 +3987,7 @@
             });
 
             document.getElementById("sumLagerQty").textContent = sumQty;
-            document.getElementById("sumLagerTotal").textContent = convertPriceToDisplay(sumTotal).toFixed(2);
+            document.getElementById("sumLagerTotal").textContent = sumDisplayTotal.toFixed(2);
             const lowStockWarning = document.getElementById("lowStockWarning");
             if (lowStockWarning) {
                 if (lowStockItems.length) {
