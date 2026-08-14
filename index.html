@@ -885,13 +885,16 @@
                     <div><label>DATO</label><input type="date" id="gDate"></div>
                     <div>
                         <label>GARI TYPE</label>
-                        <select id="gGariType">
-                            <option value="">-- VELG TYPE --</option>
+                        <input type="text" id="gGariType" value="A" placeholder="F.EKS. A">
+                    </div>
+                    <div>
+                        <label>TYPE SHAQO</label>
+                        <select id="gTypeShaqo">
+                            <option value="">-- VELG SHAQO --</option>
                             <option value="CARO">CARO</option>
                             <option value="DHAGAX">DHAGAX</option>
                         </select>
                     </div>
-                    <div><label>TYPE SHAQO</label><input type="text" id="gTypeShaqo" placeholder="F.EKS. DHAGAX"></div>
                     <div><label>QUANTY (MIN 0)</label><input type="number" id="gQty" min="0"></div>
                     <div><label>PRICE</label><input type="number" step="any" id="gPrice"></div>
                     <button class="btn-success" id="gariSubmitBtn" onclick="saveGari()">REGISTRER</button>
@@ -2102,7 +2105,7 @@
         function resetGariForm() {
             document.getElementById("gariEditIndex").value = "-1";
             document.getElementById("gDate").value = todayStr;
-            document.getElementById("gGariType").value = "";
+            document.getElementById("gGariType").value = "A";
             document.getElementById("gTypeShaqo").value = "";
             document.getElementById("gQty").value = "";
             document.getElementById("gPrice").value = "";
