@@ -14,7 +14,7 @@
         }
 
         body { font-family: Arial, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; text-transform: uppercase; }
-        .container { max-width: 1200px; margin: auto; background: var(--card-bg); padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 25px; }
+        .container { width: 100%; max-width: 1600px; margin: auto; background: var(--card-bg); padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 25px; }
         .hidden { display: none !important; }
         #loginSection { max-width: 400px; margin: 80px auto; text-align: center; }
         .form-group { margin-bottom: 15px; text-align: left; }
@@ -585,6 +585,32 @@
         .input-card[id$="InputCard"] .form-row label {
             width: 100%;
             text-align: center;
+        }
+
+        /* SHAMITO: bruk ledig bredde til å vise hele varenavnet og lagerantallet */
+        #shamType {
+            min-width: 0;
+            padding-left: 12px !important;
+            padding-right: 36px !important;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        @media (min-width: 901px) {
+            #shamitoInputCard .form-row {
+                grid-template-columns:
+                    minmax(140px, .75fr)
+                    minmax(390px, 2.35fr)
+                    minmax(135px, .8fr)
+                    minmax(135px, .8fr)
+                    minmax(170px, 1fr);
+                width: 100%;
+            }
+        }
+        @media (min-width: 601px) and (max-width: 900px) {
+            #shamitoInputCard .form-row > div:nth-of-type(2) {
+                grid-column: 1 / -1;
+                grid-row: 1;
+            }
         }
 </style>
 </head>
