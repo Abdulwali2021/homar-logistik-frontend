@@ -730,8 +730,8 @@
                     <button id="filterBtnAll" class="filter-btn" onclick="setCustomerFilter('ALL')">ALLE</button>
                 </div>
                 <div>
-                    <label for="searchTextInput">SØK KUNDENAVN / TLF / VARE:</label>
-                    <input type="text" id="searchTextInput" list="kundeSearchList" autocomplete="off" placeholder="SKRIV NAVN, TELEFON ELLER VARE..." oninput="renderCustomerTable()" style="padding: 6px; width: 100%;">
+                    <label for="searchTextInput">SØK KUNDENAVN:</label>
+                    <input type="text" id="searchTextInput" list="kundeSearchList" autocomplete="off" placeholder="SKRIV ELLER VELG HELE KUNDENAVNET..." oninput="renderCustomerTable()" style="padding: 6px; width: 100%;">
                     <datalist id="kundeSearchList"></datalist>
                 </div>
                 <div>
@@ -1056,9 +1056,13 @@
                     <div class="low-balance-warning hidden" id="bankLowBalanceWarning" role="alert" aria-live="polite">⚠ LAV SALDO – BANK ER UNDER 100</div>
                 </div>
                 <div class="budget-card budget-card-clickable" onclick="openBudsjetForm('Wafi')">
-                    <div class="budget-card-title">WAFI TILGJENGELIG (PÅFYLL − UTGIFTER ALLE DAGER)</div>
+                    <div class="budget-card-title">WAFI PRIS (KLIKK FOR Å OPPDATERE)</div>
                     <div class="budget-card-value" id="boxBudsjetWafi">0.00</div>
                     <div class="low-balance-warning hidden" id="wafiLowBalanceWarning" role="alert" aria-live="polite">⚠ LAV SALDO – WAFI ER UNDER 100</div>
+                </div>
+                <div class="budget-card" style="background-color:#fff3cd;border-color:#f0ad4e;">
+                    <div class="budget-card-title" style="color:#856404;">UTGIFT TOTAL (AUTOMATISK KOBLET)</div>
+                    <div class="budget-card-value" id="boxBudsjetUtgift" style="color:#856404;">0.00</div>
                 </div>
                 <div class="budget-card" style="background-color: #e8f5e9; border-color: #28a745; grid-column: 1 / -1;">
                     <div class="budget-card-title" style="font-size: 15px; color: #155724;">TOTAL SAMLET SUM (LAGEROVERSIKT TOTALE PRIS + DEEN TOTALE PRIS + BANK PRIS + WAFI PRIS)</div>
@@ -1969,22 +1973,15 @@
                 .trim();
         }
 
-        function customerMatchesSearch(item, payments, query) {
+        function customerMatchesSearch(item, query) {
             const normalizedQuery = normalizeCustomerSearch(query);
             if (!normalizedQuery) return true;
+            const normalizedCustomerName = normalizeCustomerSearch(item && item.kundeNavn);
 
-            const paymentSearch = (payments || []).map(payment =>
-                `${payment.date || ""} ${payment.amount || ""} ${payment.createdBy || ""}`
-            ).join(" ");
-            const searchable = normalizeCustomerSearch(
-                `${item.date || ""} ${item.kundeNavn || ""} ${item.telefon || ""} ` +
-                `${item.navn || ""} ${customerPaymentStatus(item)} ${paymentSearch} ${item.createdBy || ""}`
-            );
-            const compactSearchable = searchable.replace(/\s+/g, "");
-
-            return normalizedQuery.split(/\s+/).every(token =>
-                searchable.includes(token) || compactSearchable.includes(token)
-            );
+            // Kunden vises bare når hele navnet matcher. Mellomrom, bindestrek,
+            // aksenter og store/små bokstaver skal ikke skape falske forskjeller.
+            return normalizedCustomerName.replace(/\s+/g, "") ===
+                normalizedQuery.replace(/\s+/g, "");
         }
 
         function normType(str) {
@@ -3528,11 +3525,8 @@
             let data = JSON.parse(localStorage.getItem("homar_budsjet") || "{}");
             data.bank = Math.max(0, Number(data.bank) || 0);
             data.wafi = Math.max(0, Number(data.wafi) || 0);
-            const totalUtgiftAlleDagerNOK = calculateUtgiftTotals(() => true).total;
             const currentVal = target === "Bank" ? data.bank : data.wafi;
-            const availableBalance = target === "Bank"
-                ? data.bank
-                : Math.max(0, data.wafi - totalUtgiftAlleDagerNOK);
+            const availableBalance = currentVal;
 
             if (mode === "add") {
                 if (target === "Bank") data.bank = currentVal + amountNOK;
@@ -3551,9 +3545,7 @@
 
             data.fixedMoneyVersion = FIXED_MONEY_VERSION;
             localStorage.setItem("homar_budsjet", JSON.stringify(data));
-            const newAvailableBalance = target === "Bank"
-                ? data.bank
-                : Math.max(0, data.wafi - totalUtgiftAlleDagerNOK);
+            const newAvailableBalance = target === "Bank" ? data.bank : data.wafi;
             const newDisplayBalance = convertPriceToDisplay(newAvailableBalance);
             const symbol = document.getElementById("activeCurrency").value === "USD" ? "$" : "KR";
             alert(newDisplayBalance < 100
@@ -4166,11 +4158,9 @@
 
             const kundeSearchList = document.getElementById("kundeSearchList");
             if (kundeSearchList) {
-                const searchSuggestions = [...new Set(kunde.flatMap(item => [
-                    String(item.kundeNavn || "").trim().toUpperCase(),
-                    String(item.telefon || "").trim().toUpperCase(),
-                    String(item.navn || "").trim().toUpperCase()
-                ]).filter(Boolean))];
+                const searchSuggestions = [...new Set(kunde
+                    .map(item => String(item.kundeNavn || "").trim().toUpperCase())
+                    .filter(Boolean))];
                 kundeSearchList.innerHTML = "";
                 searchSuggestions.forEach(value => {
                     const option = document.createElement("option");
@@ -4607,7 +4597,7 @@
                     if (currentCustomerFilter === 'Betalt' && status !== 'BETALT') return;
                     if (currentCustomerFilter === 'Deen' && status === 'BETALT') return;
                 }
-                if (!customerMatchesSearch(item, payments, searchText)) return;
+                if (!customerMatchesSearch(item, searchText)) return;
 
                 visibleRows += 1;
 
@@ -4665,7 +4655,7 @@
 
             if (visibleRows === 0) {
                 tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#666;font-weight:bold;">
-                    ${searchActive ? "INGEN KUNDE FUNNET. PRØV NAVN, TELEFON ELLER VARE." : "INGEN KUNDEREGISTRERINGER I VALGT VISNING."}
+                    ${searchActive ? "INGEN EKSAKT KUNDE FUNNET. SKRIV ELLER VELG HELE KUNDENAVNET." : "INGEN KUNDEREGISTRERINGER I VALGT VISNING."}
                 </td></tr>`;
             }
 
@@ -4730,25 +4720,26 @@
 
             let budsjetData = JSON.parse(localStorage.getItem("homar_budsjet") || "{}");
             let bankNOK = Math.max(0, Number(budsjetData.bank) || 0);
-            const wafiBeforeExpensesNOK = Math.max(0, Number(budsjetData.wafi) || 0);
-            // Samme UTGIFT-formel, summert for alle dager. Kalenderen endrer
-            // bare visningen og skal aldri legge tidligere utgifter tilbake i WAFI.
+            const wafiNOK = Math.max(0, Number(budsjetData.wafi) || 0);
+            // UTGIFT kobles synlig til BUDSJET og teller alle aktive rader fra
+            // alle datoer. WAFI beholdes som beløpet brukeren faktisk skrev inn.
             const totalUtgiftAlleDagerNOK = calculateUtgiftTotals(() => true).total;
-            const wafiNOK = Math.max(0, wafiBeforeExpensesNOK - totalUtgiftAlleDagerNOK);
             renderUtgiftValues();
 
             document.getElementById("boxBudsjetLager").textContent = convertPriceToDisplay(lagerTotalNOK).toFixed(2);
             document.getElementById("boxBudsjetDeen").textContent = convertPriceToDisplay(deenTotalNOK).toFixed(2);
             document.getElementById("boxBudsjetBank").textContent = convertPriceToDisplay(bankNOK).toFixed(2);
             document.getElementById("boxBudsjetWafi").textContent = convertPriceToDisplay(wafiNOK).toFixed(2);
+            document.getElementById("boxBudsjetUtgift").textContent = convertPriceToDisplay(totalUtgiftAlleDagerNOK).toFixed(2);
             updateLowBalanceWarning("bankLowBalanceWarning", "BANK", bankNOK);
             updateLowBalanceWarning("wafiLowBalanceWarning", "WAFI", wafiNOK);
 
             let grandTotalNOK = lagerTotalNOK + deenTotalNOK + bankNOK + wafiNOK;
             document.getElementById("boxGrandTotal").textContent = convertPriceToDisplay(grandTotalNOK).toFixed(2);
 
-            // Utgiftene er allerede trukket fra WAFI. Ikke trekk dem én gang til.
-            let bedriftVerdiNOK = grandTotalNOK;
+            // Den synlige koblingen: BEDRIFTENS VERDI er budsjettet etter at
+            // den samme UTGIFT-totalen er trukket nøyaktig én gang.
+            let bedriftVerdiNOK = grandTotalNOK - totalUtgiftAlleDagerNOK;
             let boxBedriftEl = document.getElementById("boxBedriftVerdi");
             if (boxBedriftEl) {
                 boxBedriftEl.textContent = convertPriceToDisplay(bedriftVerdiNOK).toFixed(2);
