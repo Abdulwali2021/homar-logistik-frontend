@@ -808,7 +808,7 @@
                 <h4 id="lagerFormTitle">REGISTRER NY LAGER</h4>
                 <input type="hidden" id="lagerEditIndex" value="-1">
                 <div class="form-row">
-                    <div><label>DATO</label><input type="date" id="lDate"></div>
+                    <div><label>DATO (ALLTID I DAG)</label><input type="date" id="lDate" disabled title="LAGER VISER ALLTID DAGENS DATO"></div>
                     <div>
                         <label>TYPE</label>
                         <input type="text" id="lType" list="typeListLager" autocomplete="on" placeholder="SKRIV ELLER VELG...">
@@ -1390,6 +1390,20 @@
             return true;
         }
 
+        function showSavedHistoricalDate(date) {
+            const savedDate = String(date || "").trim();
+            if (!savedDate || savedDate === todayStr) return;
+            const mode = document.getElementById("archiveModeSelect");
+            const range = document.getElementById("archiveRangeContainer");
+            const start = document.getElementById("archiveStartDateInput");
+            const end = document.getElementById("archiveEndDateInput");
+            if (!mode || !start || !end) return;
+            mode.value = "range";
+            start.value = savedDate;
+            end.value = savedDate;
+            if (range) range.classList.remove("hidden");
+        }
+
         ['lDate', 'logDate', 'shamDate', 'cDate', 'dsDate', 'gDate', 'qDate'].forEach(id => {
             let el = document.getElementById(id);
             if (el) {
@@ -1400,28 +1414,12 @@
         window.onload = function() {
             startDigitalClock();
             setupDefaultData();
-            setupInitialDhagaxshidData();
-            
-            let startDate = document.getElementById("archiveStartDateInput");
-            let endDate = document.getElementById("archiveEndDateInput");
-            if (startDate && !startDate.value) startDate.value = "2026-08-01";
-            if (endDate && !endDate.value) endDate.value = "2026-08-10";
             
             toggleArchiveModeInputs();
 
             // Innlogget visning åpnes først etter at API-tokenet er kontrollert
             // og riktig lagret fane er gjenopprettet. Dette hindrer blinking via LAGER.
         };
-
-        function setupInitialDhagaxshidData() {
-            if (!localStorage.getItem("homar_dhagaxshid")) {
-                let initialData = [
-                    { date: todayStr, type: "DHAGAX SHID", qty: 4, price: 8, driver: 5, createdBy: "admin", createdAt: new Date().toISOString() },
-                    { date: todayStr, type: "DHAGAX SHID", qty: 5, price: 8, driver: 5, createdBy: "admin", createdAt: new Date().toISOString() }
-                ];
-                localStorage.setItem("homar_dhagaxshid", JSON.stringify(initialData));
-            }
-        }
 
         function updateDigitalClock() {
             const now = new Date();
@@ -1864,8 +1862,8 @@
             let antall = parseInt(document.getElementById("qAntall").value);
             let priceInput = parseFloat(document.getElementById("qPrice").value);
 
-            if (!date || !navn || isNaN(antall) || isNaN(priceInput) || antall < 0) {
-                alert("VENNLIGST FYLL UT ALLE FELT KORREKT (ANTALL KAN IKKE VÆRE UNDER 0)!");
+            if (!date || !navn || isNaN(antall) || isNaN(priceInput) || antall < 0 || priceInput < 0) {
+                alert("VENNLIGST FYLL UT ALLE FELT KORREKT (ANTALL OG PRIS KAN IKKE VÆRE UNDER 0)!");
                 return;
             }
 
@@ -1877,6 +1875,8 @@
                 list[index].navn = navn;
                 list[index].antall = antall;
                 list[index].price = priceNOK;
+                list[index].updatedBy = getCurrentUser();
+                list[index].updatedAt = new Date().toISOString();
             } else {
                 list.push({
                     date: date,
@@ -1889,6 +1889,7 @@
             }
 
             localStorage.setItem("homar_qarash", JSON.stringify(list));
+            showSavedHistoricalDate(date);
             resetQarashForm();
             loadData();
         }
@@ -2057,8 +2058,8 @@
             let qty = parseInt(document.getElementById("gQty").value);
             let priceInput = parseFloat(document.getElementById("gPrice").value);
 
-            if (!date || !gariType || !typeShaqo || isNaN(qty) || isNaN(priceInput) || qty < 0) {
-                alert("VENNLIGST FYLL UT ALLE FELT KORREKT (QUANTY KAN IKKE VÆRE UNDER 0)!");
+            if (!date || !gariType || !typeShaqo || isNaN(qty) || isNaN(priceInput) || qty < 0 || priceInput < 0) {
+                alert("VENNLIGST FYLL UT ALLE FELT KORREKT (QUANTY OG PRIS KAN IKKE VÆRE UNDER 0)!");
                 return;
             }
 
@@ -2086,6 +2087,7 @@
             }
 
             localStorage.setItem("homar_gari", JSON.stringify(list));
+            showSavedHistoricalDate(date);
             resetGariForm();
             loadData();
         }
@@ -2169,6 +2171,8 @@
                 list[index].qty = qty;
                 list[index].price = priceNOK;
                 list[index].driver = driverNOK;
+                list[index].updatedBy = getCurrentUser();
+                list[index].updatedAt = new Date().toISOString();
             } else {
                 list.push({
                     date: date,
@@ -2182,6 +2186,7 @@
             }
 
             localStorage.setItem("homar_dhagaxshid", JSON.stringify(list));
+            showSavedHistoricalDate(date);
             resetDhagaxshidForm();
             loadData();
         }
@@ -2387,8 +2392,8 @@
             const priceInput = parseFloat(document.getElementById("lPrice").value);
             const priceCurrency = document.getElementById("activeCurrency").value;
 
-            if (!date || !type || isNaN(qty) || isNaN(priceInput) || qty < 0) {
-                alert("VENNLIGST FYLL UT ALLE FELT KORREKT (QUANTY KAN IKKE VÆRE UNDER 0)!");
+            if (!date || !type || isNaN(qty) || isNaN(priceInput) || qty < 0 || priceInput < 0) {
+                alert("VENNLIGST FYLL UT ALLE FELT KORREKT (QUANTY OG PRIS KAN IKKE VÆRE UNDER 0)!");
                 return;
             }
 
@@ -2625,8 +2630,9 @@
             let driverInput = parseFloat(document.getElementById("logDriver").value);
             let priceInput = parseFloat(document.getElementById("logPrice").value);
 
-            if (!date || !type || isNaN(qty) || qty < 0 || isNaN(driverInput) || isNaN(priceInput)) {
-                alert("VENNLIGST FYLL UT ALLE FELT KORREKT (QUANTY KAN IKKE VÆRE UNDER 0)!");
+            if (!date || !type || isNaN(qty) || qty < 0 || isNaN(driverInput) || driverInput < 0 ||
+                isNaN(priceInput) || priceInput < 0) {
+                alert("VENNLIGST FYLL UT ALLE FELT KORREKT (QUANTY, PRIS OG DRIVERPRIS KAN IKKE VÆRE UNDER 0)!");
                 return;
             }
 
@@ -2678,6 +2684,7 @@
             }
 
             localStorage.setItem("homar_samen", JSON.stringify(list));
+            showSavedHistoricalDate(date);
             resetLogisticsForm();
             loadData();
         }
@@ -2802,8 +2809,8 @@
             let qty = parseInt(document.getElementById("shamQty").value);
             let priceInput = parseFloat(document.getElementById("shamPrice").value);
 
-            if (!date || !type || isNaN(qty) || qty < 0 || isNaN(priceInput)) {
-                alert("VENNLIGST FYLL UT ALLE FELT KORREKT (QUANTY KAN IKKE VÆRE UNDER 0)!");
+            if (!date || !type || isNaN(qty) || qty < 0 || isNaN(priceInput) || priceInput < 0) {
+                alert("VENNLIGST FYLL UT ALLE FELT KORREKT (QUANTY OG PRIS KAN IKKE VÆRE UNDER 0)!");
                 return;
             }
 
@@ -2828,6 +2835,8 @@
                 list[index].type = type;
                 list[index].qty = qty;
                 list[index].price = priceNOK;
+                list[index].updatedBy = getCurrentUser();
+                list[index].updatedAt = new Date().toISOString();
             } else {
                 list.push({
                     date: date,
@@ -2840,6 +2849,7 @@
             }
 
             localStorage.setItem("homar_shamito", JSON.stringify(list));
+            showSavedHistoricalDate(date);
             resetShamitoForm();
             loadData();
         }
@@ -3128,8 +3138,8 @@
             let vare = document.getElementById("cNavnSelect").value.toUpperCase();
             let qty = parseInt(document.getElementById("cQty").value);
             let priceInput = parseFloat(document.getElementById("cPrice").value);
-            if (!date || !kundeNavn || !vare || isNaN(qty) || qty < 0 || isNaN(priceInput)) {
-                alert("VENNLIGST FYLL UT ALLE OBLIGATORISKE FELT (QUANTY KAN IKKE VÆRE UNDER 0)!");
+            if (!date || !kundeNavn || !vare || isNaN(qty) || qty < 0 || isNaN(priceInput) || priceInput < 0) {
+                alert("VENNLIGST FYLL UT ALLE OBLIGATORISKE FELT (QUANTY OG PRIS KAN IKKE VÆRE UNDER 0)!");
                 return;
             }
 
@@ -3201,6 +3211,7 @@
             }
 
             localStorage.setItem("homar_kunde", JSON.stringify(list));
+            showSavedHistoricalDate(date);
             resetCustomerForm();
             loadData();
         }
