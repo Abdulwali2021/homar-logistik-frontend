@@ -716,7 +716,7 @@
         <!-- Valutabarsystem -->
         <div class="currency-bar">
             <div>
-                <label style="margin:0;">VALUTA:</label>
+                <label style="margin:0;">VALUTA (KUN VISNING):</label>
                 <select id="activeCurrency" onchange="updateCurrencyView()">
                     <option value="USD" selected>USD</option>
                     <option value="NOK">NOK</option>
@@ -730,7 +730,7 @@
                 </select>
             </div>
             <div>
-                <label style="margin:0;">KURS (1 USD I NOK):</label>
+                <label style="margin:0;">KURS (KUN INFO – PÅVIRKER IKKE PRISER):</label>
                 <input type="number" step="0.0001" id="manualRateInput" value="11.00" oninput="handleManualRateChange()" disabled>
                 <span id="rateStatusText" style="font-size: 12px; color: #555;">HENTER LIVE...</span>
             </div>
@@ -1695,34 +1695,143 @@
             refreshAllTablesView();
         }
 
-        function convertPriceToDisplay(priceInNOK) {
-            let currency = document.getElementById("activeCurrency").value;
-            let p = parseFloat(priceInNOK) || 0;
-            if (currency === "USD") {
-                return p / currentExchangeRate;
+        const FIXED_MONEY_VERSION = 1;
+        const FIXED_MONEY_BACKUP_KEY = "homar_fixed_money_backup_v1";
+        const FIXED_MONEY_DATA_KEYS = [
+            "homar_lager",
+            "homar_samen",
+            "homar_gari",
+            "homar_qarash",
+            "homar_shamito",
+            "homar_dhagaxshid",
+            "homar_kunde",
+            "homar_budsjet"
+        ];
+
+        function roundFixedMoney(value) {
+            const amount = Number(value) || 0;
+            return Math.round((amount + Number.EPSILON) * 10000) / 10000;
+        }
+
+        function backupStoredMoneyDataBeforeMigration() {
+            if (localStorage.getItem(FIXED_MONEY_BACKUP_KEY)) return true;
+
+            const snapshot = {
+                createdAt: new Date().toISOString(),
+                reason: "BEFORE_FIXED_MONEY_MIGRATION",
+                activeCurrency: document.getElementById("activeCurrency")?.value || "NOK",
+                exchangeRate: Number(currentExchangeRate) || 0,
+                data: {}
+            };
+
+            FIXED_MONEY_DATA_KEYS.forEach(key => {
+                const value = localStorage.getItem(key);
+                if (value !== null) snapshot.data[key] = value;
+            });
+
+            try {
+                localStorage.setItem(FIXED_MONEY_BACKUP_KEY, JSON.stringify(snapshot));
+                return true;
+            } catch (error) {
+                console.error("KUNNE IKKE LAGE SIKKERHETSKOPI FØR PRISOPPDATERING", error);
+                return false;
             }
-            return p;
+        }
+
+        function lockStoredAmountsToWrittenValues() {
+            // Ingen eksisterende summer endres før en originalkopi er bevart.
+            if (!backupStoredMoneyDataBeforeMigration()) return;
+
+            const currencyField = document.getElementById("activeCurrency");
+            const legacyDivider = currencyField && currencyField.value === "USD"
+                ? Math.max(0.0001, Number(currentExchangeRate) || 11)
+                : 1;
+
+            const writtenValue = (row, field, enteredField) => {
+                const entered = enteredField && row && row[enteredField] !== undefined
+                    ? Number(row[enteredField])
+                    : NaN;
+                if (Number.isFinite(entered)) return roundFixedMoney(entered);
+                return roundFixedMoney((Number(row && row[field]) || 0) / legacyDivider);
+            };
+
+            const migrateList = (key, fields, extraMigration) => {
+                let list;
+                try { list = JSON.parse(localStorage.getItem(key) || "[]"); }
+                catch (_) { return; }
+                if (!Array.isArray(list)) return;
+                let changed = false;
+                list.forEach(row => {
+                    if (!row || typeof row !== "object") return;
+                    if (!(Number(row.fixedMoneyVersion) >= FIXED_MONEY_VERSION)) {
+                        fields.forEach(([field, enteredField]) => {
+                            row[field] = writtenValue(row, field, enteredField);
+                            if (enteredField) row[enteredField] = row[field];
+                        });
+                        row.fixedMoneyVersion = FIXED_MONEY_VERSION;
+                        changed = true;
+                    }
+                    if (typeof extraMigration === "function" && extraMigration(row, writtenValue)) {
+                        changed = true;
+                    }
+                });
+                if (changed) localStorage.setItem(key, JSON.stringify(list));
+            };
+
+            migrateList("homar_lager", [["price", "priceEntered"]]);
+            migrateList("homar_samen", [["price", "priceEntered"], ["driverPrice", "driverPriceEntered"]]);
+            migrateList("homar_gari", [["price", "priceEntered"]]);
+            migrateList("homar_qarash", [["price", "priceEntered"]]);
+            migrateList("homar_shamito", [["price", "priceEntered"]]);
+            migrateList("homar_dhagaxshid", [["price", "priceEntered"], ["driver", "driverEntered"]]);
+            migrateList("homar_kunde", [["price", "priceEntered"]], (row, getWrittenValue) => {
+                if (!Array.isArray(row.payments)) return false;
+                let paymentChanged = false;
+                row.payments.forEach(payment => {
+                    if (!payment || Number(payment.fixedMoneyVersion) >= FIXED_MONEY_VERSION) return;
+                    payment.amount = getWrittenValue(payment, "amount", "amountEntered");
+                    payment.amountEntered = payment.amount;
+                    payment.fixedMoneyVersion = FIXED_MONEY_VERSION;
+                    paymentChanged = true;
+                });
+                return paymentChanged;
+            });
+
+            let budget;
+            try { budget = JSON.parse(localStorage.getItem("homar_budsjet") || "{}"); }
+            catch (_) { budget = {}; }
+            if (budget && typeof budget === "object" && !(Number(budget.fixedMoneyVersion) >= FIXED_MONEY_VERSION)) {
+                budget.bank = roundFixedMoney((Number(budget.bank) || 0) / legacyDivider);
+                budget.wafi = roundFixedMoney((Number(budget.wafi) || 0) / legacyDivider);
+                budget.fixedMoneyVersion = FIXED_MONEY_VERSION;
+                localStorage.setItem("homar_budsjet", JSON.stringify(budget));
+            }
+        }
+
+        // Alle pengebeløp er faste tall. Kursen er bare informasjon og skal
+        // aldri endre en pris, betaling, totalsum eller budsjettsaldo.
+        function convertPriceToDisplay(storedPrice) {
+            return parseFloat(storedPrice) || 0;
         }
 
         function convertInputPriceToNOK(inputPrice) {
-            let currency = document.getElementById("activeCurrency").value;
-            let p = parseFloat(inputPrice) || 0;
-            if (currency === "USD") {
-                return p * currentExchangeRate;
-            }
-            return p;
+            return parseFloat(inputPrice) || 0;
         }
 
-        // LAGER beholder tallet brukeren skrev inn i den valgte valutaen.
-        // Livekursen skal ikke endre en tidligere registrert enhetspris.
+        function markWrittenAmountsFixed(row, fields) {
+            if (!row || typeof row !== "object") return row;
+            (fields || []).forEach(([field, enteredField]) => {
+                row[field] = roundFixedMoney(row[field]);
+                if (enteredField) row[enteredField] = row[field];
+            });
+            row.fixedMoneyVersion = FIXED_MONEY_VERSION;
+            return row;
+        }
+
         function getLagerDisplayPrice(item) {
-            const activeCurrency = document.getElementById("activeCurrency").value;
-            const enteredPrice = Number(item && item.priceEntered);
-            const enteredCurrency = String(item && item.priceCurrency || "").toUpperCase();
-            if (Number.isFinite(enteredPrice) && enteredCurrency === activeCurrency) {
-                return enteredPrice;
-            }
-            return convertPriceToDisplay(item && item.price);
+            const fixedPrice = Number(item && item.price);
+            if (Number.isFinite(fixedPrice)) return fixedPrice;
+            return Number(item && item.priceEntered) || 0;
         }
 
         function refreshAllTablesView() {
@@ -1924,6 +2033,8 @@
                 });
             }
 
+            const savedQarash = index > -1 ? list[index] : list[list.length - 1];
+            markWrittenAmountsFixed(savedQarash, [["price", "priceEntered"]]);
             localStorage.setItem("homar_qarash", JSON.stringify(list));
             showSavedHistoricalDate(date);
             resetQarashForm();
@@ -2122,6 +2233,8 @@
                 });
             }
 
+            const savedGari = index > -1 ? list[index] : list[list.length - 1];
+            markWrittenAmountsFixed(savedGari, [["price", "priceEntered"]]);
             localStorage.setItem("homar_gari", JSON.stringify(list));
             showSavedHistoricalDate(date);
             resetGariForm();
@@ -2221,6 +2334,8 @@
                 });
             }
 
+            const savedDhagaxshid = index > -1 ? list[index] : list[list.length - 1];
+            markWrittenAmountsFixed(savedDhagaxshid, [["price", "priceEntered"], ["driver", "driverEntered"]]);
             localStorage.setItem("homar_dhagaxshid", JSON.stringify(list));
             showSavedHistoricalDate(date);
             resetDhagaxshidForm();
@@ -2518,6 +2633,9 @@
                 }
             }
 
+            const savedLagerItem = list.find(item => normType(item && item.type) === normType(type));
+            markWrittenAmountsFixed(savedLagerItem, [["price", "priceEntered"]]);
+            if (savedLagerItem) savedLagerItem.priceCurrency = "FAST";
             localStorage.setItem("homar_lager", JSON.stringify(list));
             resetLagerForm();
             loadData();
@@ -2719,6 +2837,8 @@
                 updateLagerFromSamen(type, qty, date, getCurrentUser());
             }
 
+            const savedSamen = index > -1 ? list[index] : list[list.length - 1];
+            markWrittenAmountsFixed(savedSamen, [["price", "priceEntered"], ["driverPrice", "driverPriceEntered"]]);
             localStorage.setItem("homar_samen", JSON.stringify(list));
             showSavedHistoricalDate(date);
             resetLogisticsForm();
@@ -2884,6 +3004,8 @@
                 });
             }
 
+            const savedShamito = index > -1 ? list[index] : list[list.length - 1];
+            markWrittenAmountsFixed(savedShamito, [["price", "priceEntered"]]);
             localStorage.setItem("homar_shamito", JSON.stringify(list));
             showSavedHistoricalDate(date);
             resetShamitoForm();
@@ -3134,6 +3256,8 @@
                 });
             }
             syncCustomerPaymentState(item);
+            const savedPayment = existingPayment || item.payments[item.payments.length - 1];
+            markWrittenAmountsFixed(savedPayment, [["amount", "amountEntered"]]);
             localStorage.setItem("homar_kunde", JSON.stringify(list));
             loadData();
             closeStatusModal();
@@ -3246,6 +3370,8 @@
                 });
             }
 
+            const savedCustomer = index > -1 ? list[index] : list[list.length - 1];
+            markWrittenAmountsFixed(savedCustomer, [["price", "priceEntered"]]);
             localStorage.setItem("homar_kunde", JSON.stringify(list));
             showSavedHistoricalDate(date);
             resetCustomerForm();
@@ -3423,6 +3549,7 @@
                 else data.wafi = nySaldo;
             }
 
+            data.fixedMoneyVersion = FIXED_MONEY_VERSION;
             localStorage.setItem("homar_budsjet", JSON.stringify(data));
             const newAvailableBalance = target === "Bank"
                 ? data.bank
@@ -4039,6 +4166,7 @@
         }
 
         function renderAllTables() {
+            lockStoredAmountsToWrittenValues();
             renderLagerTable();
             renderLogisticsTable();
             renderGariTable();
