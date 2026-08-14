@@ -340,30 +340,11 @@
         #sectionKunde .filter-buttons { gap: 5px; }
         #showAllRegisteredBtn { white-space: nowrap; }
 
-        /* Bruk hele bredden i KUNDE-filteret */
-        @media (min-width: 901px) {
-            #sectionKunde .filter-container {
-                display: grid;
-                grid-template-columns: auto 180px 105px minmax(240px, 1fr) 105px;
-                width: 100%;
-                align-items: end;
-                column-gap: 10px;
-            }
-            #sectionKunde .filter-container > div { min-width: 0; width: auto !important; }
-            #sectionKunde .filter-container > div:nth-child(4) { width: 100% !important; }
-            #searchDateInput, #searchTextInput {
-                width: 100% !important;
-                max-width: none !important;
-                box-sizing: border-box;
-            }
-            #sectionKunde .filter-container > div:last-child button { width: 100%; }
-        }
-
-        /* KUNDE-filter: alt på én kompakt linje */
+        /* KUNDE-filter: status, navnesøk og nullstill på én linje */
         @media (min-width: 901px) {
             #sectionKunde .filter-container {
                 display: grid !important;
-                grid-template-columns: auto 285px minmax(300px, 1fr) 105px !important;
+                grid-template-columns: auto minmax(360px, 1fr) 105px !important;
                 align-items: center !important;
                 width: 100%;
                 min-height: 46px;
@@ -389,10 +370,6 @@
             #sectionKunde .filter-container button {
                 height: 34px !important;
                 min-height: 34px !important;
-            }
-            #searchDateInput {
-                width: 165px !important;
-                flex: 0 0 165px;
             }
             #searchTextInput {
                 width: 100% !important;
@@ -753,12 +730,9 @@
                     <button id="filterBtnAll" class="filter-btn" onclick="setCustomerFilter('ALL')">ALLE</button>
                 </div>
                 <div>
-                    <label for="searchDateInput">SØK DATO:</label>
-                    <input type="date" id="searchDateInput" onchange="renderCustomerTable()" style="padding: 6px; width: 130px;">
-                </div>
-                <div style="width: 140px;">
-                    <label for="searchTextInput">SØK NAVN/TLF:</label>
-                    <input type="text" id="searchTextInput" placeholder="SØK..." oninput="renderCustomerTable()" style="padding: 6px; width: 100%;">
+                    <label for="searchTextInput">SØK KUNDENAVN / TLF / VARE:</label>
+                    <input type="text" id="searchTextInput" list="kundeSearchList" autocomplete="off" placeholder="SKRIV NAVN, TELEFON ELLER VARE..." oninput="renderCustomerTable()" style="padding: 6px; width: 100%;">
+                    <datalist id="kundeSearchList"></datalist>
                 </div>
                 <div>
                     <button onclick="clearCustomerFilters()" style="background-color: #6c757d; padding: 7px 12px; font-size: 13px;">NULLSTILL</button>
@@ -1982,9 +1956,35 @@
         }
 
         function clearCustomerFilters() {
-            document.getElementById("searchDateInput").value = "";
             document.getElementById("searchTextInput").value = "";
             renderCustomerTable();
+        }
+
+        function normalizeCustomerSearch(value) {
+            return String(value || "")
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toUpperCase()
+                .replace(/[^A-Z0-9]+/g, " ")
+                .trim();
+        }
+
+        function customerMatchesSearch(item, payments, query) {
+            const normalizedQuery = normalizeCustomerSearch(query);
+            if (!normalizedQuery) return true;
+
+            const paymentSearch = (payments || []).map(payment =>
+                `${payment.date || ""} ${payment.amount || ""} ${payment.createdBy || ""}`
+            ).join(" ");
+            const searchable = normalizeCustomerSearch(
+                `${item.date || ""} ${item.kundeNavn || ""} ${item.telefon || ""} ` +
+                `${item.navn || ""} ${customerPaymentStatus(item)} ${paymentSearch} ${item.createdBy || ""}`
+            );
+            const compactSearchable = searchable.replace(/\s+/g, "");
+
+            return normalizedQuery.split(/\s+/).every(token =>
+                searchable.includes(token) || compactSearchable.includes(token)
+            );
         }
 
         function normType(str) {
@@ -4153,7 +4153,7 @@
             if (currentCust) cNavnSelect.value = currentCust;
 
             let kunde = JSON.parse(localStorage.getItem("homar_kunde") || "[]");
-            let kNavnList = [...new Set(kunde.map(x => String(x.kundeNavn || "").toUpperCase()))];
+            let kNavnList = [...new Set(kunde.map(x => String(x.kundeNavn || "").trim().toUpperCase()).filter(Boolean))];
             let telList = [...new Set(kunde.map(x => String(x.telefon || "").toUpperCase()).filter(Boolean))];
 
             let kundeListCust = document.getElementById("kundeListCust");
@@ -4163,6 +4163,21 @@
             let telListCust = document.getElementById("telListCust");
             telListCust.innerHTML = "";
             telList.forEach(tel => { telListCust.innerHTML += `<option value="${tel}">`; });
+
+            const kundeSearchList = document.getElementById("kundeSearchList");
+            if (kundeSearchList) {
+                const searchSuggestions = [...new Set(kunde.flatMap(item => [
+                    String(item.kundeNavn || "").trim().toUpperCase(),
+                    String(item.telefon || "").trim().toUpperCase(),
+                    String(item.navn || "").trim().toUpperCase()
+                ]).filter(Boolean))];
+                kundeSearchList.innerHTML = "";
+                searchSuggestions.forEach(value => {
+                    const option = document.createElement("option");
+                    option.value = value;
+                    kundeSearchList.appendChild(option);
+                });
+            }
         }
 
         function renderAllTables() {
@@ -4558,14 +4573,15 @@
             const tbody = document.getElementById("customerBody");
             tbody.innerHTML = "";
 
-            const searchDate = document.getElementById("searchDateInput").value;
-            const searchText = document.getElementById("searchTextInput").value.toUpperCase().trim();
+            const searchText = document.getElementById("searchTextInput").value;
+            const searchActive = Boolean(normalizeCustomerSearch(searchText));
             const isAdmin = getCurrentUserRole() === "Admin";
             const canRegisterPayment = canUserChangeStatus();
 
             // Kundeoversikten viser alle aktive ordre fra alle datoer, men
-            // respekterer valgt DEEN/BETALT-status. Kalender og søk styrer
-            // bare hvilke enkeltrader som vises i tabellen.
+            // respekterer valgt DEEN/BETALT-status. Datokalenderen øverst styrer
+            // tabellen når søkefeltet er tomt. Et aktivt kundesøk finner kunden
+            // på tvers av dato og betalingsstatus, så et treff aldri skjules.
             const summaryList = activeList.filter(item => {
                 const status = customerPaymentStatus(item);
                 if (currentCustomerFilter === 'Betalt' && status !== 'BETALT') return false;
@@ -4574,9 +4590,11 @@
             });
             let sumQty = summaryList.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
             let sumTotal = summaryList.reduce((sum, item) => sum + customerOrderTotal(item), 0);
+            let visibleRows = 0;
 
             list.forEach((item, index) => {
-                if (!item || item.deleted || item.deletedAt || !filterByCalendar(item)) return;
+                if (!item || item.deleted || item.deletedAt) return;
+                if (!searchActive && !filterByCalendar(item)) return;
 
                 const totalNOK = customerOrderTotal(item);
                 const paidNOK = customerPaidTotal(item);
@@ -4585,19 +4603,13 @@
                 const payments = customerPayments(item);
                 const latestPayment = payments.length ? payments[payments.length - 1] : null;
 
-                if (currentCustomerFilter === 'Betalt' && status !== 'BETALT') return;
-                if (currentCustomerFilter === 'Deen' && status === 'BETALT') return;
-
-                if (searchDate) {
-                    const paymentDateMatch = payments.some(payment => payment.date === searchDate);
-                    if (item.date !== searchDate && !paymentDateMatch) return;
+                if (!searchActive) {
+                    if (currentCustomerFilter === 'Betalt' && status !== 'BETALT') return;
+                    if (currentCustomerFilter === 'Deen' && status === 'BETALT') return;
                 }
+                if (!customerMatchesSearch(item, payments, searchText)) return;
 
-                if (searchText) {
-                    const paymentSearch = payments.map(payment => payment.date + ' ' + payment.amount + ' ' + (payment.createdBy || '')).join(' ');
-                    const combined = `${item.date || ''} ${item.kundeNavn || ''} ${item.telefon || ''} ${item.navn || ''} ${status} ${paymentSearch} ${item.createdBy || ''}`.toUpperCase();
-                    if (!combined.includes(searchText)) return;
-                }
+                visibleRows += 1;
 
                 const dispPrice = convertPriceToDisplay(item.price);
                 const dispTotal = convertPriceToDisplay(totalNOK);
@@ -4650,6 +4662,12 @@
                     </td>
                 </tr>`;
             });
+
+            if (visibleRows === 0) {
+                tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#666;font-weight:bold;">
+                    ${searchActive ? "INGEN KUNDE FUNNET. PRØV NAVN, TELEFON ELLER VARE." : "INGEN KUNDEREGISTRERINGER I VALGT VISNING."}
+                </td></tr>`;
+            }
 
             document.getElementById("sumCustQty").textContent = sumQty;
             document.getElementById("sumCustTotalSum").textContent = convertPriceToDisplay(sumTotal).toFixed(2);
