@@ -1222,7 +1222,7 @@
                 <input type="hidden" id="editingUsername" value="">
                 <div class="form-row" style="grid-template-columns: 1fr 1.4fr 1fr 1fr 120px;">
                     <div><label>BRUKERNAVN</label><input type="text" id="newUsername" name="homar-new-username" autocomplete="off" autocapitalize="characters"></div>
-                    <div><label>E-POST</label><input type="email" id="newEmail" name="homar-new-email" autocomplete="email" placeholder="NAVN@EPOST.NO"></div>
+                    <div><label>E-POST (VALGFRITT)</label><input type="email" id="newEmail" name="homar-new-email" autocomplete="email" placeholder="NAVN@EPOST.NO"></div>
                     <div><label>PASSORD</label><input type="password" id="newPassword" name="homar-new-password" autocomplete="new-password"></div>
                     <div>
                         <label>ROLLE</label>
@@ -3489,11 +3489,12 @@
             let r = document.getElementById("newRole").value;
             let editingUser = document.getElementById("editingUsername").value;
             let msg = document.getElementById("adminMsg");
-            if (!u || !email || (!editingUser && !p)) { msg.style.color = "red"; msg.textContent = "FYLL UT BRUKERNAVN, E-POST OG PASSORD!"; return; }
+            if (!u || (!editingUser && !p)) { msg.style.color = "red"; msg.textContent = "FYLL UT BRUKERNAVN OG PASSORD!"; return; }
             submitButton.disabled = true;
             submitButton.textContent = "LAGRER...";
             try {
-                let payload = { username:u, email, role:r };
+                let payload = { username:u, role:r };
+                if (email || editingUser) payload.email = email;
                 if (p) payload.password = p;
                 if (editingUser) await window.homarApiRequest('/admin/users/' + encodeURIComponent(editingUser), { method:'PUT', body:JSON.stringify(payload) });
                 else await window.homarApiRequest('/admin/users', { method:'POST', body:JSON.stringify(payload) });
