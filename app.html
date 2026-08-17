@@ -1040,7 +1040,7 @@
                     <div class="budget-card-value" id="boxUtgiftQarash">0.00</div>
                 </div>
                 <div class="budget-card">
-                    <div class="budget-card-title">SHAMITO TOTALE PRIS</div>
+                    <div class="budget-card-title">SHAMITO LAGERBRUK (IKKE UTGIFT / IKKE WAFI-TREKK)</div>
                     <div class="budget-card-value" id="boxUtgiftShamito">0.00</div>
                 </div>
                 <div class="budget-card">
@@ -1048,7 +1048,7 @@
                     <div class="budget-card-value" id="boxUtgiftDhagax">0.00</div>
                 </div>
                 <div class="budget-card" style="background-color: #e8f5e9; border-color: #28a745; grid-column: 1 / -1;">
-                    <div class="budget-card-title" style="font-size: 15px; color: #155724;">TOTAL SAMLET UTGIFT SUM (SAMEN + GARI + QARASH + SHAMITO + DHAGAX SHID)</div>
+                    <div class="budget-card-title" style="font-size: 15px; color: #155724;">TOTAL SAMLET UTGIFT SUM (SAMEN + GARI + QARASH + DHAGAX SHID)</div>
                     <div class="budget-card-value" id="boxGrandUtgift" style="font-size: 26px; color: #28a745;">0.00</div>
                 </div>
             </div>
@@ -4738,7 +4738,7 @@
                 .reduce((sum, row) => sum + (Number(row.qty || 0) * Number(row.price || 0)) + Number(row.driver || 0), 0);
             return {
                 samen, gari, qarash, shamito, dhagax,
-                total: samen + gari + qarash + shamito + dhagax
+                total: samen + gari + qarash + dhagax
             };
         }
 
