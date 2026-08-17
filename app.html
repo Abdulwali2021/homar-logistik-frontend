@@ -4589,6 +4589,11 @@
 
             const searchText = document.getElementById("searchTextInput").value;
             const searchActive = Boolean(normalizeCustomerSearch(searchText));
+            const archiveModeElement = document.getElementById("archiveModeSelect");
+            const archiveMode = archiveModeElement ? archiveModeElement.value : "today";
+            // Navnesøk uten valgt måned/periode skal finne hele kundehistorikken.
+            // Hvis måned eller fra–til er valgt, skal søket følge perioden.
+            const useCalendarForCustomer = !(searchActive && archiveMode === "today");
             const isAdmin = getCurrentUserRole() === "Admin";
             const canRegisterPayment = canUserChangeStatus();
             const hidePaidInDeen = currentCustomerFilter === 'Deen';
@@ -4600,7 +4605,7 @@
             // tabellen når søkefeltet er tomt. Et aktivt kundesøk finner kunden
             // på tvers av dato og betalingsstatus, så et treff aldri skjules.
             const summaryList = activeList.filter(item => {
-                if (!filterByCalendar(item)) return false;
+                if (useCalendarForCustomer && !filterByCalendar(item)) return false;
                 if (!customerMatchesSearch(item, searchText)) return false;
                 const status = customerPaymentStatus(item);
                 if (currentCustomerFilter === 'Betalt' && status !== 'BETALT') return false;
@@ -4617,7 +4622,7 @@
 
             list.forEach((item, index) => {
                 if (!item || item.deleted || item.deletedAt) return;
-                if (!filterByCalendar(item)) return;
+                if (useCalendarForCustomer && !filterByCalendar(item)) return;
 
                 const totalNOK = customerOrderTotal(item);
                 const paidNOK = customerPaidTotal(item);
