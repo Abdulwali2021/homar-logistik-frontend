@@ -3402,6 +3402,25 @@
             }
 
             const savedCustomer = index > -1 ? list[index] : list[list.length - 1];
+
+            // Bruk statusen som faktisk er valgt i skjemaet.
+            // BETALING betyr at hele ordrebeløpet registreres som betalt med valgt dato.
+            const selectedCustomerStatus = String(document.getElementById("cStatus").value || "").toUpperCase();
+            const selectedCustomerPaymentDate = document.getElementById("cBetaltDato").value || todayStr;
+            if (selectedCustomerStatus === "BETALT") {
+                if (!Array.isArray(savedCustomer.payments)) savedCustomer.payments = [];
+                const remainingToPay = Math.max(0, customerOrderTotal(savedCustomer) - customerPaidTotal(savedCustomer));
+                if (remainingToPay > 0.005) {
+                    savedCustomer.payments.push({
+                        amount: remainingToPay,
+                        date: selectedCustomerPaymentDate,
+                        createdBy: getCurrentUser(),
+                        createdAt: new Date().toISOString()
+                    });
+                }
+            }
+            syncCustomerPaymentState(savedCustomer);
+
             markWrittenAmountsFixed(savedCustomer, [["price", "priceEntered"]]);
             localStorage.setItem("homar_kunde", JSON.stringify(list));
             showSavedHistoricalDate(date);
