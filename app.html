@@ -3403,25 +3403,32 @@
 
             const savedCustomer = index > -1 ? list[index] : list[list.length - 1];
 
+            // Lås først den innskrevne prisen. Da beregnes betalingen fra nøyaktig
+            // samme totalsum som KUNDE-tabellen bruker.
+            markWrittenAmountsFixed(savedCustomer, [["price", "priceEntered"]]);
+
             // Bruk statusen som faktisk er valgt i skjemaet.
-            // BETALING betyr at hele ordrebeløpet registreres som betalt med valgt dato.
+            // BETALING betyr hele restbeløpet, aldri en delbetaling.
             const selectedCustomerStatus = String(document.getElementById("cStatus").value || "").toUpperCase();
             const selectedCustomerPaymentDate = document.getElementById("cBetaltDato").value || todayStr;
             if (selectedCustomerStatus === "BETALT") {
                 if (!Array.isArray(savedCustomer.payments)) savedCustomer.payments = [];
-                const remainingToPay = Math.max(0, customerOrderTotal(savedCustomer) - customerPaidTotal(savedCustomer));
+                const exactOrderTotal = roundFixedMoney(customerOrderTotal(savedCustomer));
+                const alreadyPaid = roundFixedMoney(customerPaidTotal(savedCustomer));
+                const remainingToPay = roundFixedMoney(Math.max(0, exactOrderTotal - alreadyPaid));
                 if (remainingToPay > 0.005) {
-                    savedCustomer.payments.push({
+                    const fullPayment = {
                         amount: remainingToPay,
                         date: selectedCustomerPaymentDate,
                         createdBy: getCurrentUser(),
                         createdAt: new Date().toISOString()
-                    });
+                    };
+                    markWrittenAmountsFixed(fullPayment, [["amount", "amountEntered"]]);
+                    savedCustomer.payments.push(fullPayment);
                 }
             }
             syncCustomerPaymentState(savedCustomer);
 
-            markWrittenAmountsFixed(savedCustomer, [["price", "priceEntered"]]);
             localStorage.setItem("homar_kunde", JSON.stringify(list));
             showSavedHistoricalDate(date);
             resetCustomerForm();
