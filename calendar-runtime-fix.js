@@ -92,7 +92,7 @@ window.toggleArchiveModeInputs=function(){
 window.resetArchiveFilter=function(){
   setupUnifiedCalendar();
   var select=document.getElementById('archiveModeSelect');
-  if(select)select.value='today';
+  if(select)select.value='all';
   var m=document.getElementById('archiveMonthInput'); if(m)m.value=localToday().slice(0,7);
   var a=document.getElementById('archiveStartDateInput'); if(a)a.value='';
   var b=document.getElementById('archiveEndDateInput'); if(b)b.value='';
