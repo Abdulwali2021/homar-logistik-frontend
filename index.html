@@ -17,7 +17,8 @@ fetch('app.html?v=20260817-filters2',{cache:'no-store'})
       + '<scr'+'ipt src="accounting-runtime-fix.js?v=20260817-shamito2"></scr'+'ipt>'
       + '<scr'+'ipt src="customer-status-runtime-fix.js?v=20260817-filters2"></scr'+'ipt>'
       + '<scr'+'ipt src="table-sort-runtime-fix.js?v=20260817-sort1"></scr'+'ipt>'
-      + '<scr'+'ipt src="export-print-runtime-fix.js?v=20260817-export1"></scr'+'ipt>';
+      + '<scr'+'ipt src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></scr'+'ipt>'
+      + '<scr'+'ipt src="export-print-runtime-fix.js?v=20260817-export2"></scr'+'ipt>';
     if(/<\/body>/i.test(html)) html=html.replace(/<\/body>/i,patch+'</body>');
     else html+=patch;
     document.open();
