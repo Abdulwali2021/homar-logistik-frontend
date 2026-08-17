@@ -9,13 +9,13 @@
 <body>
 <div id="loader">LASTER HORMAR LOGISTIK V6...</div>
 <script>
-fetch('app.html?v=20260815-customerstatus1',{cache:'no-store'})
+fetch('app.html?v=20260817-filters2',{cache:'no-store'})
   .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();})
   .then(function(html){
     var patch=''
-      + '<scr'+'ipt src="calendar-runtime-fix.js?v=20260815-customerstatus1"></scr'+'ipt>'
-      + '<scr'+'ipt src="accounting-runtime-fix.js?v=20260815-customerstatus1"></scr'+'ipt>'
-      + '<scr'+'ipt src="customer-status-runtime-fix.js?v=20260815-customerstatus1"></scr'+'ipt>';
+      + '<scr'+'ipt src="calendar-runtime-fix.js?v=20260817-filters2"></scr'+'ipt>'
+      + '<scr'+'ipt src="accounting-runtime-fix.js?v=20260817-filters2"></scr'+'ipt>'
+      + '<scr'+'ipt src="customer-status-runtime-fix.js?v=20260817-filters2"></scr'+'ipt>';
     if(/<\/body>/i.test(html)) html=html.replace(/<\/body>/i,patch+'</body>');
     else html+=patch;
     document.open();
