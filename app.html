@@ -742,7 +742,7 @@
             <table id="customerTable">
                 <thead>
                     <tr>
-                        <th>DATO</th><th>NAVN</th><th>TELEFON</th><th>VARE</th><th>QUANTY</th><th id="thCustPrice">PRICE</th><th id="thCustTotal">TOTALT</th><th>BETALT</th><th>STATUS</th><th class="sjuki-col hidden">OPPRETTET AV</th><th>HANDLING</th>
+                        <th>DATO</th><th>NAVN</th><th>TELEFON</th><th>VARE</th><th>QUANTY</th><th id="thCustPrice">PRICE</th><th id="thCustTotal">TOTALT</th><th id="thCustPaid">BETALT</th><th>STATUS</th><th class="sjuki-col hidden">OPPRETTET AV</th><th>HANDLING</th>
                     </tr>
                 </thead>
                 <tbody id="customerBody"></tbody>
@@ -4591,6 +4591,9 @@
             const searchActive = Boolean(normalizeCustomerSearch(searchText));
             const isAdmin = getCurrentUserRole() === "Admin";
             const canRegisterPayment = canUserChangeStatus();
+            const hidePaidInDeen = currentCustomerFilter === 'Deen';
+            const paidHeader = document.getElementById("thCustPaid");
+            if (paidHeader) paidHeader.style.display = hidePaidInDeen ? "none" : "";
 
             // Kundeoversikten viser alle aktive ordre fra alle datoer, men
             // respekterer valgt DEEN/BETALT-status. Datokalenderen øverst styrer
@@ -4637,8 +4640,12 @@
                 const statusClass = status === "BETALT" ? "status-betalt" : (status === "DELBETALT" ? "status-delbetalt" : "status-deen");
                 let statusText = status;
                 if (status === "DELBETALT") {
-                    statusText = `DELBETALT ${dispPaid.toFixed(2)} AV ${dispTotal.toFixed(2)}`;
-                    if (latestPayment && latestPayment.date) statusText += ` (${latestPayment.date})`;
+                    if (hidePaidInDeen) {
+                        statusText = "DEEN";
+                    } else {
+                        statusText = `DELBETALT ${dispPaid.toFixed(2)} AV ${dispTotal.toFixed(2)}`;
+                        if (latestPayment && latestPayment.date) statusText += ` (${latestPayment.date})`;
+                    }
                 } else if (status === "BETALT" && latestPayment && latestPayment.date) {
                     statusText += ` (${latestPayment.date})`;
                 }
@@ -4663,7 +4670,7 @@
                     <td>${item.qty}</td>
                     <td>${dispPrice.toFixed(2)}</td>
                     <td>${dispTotal.toFixed(2)}</td>
-                    <td style="color:#218838;font-weight:bold;">${dispPaid.toFixed(2)}</td>
+                    <td style="color:#218838;font-weight:bold;${hidePaidInDeen ? 'display:none;' : ''}">${dispPaid.toFixed(2)}</td>
                     <td><button type="button" class="status-btn ${statusClass}" ${statusAction}>${statusText}</button></td>
                     <td class="sjuki-col ${showCol}">${createdByUp}</td>
                     <td>
