@@ -1973,6 +1973,17 @@
 
         function setCustomerFilter(status) {
             currentCustomerFilter = status;
+            if (status === 'ALL') {
+                const search = document.getElementById("searchTextInput");
+                const archive = document.getElementById("archiveModeSelect");
+                const start = document.getElementById("archiveStartDateInput");
+                const end = document.getElementById("archiveEndDateInput");
+                if (search) search.value = "";
+                if (archive) archive.value = "all";
+                if (start) start.value = "";
+                if (end) end.value = "";
+                if (typeof toggleArchiveModeInputs === "function") toggleArchiveModeInputs();
+            }
             ['Deen', 'Betalt', 'All'].forEach(s => {
                 let btn = document.getElementById("filterBtn" + s);
                 if (btn) btn.classList.remove("active-filter");
