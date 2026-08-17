@@ -655,8 +655,8 @@
             <div>
                 <label style="margin:0;">VELG KALENDER / ARKIV:</label>
                 <select id="archiveModeSelect" onchange="toggleArchiveModeInputs()">
+                    <option value="all" selected>VIS ALT REGISTRERT</option>
                     <option value="today">DAGENS DATO</option>
-                    <option value="all">VIS ALT REGISTRERT</option>
                     <option value="range">VELG DATO-INTERVALL (FRA - TIL)</option>
                 </select>
             </div>
@@ -1397,7 +1397,7 @@
         }
 
         function resetArchiveFilter() {
-            document.getElementById("archiveModeSelect").value = "today";
+            document.getElementById("archiveModeSelect").value = "all";
             document.getElementById("archiveStartDateInput").value = "";
             document.getElementById("archiveEndDateInput").value = "";
             toggleArchiveModeInputs();
@@ -4355,7 +4355,8 @@
         function renderGariTable() {
             let list = JSON.parse(localStorage.getItem("homar_gari") || "[]");
             const activeList = list.filter(item =>
-                item && !item.deleted && !item.deletedAt && String(item.date || '').trim()
+                item && !item.deleted && !item.deletedAt &&
+                String(item.date || '').trim() && filterByCalendar(item)
             );
             let tbody = document.getElementById("gariBody");
             if (!tbody) return;
@@ -4405,7 +4406,8 @@
         function renderQarashTable() {
             let list = JSON.parse(localStorage.getItem("homar_qarash") || "[]");
             const activeList = list.filter(item =>
-                item && !item.deleted && !item.deletedAt && String(item.date || '').trim()
+                item && !item.deleted && !item.deletedAt &&
+                String(item.date || '').trim() && filterByCalendar(item)
             );
             let tbody = document.getElementById("qarashBody");
             if (!tbody) return;
@@ -4454,7 +4456,8 @@
         function renderShamitoTable() {
             let list = JSON.parse(localStorage.getItem("homar_shamito") || "[]");
             const activeList = list.filter(item =>
-                item && !item.deleted && !item.deletedAt && String(item.date || '').trim()
+                item && !item.deleted && !item.deletedAt &&
+                String(item.date || '').trim() && filterByCalendar(item)
             );
             let tbody = document.getElementById("shamitoBody");
             tbody.innerHTML = "";
@@ -4503,7 +4506,8 @@
         function renderDhagaxshidTable() {
             let list = JSON.parse(localStorage.getItem("homar_dhagaxshid") || "[]");
             const activeList = list.filter(item =>
-                item && !item.deleted && !item.deletedAt && String(item.date || '').trim()
+                item && !item.deleted && !item.deletedAt &&
+                String(item.date || '').trim() && filterByCalendar(item)
             );
             let tbody = document.getElementById("dhagaxshidBody");
             if (!tbody) return;
