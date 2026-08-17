@@ -720,7 +720,7 @@
         <div id="sectionKunde">
             <div class="summary-bar">
                 <div>TOTALT ANTALL (QTY): <span id="sumCustQty">0</span></div>
-                <div>TOTAL PRIS: <span id="sumCustTotalSum">0.00</span></div>
+                <div>TOTAL SKYLDIG / PRIS: <span id="sumCustTotalSum">0.00</span></div>
             </div>
 
             <div class="filter-container">
@@ -4297,13 +4297,14 @@
             // Tell bare aktive SAMEN-rader som også kan finnes igjen i VIS ALLE.
             // Gamle ugyldige rader uten dato skal aldri påvirke totalene i skjul.
             const activeList = list.filter(item =>
-                item && !item.deleted && !item.deletedAt && String(item.date || '').trim()
+                item && !item.deleted && !item.deletedAt &&
+                String(item.date || '').trim() &&
+                filterByCalendar(item)
             );
             let tbody = document.getElementById("logisticsBody");
             tbody.innerHTML = "";
 
-            // SAMEN-totalene skal alltid vise totalsum for ALLE datoer,
-  // uavhengig av hvilken dato som vises i tabellen.
+            // SAMEN-totalene følger samme valgte dato/periode som tabellen.
   let sumQty = activeList.reduce((acc, item) => acc + (Number(item.qty) || 0), 0);
   let sumDriver = activeList.reduce((acc, item) => acc + (Number(item.driverPrice) || 0), 0);
   let sumPrice = activeList.reduce((acc, item) => acc + ((Number(item.qty) || 0) * (Number(item.price) || 0)), 0);
@@ -4596,18 +4597,24 @@
             // tabellen når søkefeltet er tomt. Et aktivt kundesøk finner kunden
             // på tvers av dato og betalingsstatus, så et treff aldri skjules.
             const summaryList = activeList.filter(item => {
+                if (!filterByCalendar(item)) return false;
+                if (!customerMatchesSearch(item, searchText)) return false;
                 const status = customerPaymentStatus(item);
                 if (currentCustomerFilter === 'Betalt' && status !== 'BETALT') return false;
                 if (currentCustomerFilter === 'Deen' && status === 'BETALT') return false;
                 return true;
             });
             let sumQty = summaryList.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
-            let sumTotal = summaryList.reduce((sum, item) => sum + customerOrderTotal(item), 0);
+            let sumTotal = summaryList.reduce((sum, item) => {
+                const total = customerOrderTotal(item);
+                if (currentCustomerFilter !== 'Deen') return sum + total;
+                return sum + Math.max(0, total - customerPaidTotal(item));
+            }, 0);
             let visibleRows = 0;
 
             list.forEach((item, index) => {
                 if (!item || item.deleted || item.deletedAt) return;
-                if (!searchActive && !filterByCalendar(item)) return;
+                if (!filterByCalendar(item)) return;
 
                 const totalNOK = customerOrderTotal(item);
                 const paidNOK = customerPaidTotal(item);
@@ -4616,10 +4623,8 @@
                 const payments = customerPayments(item);
                 const latestPayment = payments.length ? payments[payments.length - 1] : null;
 
-                if (!searchActive) {
-                    if (currentCustomerFilter === 'Betalt' && status !== 'BETALT') return;
-                    if (currentCustomerFilter === 'Deen' && status === 'BETALT') return;
-                }
+                if (currentCustomerFilter === 'Betalt' && status !== 'BETALT') return;
+                if (currentCustomerFilter === 'Deen' && status === 'BETALT') return;
                 if (!customerMatchesSearch(item, searchText)) return;
 
                 visibleRows += 1;
@@ -4678,7 +4683,7 @@
 
             if (visibleRows === 0) {
                 tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#666;font-weight:bold;">
-                    ${searchActive ? "INGEN EKSAKT KUNDE FUNNET. SKRIV ELLER VELG HELE KUNDENAVNET." : "INGEN KUNDEREGISTRERINGER I VALGT VISNING."}
+                    ${searchActive ? "INGEN KUNDE FUNNET I VALGT DATOPERIODE." : "INGEN KUNDEREGISTRERINGER I VALGT VISNING."}
                 </td></tr>`;
             }
 
