@@ -4591,9 +4591,9 @@
             const searchActive = Boolean(normalizeCustomerSearch(searchText));
             const archiveModeElement = document.getElementById("archiveModeSelect");
             const archiveMode = archiveModeElement ? archiveModeElement.value : "today";
-            // Navnesøk uten valgt måned/periode skal finne hele kundehistorikken.
-            // Hvis måned eller fra–til er valgt, skal søket følge perioden.
-            const useCalendarForCustomer = !(searchActive && archiveMode === "today");
+            // Uten aktivt måned- eller fra–til-filter vises hele kundehistorikken.
+            // Måned og fra–til begrenser både kundelisten og totalsummen.
+            const useCalendarForCustomer = archiveMode === "month" || archiveMode === "range";
             const isAdmin = getCurrentUserRole() === "Admin";
             const canRegisterPayment = canUserChangeStatus();
             const hidePaidInDeen = currentCustomerFilter === 'Deen';
