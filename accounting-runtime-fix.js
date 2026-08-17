@@ -143,27 +143,48 @@ window.homarAccountingTestState=function(){
   };
 };
 
-function restoreWrongShamitoWafiDeductionOnce(){
+function restoreWrongShamitoWafiDeductionV2(){
+  const rawBudget=localStorage.getItem(BUDGET_KEY);
+  const shamito=readJson('homar_shamito',[]);
+  if(!rawBudget||!Array.isArray(shamito)||shamito.length===0)return false;
+
   const budget=currentBudget();
-  if(budget.shamitoWafiSeparatedV1===true)return;
+  if(budget.shamitoWafiRefundV2===true)return true;
 
   const shamitoTotal=money(
-    readJson('homar_shamito',[]).reduce(function(sum,row){
+    shamito.reduce(function(sum,row){
       if(!active(row))return sum;
       return sum+(Number(row.qty)||0)*(Number(row.price)||0);
     },0)
   );
 
-  if(shamitoTotal>EPS){
-    budget.wafi=money(budget.wafi+shamitoTotal);
+  if(shamitoTotal<=EPS)return false;
+
+  budget.wafi=money(budget.wafi+shamitoTotal);
+  budget.shamitoWafiSeparatedV1=true;
+  budget.shamitoWafiRefundV2=true;
+  budget.shamitoWafiRefundAmountV2=shamitoTotal;
+  budget.shamitoWafiRefundedAtV2=new Date().toISOString();
+  writeBudget(budget);
+
+  if(typeof window.renderBudsjetValues==='function'){
+    try{window.renderBudsjetValues();}catch(_){}
   }
 
-  budget.shamitoWafiSeparatedV1=true;
-  writeBudget(budget);
-  console.info('HOMAR: TIDLIGERE SHAMITO-TREKK ER FØRT TILBAKE TIL WAFI:',shamitoTotal);
+  console.info('HOMAR: TIDLIGERE SHAMITO-TREKK ER NÅ FØRT TILBAKE TIL WAFI:',shamitoTotal);
+  return true;
 }
 
-restoreWrongShamitoWafiDeductionOnce();
+let shamitoRefundAttempts=0;
+const shamitoRefundTimer=setInterval(function(){
+  shamitoRefundAttempts+=1;
+  if(restoreWrongShamitoWafiDeductionV2()||shamitoRefundAttempts>=60){
+    clearInterval(shamitoRefundTimer);
+  }
+},500);
 
-console.info('HOMAR: SHAMITO REDUSERER KUN LAGER OG ER IKKE UTGIFT/WAFI-TREKK (V5).');
+setTimeout(restoreWrongShamitoWafiDeductionV2,0);
+window.addEventListener('load',restoreWrongShamitoWafiDeductionV2);
+
+console.info('HOMAR: SHAMITO REDUSERER KUN LAGER. TIDLIGERE FEILTREKK RETTES ETTER DATAINNLASTING (V6).');
 })();
