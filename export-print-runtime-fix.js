@@ -152,6 +152,74 @@ ${table.outerHTML}
       .replace(/^_+|_+$/g, '');
   }
 
+  function cleanCellText(cell) {
+    return String(cell && cell.textContent ? cell.textContent : '')
+      .replace(/[▲▼]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function excelCellValue(text) {
+    const value = String(text || '').trim();
+
+    // Behold datoer, klokkeslett, telefonnummer og ID-er som tekst.
+    if (
+      /^\d{4}-\d{2}-\d{2}$/.test(value) ||
+      /^\d{1,2}[.:]\d{2}(?:\s*[-–]\s*\d{1,2}[.:]\d{2})?$/.test(value) ||
+      /^\+?\d[\d\s-]{5,}$/.test(value)
+    ) {
+      return value;
+    }
+
+    // Gjør rene beløp og antall om til Excel-tall.
+    const normalized = value
+      .replace(/\s/g, '')
+      .replace(/kr/gi, '')
+      .replace(/,-$/, '')
+      .replace(',', '.');
+
+    if (/^-?\d+(?:\.\d+)?$/.test(normalized)) {
+      return Number(normalized);
+    }
+
+    return value;
+  }
+
+  function excelRows(view) {
+    const table = removeUnwantedColumns(view.table);
+    return Array.from(table.rows).map(function (row) {
+      return Array.from(row.cells).map(function (cell) {
+        return excelCellValue(cleanCellText(cell));
+      });
+    });
+  }
+
+  function excelSummaryRows(view) {
+    const summary = view.section && view.section.querySelector('.summary-bar');
+    if (!summary) return [];
+
+    const values = Array.from(summary.children)
+      .map(function (item) { return cleanCellText(item); })
+      .filter(Boolean);
+
+    return values.length ? [values] : [];
+  }
+
+  function setExcelColumnWidths(sheet, rows) {
+    const widths = [];
+
+    rows.forEach(function (row) {
+      row.forEach(function (value, index) {
+        const length = String(value == null ? '' : value).length;
+        widths[index] = Math.min(45, Math.max(widths[index] || 10, length + 2));
+      });
+    });
+
+    sheet['!cols'] = widths.map(function (width) {
+      return { wch: width };
+    });
+  }
+
   window.exportCurrentHomarView = function () {
     const view = currentView();
     if (!view) {
@@ -159,23 +227,45 @@ ${table.outerHTML}
       return;
     }
 
-    const html = reportHtml(view);
-    const blob = new Blob(['\ufeff', html], {
-      type: 'application/vnd.ms-excel;charset=utf-8'
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    if (!window.XLSX || !window.XLSX.utils) {
+      alert('EXCEL-MODULEN BLE IKKE LASTET. OPPDATER SIDEN OG PRØV IGJEN.');
+      return;
+    }
+
+    const extra = customerFilterText();
+    const rows = [
+      ['HOMAR LOGISTIK – ' + view.title],
+      [periodText() + (extra ? ' | ' + extra : '')],
+      ['EKSPORTERT: ' + new Date().toLocaleString('nb-NO')],
+      []
+    ];
+
+    const summaryRows = excelSummaryRows(view);
+    if (summaryRows.length) {
+      rows.push.apply(rows, summaryRows);
+      rows.push([]);
+    }
+
+    rows.push.apply(rows, excelRows(view));
+
+    const sheet = window.XLSX.utils.aoa_to_sheet(rows);
+    setExcelColumnWidths(sheet, rows);
+
+    if (sheet['A1']) {
+      sheet['A1'].s = { font: { bold: true, sz: 16, color: { rgb: '176B35' } } };
+    }
+
+    const workbook = window.XLSX.utils.book_new();
+    const sheetName = safeFileName(view.title).slice(0, 31) || 'HOMAR';
+    window.XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
+
     const date = new Date().toISOString().slice(0, 10);
+    const fileName = safeFileName('HOMAR_' + view.title + '_' + date) + '.xlsx';
 
-    link.href = url;
-    link.download = safeFileName('HOMAR_' + view.title + '_' + date) + '.xls';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
-    setTimeout(function () {
-      URL.revokeObjectURL(url);
-    }, 1000);
+    window.XLSX.writeFile(workbook, fileName, {
+      bookType: 'xlsx',
+      compression: true
+    });
   };
 
   window.printCurrentHomarView = function () {
