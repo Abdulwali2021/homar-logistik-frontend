@@ -3,7 +3,7 @@
 
 const CUSTOMER_KEY='homar_kunde';
 const BUDGET_KEY='homar_budsjet';
-const EXPENSE_KEYS=new Set(['homar_samen','homar_gari','homar_qarash','homar_shamito','homar_dhagaxshid']);
+const EXPENSE_KEYS=new Set(['homar_samen','homar_gari','homar_qarash','homar_dhagaxshid']);
 const EPS=0.005;
 const previousSetItem=Storage.prototype.setItem;
 let internalWrite=false;
@@ -61,7 +61,6 @@ function expenseTotalForKey(key,list){
     }
     if(key==='homar_gari') return sum+(Number(row.qty)||0)*(Number(row.price)||0);
     if(key==='homar_qarash') return sum+(Number(row.antall)||0)*(Number(row.price)||0);
-    if(key==='homar_shamito') return sum+(Number(row.qty)||0)*(Number(row.price)||0);
     if(key==='homar_dhagaxshid') return sum+(Number(row.qty)||0)*(Number(row.price)||0)+(Number(row.driver)||0);
     return sum;
   },0));
@@ -144,5 +143,27 @@ window.homarAccountingTestState=function(){
   };
 };
 
-console.info('HOMAR: KUNDEBETALING OG UTGIFT ER DIREKTE KOBLET TIL WAFI (V4).');
+function restoreWrongShamitoWafiDeductionOnce(){
+  const budget=currentBudget();
+  if(budget.shamitoWafiSeparatedV1===true)return;
+
+  const shamitoTotal=money(
+    readJson('homar_shamito',[]).reduce(function(sum,row){
+      if(!active(row))return sum;
+      return sum+(Number(row.qty)||0)*(Number(row.price)||0);
+    },0)
+  );
+
+  if(shamitoTotal>EPS){
+    budget.wafi=money(budget.wafi+shamitoTotal);
+  }
+
+  budget.shamitoWafiSeparatedV1=true;
+  writeBudget(budget);
+  console.info('HOMAR: TIDLIGERE SHAMITO-TREKK ER FØRT TILBAKE TIL WAFI:',shamitoTotal);
+}
+
+restoreWrongShamitoWafiDeductionOnce();
+
+console.info('HOMAR: SHAMITO REDUSERER KUN LAGER OG ER IKKE UTGIFT/WAFI-TREKK (V5).');
 })();
