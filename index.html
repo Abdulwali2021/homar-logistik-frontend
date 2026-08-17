@@ -15,7 +15,8 @@ fetch('app.html?v=20260817-filters2',{cache:'no-store'})
     var patch=''
       + '<scr'+'ipt src="calendar-runtime-fix.js?v=20260817-filters2"></scr'+'ipt>'
       + '<scr'+'ipt src="accounting-runtime-fix.js?v=20260817-filters2"></scr'+'ipt>'
-      + '<scr'+'ipt src="customer-status-runtime-fix.js?v=20260817-filters2"></scr'+'ipt>';
+      + '<scr'+'ipt src="customer-status-runtime-fix.js?v=20260817-filters2"></scr'+'ipt>'
+      + '<scr'+'ipt src="table-sort-runtime-fix.js?v=20260817-sort1"></scr'+'ipt>';
     if(/<\/body>/i.test(html)) html=html.replace(/<\/body>/i,patch+'</body>');
     else html+=patch;
     document.open();
