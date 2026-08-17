@@ -103,12 +103,17 @@ if(typeof originalSaveCustomer==='function'){
     const remaining=Math.max(0,orderTotal(item)-paidTotal(item));
 
     if(remaining>EPS){
-      item.payments.push({
+      const fullPayment={
         amount:remaining,
         date:today(),
         createdBy:currentUser(),
-        createdAt:new Date().toISOString()
-      });
+        createdAt:new Date().toISOString(),
+        fullStatusPayment:true
+      };
+      if(typeof window.markWrittenAmountsFixed==='function'){
+        window.markWrittenAmountsFixed(fullPayment,[["amount","amountEntered"]]);
+      }
+      item.payments.push(fullPayment);
     }
 
     if(typeof window.syncCustomerPaymentState==='function'){
@@ -129,9 +134,47 @@ if(typeof originalSaveCustomer==='function'){
   };
 }
 
+function repairReportedPayment(){
+  const list=readCustomers();
+  const index=list.findIndex(function(item){
+    if(!item)return false;
+    const customer=String(item.kundeNavn||'').trim().toUpperCase();
+    const product=String(item.navn||'').trim().toUpperCase();
+    const itemDate=String(item.date||'').slice(0,10);
+    const payments=Array.isArray(item.payments)?item.payments:[];
+    if(customer!=='AWOW ABDI JAMAC'||product!=='BULUKETTI 15A'||itemDate!=='2026-08-17')return false;
+    if(Math.abs(orderTotal(item)-82.50)>EPS||payments.length!==1)return false;
+    return Math.abs((Number(payments[0].amount)||0)-8.74)<=EPS &&
+      String(payments[0].date||'').slice(0,10)==='2026-08-17';
+  });
+  if(index<0)return false;
+
+  const item=list[index];
+  const payment=item.payments[0];
+  payment.amount=82.50;
+  payment.amountEntered=82.50;
+  payment.fullStatusPayment=true;
+  if(typeof window.markWrittenAmountsFixed==='function'){
+    window.markWrittenAmountsFixed(payment,[["amount","amountEntered"]]);
+  }
+  item.status='Betalt';
+  item.betaltDato='2026-08-17';
+  localStorage.setItem(CUSTOMER_KEY,JSON.stringify(list));
+  try{
+    if(typeof window.loadData==='function')window.loadData();
+    else if(typeof window.renderAllTables==='function')window.renderAllTables();
+  }catch(_){}
+  console.info('HOMAR: RAPPORTERT BETALING FOR AWOW ABDI JAMAC ER RETTET TIL 82.50.');
+  return true;
+}
+
 activateButton();
 setTimeout(activateButton,0);
 setTimeout(activateButton,300);
+repairReportedPayment();
+[300,800,1500,3000,5000,8000,12000,18000].forEach(function(delay){
+  setTimeout(repairReportedPayment,delay);
+});
 
 const observer=new MutationObserver(function(){activateButton();});
 observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['disabled']});
