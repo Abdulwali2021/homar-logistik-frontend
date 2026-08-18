@@ -5425,6 +5425,30 @@
             if (box) box.classList.add('hidden');
         }
 
+        function activateViewWithoutRender(viewName) {
+            ['kunde', 'lager', 'samen', 'gari', 'qarash', 'shamito', 'dhagaxshid', 'utgift', 'budsjet', 'admin'].forEach(function (name) {
+                const section = document.getElementById('section' + name.charAt(0).toUpperCase() + name.slice(1));
+                const tab = document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1));
+                if (section) section.classList.add('hidden');
+                if (tab) tab.classList.remove('active');
+            });
+            const activeSection = document.getElementById('section' + viewName.charAt(0).toUpperCase() + viewName.slice(1));
+            const activeTab = document.getElementById('tab' + viewName.charAt(0).toUpperCase() + viewName.slice(1));
+            if (activeSection) activeSection.classList.remove('hidden');
+            if (activeTab) activeTab.classList.add('active');
+            localStorage.setItem('homar_active_tab', viewName);
+        }
+
+        function renderDataWithoutMovement() {
+            const scrollX = window.scrollX;
+            const scrollY = window.scrollY;
+            loadData();
+            window.scrollTo(scrollX, scrollY);
+            requestAnimationFrame(function () {
+                window.scrollTo(scrollX, scrollY);
+            });
+        }
+
         (async function restoreSessionFromServer() {
             const token = apiToken();
             if (!token) {
@@ -5441,14 +5465,14 @@
             // Fjern eventuelt gammelt fanenavn fra adressen én gang.
             if (location.hash) history.replaceState(null, '', location.pathname + location.search);
 
-            // Vis sist synkroniserte HORMAR-data med én gang. Serveren
-            // kontrollerer og erstatter dem stille med fersk status nedenfor.
+            // Bygg den sist synkroniserte visningen ferdig mens dashbordet er
+            // skjult. Hele siden vises deretter én gang uten hopping.
             const loginSectionEl = document.getElementById('loginSection');
             const dashboardSectionEl = document.getElementById('dashboardSection');
+            let activeView = requestedTab;
             loginSectionEl.classList.add('hidden');
-            dashboardSectionEl.classList.remove('hidden');
+            dashboardSectionEl.classList.add('hidden');
             hideServerSyncStatus();
-            switchView(requestedTab);
 
             // Vis lagret brukernavn og rolle umiddelbart, uten å vente på serveren.
             try {
@@ -5461,23 +5485,18 @@
                 }
             } catch (_) {}
 
-            // Vis riktig ADMIN-tilgang umiddelbart fra lagret rolle.
+            // Vis riktig ADMIN-tilgang og lås den tidligere høyden før første tegning.
             checkAdminAccess();
-
-            // Tegn sist fullførte serversynk umiddelbart mens ny kontroll pågår.
-            loadData();
-
-            // Behold høyden under fanene mens ferske data lastes.
-            // Dette hindrer at innholdet trekkes opp når en tabell blir tegnet på nytt.
-            const requestedSection = document.getElementById(
-                'section' + requestedTab.charAt(0).toUpperCase() + requestedTab.slice(1)
+            let requestedSection = document.getElementById(
+                'section' + activeView.charAt(0).toUpperCase() + activeView.slice(1)
             );
             if (requestedSection) {
-                const currentHeight = Math.ceil(requestedSection.getBoundingClientRect().height);
-                const savedHeight = Number(localStorage.getItem('homar_section_height_' + requestedTab) || 0);
-                const stableHeight = Math.max(currentHeight, savedHeight);
-                if (stableHeight > 0) requestedSection.style.minHeight = stableHeight + 'px';
+                const savedHeight = Number(localStorage.getItem('homar_section_height_' + activeView) || 0);
+                if (savedHeight > 0) requestedSection.style.minHeight = savedHeight + 'px';
             }
+            activateViewWithoutRender(activeView);
+            renderDataWithoutMovement();
+            dashboardSectionEl.classList.remove('hidden');
 
             try {
                 const me = await apiRequest('/auth/me');
@@ -5487,15 +5506,17 @@
                 checkAdminAccess();
 
                 if (requestedTab === 'admin' && !canUserViewAdmin()) {
-                    switchView('lager');
+                    activeView = 'lager';
                 } else if (requestedTab === 'budsjet' && !canUserViewBudget()) {
-                    switchView('lager');
+                    activeView = 'lager';
                 } else if (requestedTab === 'utgift' && !canUserViewExpense()) {
-                    switchView('lager');
-                } else {
-                    renderAllTables();
+                    activeView = 'lager';
                 }
-                loadData();
+                requestedSection = document.getElementById(
+                    'section' + activeView.charAt(0).toUpperCase() + activeView.slice(1)
+                );
+                activateViewWithoutRender(activeView);
+                renderDataWithoutMovement();
                 hideServerSyncStatus();
                 dashboardSectionEl.classList.remove('hidden');
                 if (requestedSection) {
@@ -5503,7 +5524,7 @@
                     const minimumHeight = Number.parseFloat(requestedSection.style.minHeight) || 0;
                     const stableHeight = Math.max(finalHeight, minimumHeight);
                     requestedSection.style.minHeight = stableHeight + 'px';
-                    localStorage.setItem('homar_section_height_' + requestedTab, String(stableHeight));
+                    localStorage.setItem('homar_section_height_' + activeView, String(stableHeight));
                 }
                 startPresence();
             } catch (err) {
@@ -5526,8 +5547,6 @@
                 // serveren ikke kan bekrefte en nyere versjon akkurat nå.
                 loginSectionEl.classList.add('hidden');
                 dashboardSectionEl.classList.remove('hidden');
-                renderAllTables();
-                loadData();
                 showServerSyncStatus(
                     'VISER SIST SYNKRONISERTE DATA – KAN IKKE KOBLE TIL SERVEREN.',
                     true
