@@ -594,7 +594,7 @@
 <body>
 
     <!-- INNLOGGINGSSIDE -->
-    <form id="loginSection" class="container" autocomplete="off" onsubmit="event.preventDefault(); handleLogin();">
+    <form id="loginSection" class="container hidden" autocomplete="off" onsubmit="event.preventDefault(); handleLogin();">
         <h2>HORMAR LOGISTIK - LOGG INN</h2>
         <div class="form-group">
             <label>BRUKERNAVN</label>
@@ -5385,30 +5385,6 @@
             el.textContent = 'INNLOGGING STYRES NÅ AV BACKEND (.env / seed). BRUK ADMIN-PASSORDET DU OPPRETTET.';
         };
 
-        function setServerDataPlaceholders() {
-            [
-                'boxBudsjetLager', 'boxBudsjetDeen', 'boxBudsjetBank',
-                'boxBudsjetWafi', 'boxBudsjetUtgift', 'boxGrandTotal',
-                'boxGrandUtgift', 'boxBedriftVerdi'
-            ].forEach(function (id) {
-                const element = document.getElementById(id);
-                if (element) element.textContent = '…';
-            });
-        }
-
-        function showViewShell(viewName) {
-            ['kunde', 'lager', 'samen', 'gari', 'qarash', 'shamito', 'dhagaxshid', 'utgift', 'budsjet', 'admin'].forEach(function (name) {
-                const section = document.getElementById('section' + name.charAt(0).toUpperCase() + name.slice(1));
-                const tab = document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1));
-                if (section) section.classList.add('hidden');
-                if (tab) tab.classList.remove('active');
-            });
-            const activeSection = document.getElementById('section' + viewName.charAt(0).toUpperCase() + viewName.slice(1));
-            const activeTab = document.getElementById('tab' + viewName.charAt(0).toUpperCase() + viewName.slice(1));
-            if (activeSection) activeSection.classList.remove('hidden');
-            if (activeTab) activeTab.classList.add('active');
-        }
-
         function showServerSyncStatus(message, isError) {
             let box = document.getElementById('serverSyncStatus');
             const dashboard = document.getElementById('dashboardSection');
@@ -5449,7 +5425,7 @@
             if (box) box.classList.add('hidden');
         }
 
-        window.addEventListener('load', async function () {
+        (async function restoreSessionFromServer() {
             const token = apiToken();
             if (!token) {
                 localStorage.removeItem('homar_logged_in');
@@ -5465,15 +5441,14 @@
             // Fjern eventuelt gammelt fanenavn fra adressen én gang.
             if (location.hash) history.replaceState(null, '', location.pathname + location.search);
 
-            // Vis den vanlige HORMAR-siden med tomme datafelt mens serveren
-            // henter fasiten. Gamle localStorage-verdier tegnes ikke.
+            // Vis sist synkroniserte HORMAR-data med én gang. Serveren
+            // kontrollerer og erstatter dem stille med fersk status nedenfor.
             const loginSectionEl = document.getElementById('loginSection');
             const dashboardSectionEl = document.getElementById('dashboardSection');
             loginSectionEl.classList.add('hidden');
-            setServerDataPlaceholders();
-            showViewShell(requestedTab);
-            hideServerSyncStatus();
             dashboardSectionEl.classList.remove('hidden');
+            hideServerSyncStatus();
+            switchView(requestedTab);
 
             // Vis lagret brukernavn og rolle umiddelbart, uten å vente på serveren.
             try {
@@ -5489,8 +5464,8 @@
             // Vis riktig ADMIN-tilgang umiddelbart fra lagret rolle.
             checkAdminAccess();
 
-            // Ikke tegn lokalt mellomlager før serveren har svart.
-            // localStorage brukes fortsatt internt, men vises aldri som ferske data.
+            // Tegn sist fullførte serversynk umiddelbart mens ny kontroll pågår.
+            loadData();
 
             // Behold høyden under fanene mens ferske data lastes.
             // Dette hindrer at innholdet trekkes opp når en tabell blir tegnet på nytt.
@@ -5547,16 +5522,18 @@
                     return;
                 }
 
-                // Behold vanlig HORMAR-visning, men aldri vis gamle priser.
+                // Behold sist synkroniserte tall og varsle tydelig hvis
+                // serveren ikke kan bekrefte en nyere versjon akkurat nå.
                 loginSectionEl.classList.add('hidden');
-                setServerDataPlaceholders();
                 dashboardSectionEl.classList.remove('hidden');
+                renderAllTables();
+                loadData();
                 showServerSyncStatus(
-                    'KAN IKKE HENTE SISTE DATA FRA SERVEREN.',
+                    'VISER SIST SYNKRONISERTE DATA – KAN IKKE KOBLE TIL SERVEREN.',
                     true
                 );
             }
-        });
+        })();
 
         window.addEventListener('pagehide', function () {
             const tabName = localStorage.getItem('homar_active_tab') || 'lager';
