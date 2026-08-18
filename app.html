@@ -5385,33 +5385,58 @@
             el.textContent = 'INNLOGGING STYRES NÅ AV BACKEND (.env / seed). BRUK ADMIN-PASSORDET DU OPPRETTET.';
         };
 
+        function setServerDataPlaceholders() {
+            [
+                'boxBudsjetLager', 'boxBudsjetDeen', 'boxBudsjetBank',
+                'boxBudsjetWafi', 'boxBudsjetUtgift', 'boxGrandTotal',
+                'boxGrandUtgift', 'boxBedriftVerdi'
+            ].forEach(function (id) {
+                const element = document.getElementById(id);
+                if (element) element.textContent = '…';
+            });
+        }
+
+        function showViewShell(viewName) {
+            ['kunde', 'lager', 'samen', 'gari', 'qarash', 'shamito', 'dhagaxshid', 'utgift', 'budsjet', 'admin'].forEach(function (name) {
+                const section = document.getElementById('section' + name.charAt(0).toUpperCase() + name.slice(1));
+                const tab = document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1));
+                if (section) section.classList.add('hidden');
+                if (tab) tab.classList.remove('active');
+            });
+            const activeSection = document.getElementById('section' + viewName.charAt(0).toUpperCase() + viewName.slice(1));
+            const activeTab = document.getElementById('tab' + viewName.charAt(0).toUpperCase() + viewName.slice(1));
+            if (activeSection) activeSection.classList.remove('hidden');
+            if (activeTab) activeTab.classList.add('active');
+        }
+
         function showServerSyncStatus(message, isError) {
             let box = document.getElementById('serverSyncStatus');
+            const dashboard = document.getElementById('dashboardSection');
             if (!box) {
                 box = document.createElement('div');
                 box.id = 'serverSyncStatus';
-                box.className = 'container';
                 box.setAttribute('role', 'status');
                 box.setAttribute('aria-live', 'polite');
+                box.style.padding = '12px 16px';
+                box.style.marginBottom = '14px';
+                box.style.borderRadius = '8px';
                 box.style.textAlign = 'center';
-                box.style.marginTop = '40px';
-                document.body.appendChild(box);
+                if (dashboard) dashboard.insertBefore(box, dashboard.firstChild);
             }
 
             box.replaceChildren();
-            const heading = document.createElement('h2');
-            heading.textContent = isError ? 'KAN IKKE HENTE SISTE DATA' : 'HENTER SISTE DATA';
-            const messageElement = document.createElement('p');
+            box.style.background = isError ? '#fff3cd' : '#eaf3ff';
+            box.style.color = isError ? '#856404' : '#174a7e';
+
+            const messageElement = document.createElement('span');
             messageElement.textContent = message;
-            messageElement.style.color = isError ? '#dc3545' : '#555';
-            box.appendChild(heading);
             box.appendChild(messageElement);
 
             if (isError) {
                 const retryButton = document.createElement('button');
                 retryButton.type = 'button';
-                retryButton.className = 'btn btn-primary';
                 retryButton.textContent = 'PRØV IGJEN';
+                retryButton.style.marginLeft = '12px';
                 retryButton.addEventListener('click', function () { window.location.reload(); });
                 box.appendChild(retryButton);
             }
@@ -5440,14 +5465,15 @@
             // Fjern eventuelt gammelt fanenavn fra adressen én gang.
             if (location.hash) history.replaceState(null, '', location.pathname + location.search);
 
-            // Serveren er fasiten. Skjul hele dashbordet til fersk serverstatus
-            // er hentet, slik at gamle localStorage-verdier aldri blinker på skjermen.
+            // Vis den vanlige HORMAR-siden med tomme datafelt mens serveren
+            // henter fasiten. Gamle localStorage-verdier tegnes ikke.
             const loginSectionEl = document.getElementById('loginSection');
             const dashboardSectionEl = document.getElementById('dashboardSection');
             loginSectionEl.classList.add('hidden');
-            dashboardSectionEl.classList.add('hidden');
-            showServerSyncStatus('HENTER SISTE OPPDATERTE INFORMASJON FRA SERVEREN...', false);
-            switchView(requestedTab);
+            setServerDataPlaceholders();
+            showViewShell(requestedTab);
+            hideServerSyncStatus();
+            dashboardSectionEl.classList.remove('hidden');
 
             // Vis lagret brukernavn og rolle umiddelbart, uten å vente på serveren.
             try {
@@ -5521,12 +5547,12 @@
                     return;
                 }
 
-                // Aldri vis gammelt lokalt mellomlager som om det var ferskt.
-                // Hvis serveren ikke kan bekrefte siste data, holdes dashbordet skjult.
+                // Behold vanlig HORMAR-visning, men aldri vis gamle priser.
                 loginSectionEl.classList.add('hidden');
-                dashboardSectionEl.classList.add('hidden');
+                setServerDataPlaceholders();
+                dashboardSectionEl.classList.remove('hidden');
                 showServerSyncStatus(
-                    'HORMAR VISER IKKE GAMLE PRISER. KONTROLLER FORBINDELSEN OG PRØV IGJEN.',
+                    'KAN IKKE HENTE SISTE DATA FRA SERVEREN.',
                     true
                 );
             }
