@@ -76,6 +76,20 @@
         }
         .archive-bar div { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .archive-bar select, .archive-bar input[type="date"] { padding: 6px; font-weight: bold; color: #004085; background: #fff; width: auto; }
+        .archive-reset-box { flex: 0 0 auto; }
+        #homarExportButtons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: nowrap;
+            margin-left: auto;
+            min-width: 430px;
+            justify-content: flex-end;
+            align-items: center;
+        }
+        #homarExportButtons button {
+            min-height: 42px;
+            white-space: nowrap;
+        }
 
         .nav-tabs { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
         .nav-btn { background-color: #6c757d; flex: 1; text-align: center; font-weight: bold; min-width: 90px; font-size: 12px; }
@@ -286,6 +300,8 @@
             .archive-bar, .currency-bar, .filter-container { padding: 10px; gap: 10px; }
             .archive-bar > div, .currency-bar > div, .filter-container > div { width: 100% !important; flex: 1 1 100%; }
             .archive-bar div, .currency-bar div { align-items: stretch; flex-direction: column; }
+            #homarExportButtons { min-width: 0; width: 100%; margin-left: 0; }
+            #homarExportButtons button { width: 100%; }
             #archiveRangeContainer { align-items: stretch !important; }
             .filter-buttons { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; gap: 6px; }
             .filter-btn { padding: 8px 5px; }
@@ -669,8 +685,12 @@
                 <label style="margin:0; font-size:12px;">TIL:</label>
                 <input type="date" id="archiveEndDateInput" onchange="renderAllTables()">
             </div>
-            <div>
+            <div class="archive-reset-box">
                 <button onclick="resetArchiveFilter()" style="background-color: #6c757d; padding: 6px 10px; font-size: 12px;">NULLSTILL KALENDER</button>
+            </div>
+            <div id="homarExportButtons">
+                <button type="button" onclick="exportCurrentHomarView()" style="background:#217346;color:white;padding:7px 12px;">LAST NED EXCEL</button>
+                <button type="button" onclick="printCurrentHomarView()" style="background:#343a40;color:white;padding:7px 12px;">SKRIV UT / PDF</button>
             </div>
         </div>
 
@@ -5693,14 +5713,14 @@
     })();
     </script>
 
-    <script>window.__HOMAR_BUILD = "20260818-single-index-4";</script>
-    <script src="calendar-runtime-fix.js?v=20260818-single-index-4"></script>
-    <script src="accounting-runtime-fix.js?v=20260818-single-index-4"></script>
-    <script src="customer-status-runtime-fix.js?v=20260818-single-index-4"></script>
-    <script src="table-sort-runtime-fix.js?v=20260818-single-index-4"></script>
-    <script src="live-refresh-runtime-fix.js?v=20260818-single-index-4"></script>
+    <script>window.__HOMAR_BUILD = "20260818-single-index-5";</script>
+    <script src="calendar-runtime-fix.js?v=20260818-single-index-5"></script>
+    <script src="accounting-runtime-fix.js?v=20260818-single-index-5"></script>
+    <script src="customer-status-runtime-fix.js?v=20260818-single-index-5"></script>
+    <script src="table-sort-runtime-fix.js?v=20260818-single-index-5"></script>
+    <script src="live-refresh-runtime-fix.js?v=20260818-single-index-5"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="export-print-runtime-fix.js?v=20260818-single-index-4"></script>
+    <script src="export-print-runtime-fix.js?v=20260818-single-index-5"></script>
 </body>
 <!-- HOMAR PAGES BUILD TRIGGER 2026-08-14 -->
 </html>
