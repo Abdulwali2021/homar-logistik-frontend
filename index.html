@@ -1802,8 +1802,10 @@
             try { budget = JSON.parse(localStorage.getItem("homar_budsjet") || "{}"); }
             catch (_) { budget = {}; }
             if (budget && typeof budget === "object" && !(Number(budget.fixedMoneyVersion) >= FIXED_MONEY_VERSION)) {
-                budget.bank = roundFixedMoney((Number(budget.bank) || 0) / legacyDivider);
-                budget.wafi = roundFixedMoney((Number(budget.wafi) || 0) / legacyDivider);
+                // BANK og WAFI er eksplisitt registrerte beløp. Valutakursen
+                // er kun informasjon og skal aldri dele eller endre saldoene.
+                budget.bank = roundFixedMoney(Number(budget.bank) || 0);
+                budget.wafi = roundFixedMoney(Number(budget.wafi) || 0);
                 budget.fixedMoneyVersion = FIXED_MONEY_VERSION;
                 localStorage.setItem("homar_budsjet", JSON.stringify(budget));
             }
@@ -5651,14 +5653,14 @@
     })();
     </script>
 
-    <script>window.__HOMAR_BUILD = "20260818-single-index-1";</script>
-    <script src="calendar-runtime-fix.js?v=20260818-single-index-1"></script>
-    <script src="accounting-runtime-fix.js?v=20260818-single-index-1"></script>
-    <script src="customer-status-runtime-fix.js?v=20260818-single-index-1"></script>
-    <script src="table-sort-runtime-fix.js?v=20260818-single-index-1"></script>
-    <script src="live-refresh-runtime-fix.js?v=20260818-single-index-1"></script>
+    <script>window.__HOMAR_BUILD = "20260818-single-index-2";</script>
+    <script src="calendar-runtime-fix.js?v=20260818-single-index-2"></script>
+    <script src="accounting-runtime-fix.js?v=20260818-single-index-2"></script>
+    <script src="customer-status-runtime-fix.js?v=20260818-single-index-2"></script>
+    <script src="table-sort-runtime-fix.js?v=20260818-single-index-2"></script>
+    <script src="live-refresh-runtime-fix.js?v=20260818-single-index-2"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="export-print-runtime-fix.js?v=20260818-single-index-1"></script>
+    <script src="export-print-runtime-fix.js?v=20260818-single-index-2"></script>
 </body>
 <!-- HOMAR PAGES BUILD TRIGGER 2026-08-14 -->
 </html>
