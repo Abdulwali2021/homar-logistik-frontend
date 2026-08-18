@@ -1811,6 +1811,41 @@
             }
         }
 
+        const WAFI_REPAIR_MARKER_KEY = "homar_wafi_repair_20260818_1091_50";
+
+        function repairKnownIncorrectWafiBalance() {
+            let data;
+            try {
+                data = JSON.parse(localStorage.getItem("homar_budsjet") || "{}");
+            } catch (_) {
+                return false;
+            }
+            if (!data || typeof data !== "object" || Array.isArray(data)) return false;
+
+            const currentWafi = Number(data.wafi);
+            const wrongWafi = 1995.62;
+            const correctWafi = 1091.50;
+
+            // Engangsreparasjon av den dokumenterte feilverdien. Andre
+            // WAFI-beløp blir aldri endret automatisk.
+            if (!Number.isFinite(currentWafi) || Math.abs(currentWafi - wrongWafi) > 0.005) {
+                return false;
+            }
+
+            const audit = {
+                repairedAt: new Date().toISOString(),
+                from: currentWafi,
+                to: correctWafi,
+                reason: "CORRECT_DOCUMENTED_WAFI_VALUE_20260818"
+            };
+            data.wafi = correctWafi;
+            data.fixedMoneyVersion = FIXED_MONEY_VERSION;
+            localStorage.setItem("homar_budsjet", JSON.stringify(data));
+            localStorage.setItem(WAFI_REPAIR_MARKER_KEY, JSON.stringify(audit));
+            console.info("HOMAR: WAFI RETTET FRA 1995.62 TIL 1091.50.");
+            return true;
+        }
+
         // Alle pengebeløp er faste tall. Kursen er bare informasjon og skal
         // aldri endre en pris, betaling, totalsum eller budsjettsaldo.
         function convertPriceToDisplay(storedPrice) {
@@ -5254,6 +5289,7 @@
                 nativeSetItem.call(localStorage, 'homar_api_token', result.token);
                 applyApiUser(result.user);
                 await loadServerState();
+                repairKnownIncorrectWafiBalance();
                 if (String((result.user && result.user.role) || '').toUpperCase() === 'ADMIN' || !!(result.user && result.user.permissions && (result.user.permissions.fullAccess || result.user.permissions.canViewAdmin))) await syncApiUsersToLocal();
                 errorEl.textContent = '';
                 document.getElementById('username').value = '';
@@ -5504,6 +5540,7 @@
                 const me = await apiRequest('/auth/me');
                 applyApiUser(me);
                 await loadServerState();
+                repairKnownIncorrectWafiBalance();
                 if (String((me && me.role) || '').toUpperCase() === 'ADMIN' || !!(me && me.permissions && (me.permissions.fullAccess || me.permissions.canViewAdmin))) await syncApiUsersToLocal();
                 checkAdminAccess();
 
@@ -5653,14 +5690,14 @@
     })();
     </script>
 
-    <script>window.__HOMAR_BUILD = "20260818-single-index-2";</script>
-    <script src="calendar-runtime-fix.js?v=20260818-single-index-2"></script>
-    <script src="accounting-runtime-fix.js?v=20260818-single-index-2"></script>
-    <script src="customer-status-runtime-fix.js?v=20260818-single-index-2"></script>
-    <script src="table-sort-runtime-fix.js?v=20260818-single-index-2"></script>
-    <script src="live-refresh-runtime-fix.js?v=20260818-single-index-2"></script>
+    <script>window.__HOMAR_BUILD = "20260818-single-index-3";</script>
+    <script src="calendar-runtime-fix.js?v=20260818-single-index-3"></script>
+    <script src="accounting-runtime-fix.js?v=20260818-single-index-3"></script>
+    <script src="customer-status-runtime-fix.js?v=20260818-single-index-3"></script>
+    <script src="table-sort-runtime-fix.js?v=20260818-single-index-3"></script>
+    <script src="live-refresh-runtime-fix.js?v=20260818-single-index-3"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="export-print-runtime-fix.js?v=20260818-single-index-2"></script>
+    <script src="export-print-runtime-fix.js?v=20260818-single-index-3"></script>
 </body>
 <!-- HOMAR PAGES BUILD TRIGGER 2026-08-14 -->
 </html>
