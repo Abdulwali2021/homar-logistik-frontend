@@ -4932,13 +4932,30 @@
         const PROFIT_HISTORY_KEY = "homar_profit_history";
         let profitHistoryRecording = false;
 
-        function readProfitHistory() {
+        function readRawProfitHistory() {
             try {
                 const rows = JSON.parse(localStorage.getItem(PROFIT_HISTORY_KEY) || "[]");
                 return Array.isArray(rows) ? rows.filter(row => row && row.createdAt) : [];
             } catch (_) {
                 return [];
             }
+        }
+
+        function collapseProfitHistoryByDay(rows) {
+            const latestByDay = new Map();
+            [...rows]
+                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                .forEach(row => {
+                    const dateKey = String(row.date || row.createdAt || "").slice(0, 10);
+                    if (dateKey) latestByDay.set(dateKey, row);
+                });
+            return Array.from(latestByDay.values()).sort((a, b) =>
+                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            );
+        }
+
+        function readProfitHistory() {
+            return collapseProfitHistoryByDay(readRawProfitHistory());
         }
 
         function profitHistoryNumber(value) {
@@ -4963,22 +4980,33 @@
                 createdBy: String(getCurrentUser() || "").toUpperCase()
             };
 
-            const history = readProfitHistory().sort((a, b) =>
-                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            const rawHistory = readRawProfitHistory();
+            const history = collapseProfitHistoryByDay(rawHistory);
+            const sameDayIndex = history.findIndex(row =>
+                String(row.date || row.createdAt || "").slice(0, 10) === dateKey
             );
-            const last = history[history.length - 1];
-            if (last &&
-                String(last.date || "").slice(0, 10) === dateKey &&
-                profitHistoryNumber(last.budgetTotal) === snapshot.budgetTotal &&
-                profitHistoryNumber(last.totalExpense) === snapshot.totalExpense &&
-                profitHistoryNumber(last.profitLoss) === snapshot.profitLoss) {
-                return false;
+            const sameDay = sameDayIndex >= 0 ? history[sameDayIndex] : null;
+            const sameValues = sameDay &&
+                profitHistoryNumber(sameDay.budgetTotal) === snapshot.budgetTotal &&
+                profitHistoryNumber(sameDay.totalExpense) === snapshot.totalExpense &&
+                profitHistoryNumber(sameDay.profitLoss) === snapshot.profitLoss;
+
+            if (sameValues && rawHistory.length === history.length) return false;
+
+            if (sameValues) {
+                // Rydd gamle duplikater uten å endre klokkeslettet på dagens verdi.
+            } else if (sameDayIndex >= 0) {
+                // Én linje per dato: dagens siste verdi erstatter dagens forrige verdi.
+                history[sameDayIndex] = snapshot;
+            } else {
+                history.push(snapshot);
             }
 
-            history.push(snapshot);
             profitHistoryRecording = true;
             try {
-                localStorage.setItem(PROFIT_HISTORY_KEY, JSON.stringify(history.slice(-5000)));
+                localStorage.setItem(PROFIT_HISTORY_KEY, JSON.stringify(
+                    history.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).slice(-5000)
+                ));
             } finally {
                 profitHistoryRecording = false;
             }
@@ -5958,14 +5986,14 @@
     })();
     </script>
 
-    <script>window.__HOMAR_BUILD = "20260819-single-index-7";</script>
-    <script src="calendar-runtime-fix.js?v=20260819-single-index-7"></script>
-    <script src="accounting-runtime-fix.js?v=20260819-single-index-7"></script>
-    <script src="customer-status-runtime-fix.js?v=20260819-single-index-7"></script>
-    <script src="table-sort-runtime-fix.js?v=20260819-single-index-7"></script>
-    <script src="live-refresh-runtime-fix.js?v=20260819-single-index-7"></script>
+    <script>window.__HOMAR_BUILD = "20260819-single-index-8";</script>
+    <script src="calendar-runtime-fix.js?v=20260819-single-index-8"></script>
+    <script src="accounting-runtime-fix.js?v=20260819-single-index-8"></script>
+    <script src="customer-status-runtime-fix.js?v=20260819-single-index-8"></script>
+    <script src="table-sort-runtime-fix.js?v=20260819-single-index-8"></script>
+    <script src="live-refresh-runtime-fix.js?v=20260819-single-index-8"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="export-print-runtime-fix.js?v=20260819-single-index-7"></script>
+    <script src="export-print-runtime-fix.js?v=20260819-single-index-8"></script>
 </body>
 <!-- HOMAR PAGES BUILD TRIGGER 2026-08-14 -->
 </html>
