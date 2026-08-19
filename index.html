@@ -230,6 +230,20 @@
             font-size: 12px;
             font-weight: 800;
         }
+        #profitHistoryCard { min-height: 300px; }
+        .profit-history-filters {
+            display: grid;
+            grid-template-columns: 180px minmax(170px, 1fr) 120px;
+            gap: 10px;
+            align-items: end;
+            margin-bottom: 12px;
+        }
+        .profit-history-positive { color: #218838; font-weight: 800; }
+        .profit-history-negative { color: #dc3545; font-weight: 800; }
+        .profit-history-neutral { color: #6c757d; font-weight: 800; }
+        @media (max-width: 700px) {
+            .profit-history-filters { grid-template-columns: 1fr; }
+        }
 
         .modal {
             display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%;
@@ -1109,6 +1123,53 @@
                 <div class="budget-card" id="profitLossCard" style="background-color:#e8f5e9;border-color:#28a745;grid-column:1 / -1;">
                     <div class="budget-card-title" id="profitLossTitle" style="font-size:16px;color:#155724;">PROFITT (BUDSJETT TOTAL − UTGIFT TOTAL)</div>
                     <div class="budget-card-value" id="boxBedriftVerdi" style="font-size:28px;color:#28a745;">+0.00</div>
+                </div>
+            </div>
+
+            <div class="input-card" id="profitHistoryCard">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <h4 style="margin:0;">PROFITT / TAP – HISTORIKK</h4>
+                    <strong id="profitHistorySummary" style="color:#555;">INGEN HISTORIKK ENNÅ</strong>
+                </div>
+                <div class="profit-history-filters">
+                    <div>
+                        <label>SØK ETTER</label>
+                        <select id="profitHistoryMode" onchange="toggleProfitHistoryFilter()">
+                            <option value="day">DAG</option>
+                            <option value="month" selected>MÅNED</option>
+                            <option value="year">ÅR</option>
+                            <option value="all">VIS ALT</option>
+                        </select>
+                    </div>
+                    <div id="profitHistoryDayBox" class="hidden">
+                        <label>VELG DAG</label>
+                        <input type="date" id="profitHistoryDay" onchange="renderProfitHistory()">
+                    </div>
+                    <div id="profitHistoryMonthBox">
+                        <label>VELG MÅNED</label>
+                        <input type="month" id="profitHistoryMonth" onchange="renderProfitHistory()">
+                    </div>
+                    <div id="profitHistoryYearBox" class="hidden">
+                        <label>VELG ÅR</label>
+                        <input type="number" id="profitHistoryYear" min="2000" max="2100" step="1" onchange="renderProfitHistory()">
+                    </div>
+                    <button type="button" onclick="renderProfitHistory()" style="background:#0b63ce;">SØK</button>
+                </div>
+                <div class="table-scroll">
+                    <table id="profitHistoryTable" style="min-width:760px;">
+                        <thead>
+                            <tr>
+                                <th>DATO / TID</th>
+                                <th>BUDSJETT TOTAL</th>
+                                <th>UTGIFT TOTAL</th>
+                                <th>PROFITT / TAP</th>
+                                <th>ENDRING</th>
+                            </tr>
+                        </thead>
+                        <tbody id="profitHistoryBody">
+                            <tr><td colspan="5" style="text-align:center;color:#666;">INGEN PROFITTHISTORIKK ENNÅ.</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -4868,6 +4929,163 @@
             return totals.total;
         }
 
+        const PROFIT_HISTORY_KEY = "homar_profit_history";
+        let profitHistoryRecording = false;
+
+        function readProfitHistory() {
+            try {
+                const rows = JSON.parse(localStorage.getItem(PROFIT_HISTORY_KEY) || "[]");
+                return Array.isArray(rows) ? rows.filter(row => row && row.createdAt) : [];
+            } catch (_) {
+                return [];
+            }
+        }
+
+        function profitHistoryNumber(value) {
+            const number = Number(value) || 0;
+            return Math.round((number + Number.EPSILON) * 100) / 100;
+        }
+
+        function recordProfitSnapshot(budgetTotal, totalExpense, profitLoss) {
+            if (profitHistoryRecording || localStorage.getItem("homar_logged_in") !== "true") return false;
+
+            const now = new Date();
+            const dateKey = now.getFullYear() + "-" +
+                String(now.getMonth() + 1).padStart(2, "0") + "-" +
+                String(now.getDate()).padStart(2, "0");
+            const snapshot = {
+                id: "PROFIT-" + now.getTime() + "-" + Math.random().toString(36).slice(2, 8),
+                createdAt: now.toISOString(),
+                date: dateKey,
+                budgetTotal: profitHistoryNumber(budgetTotal),
+                totalExpense: profitHistoryNumber(totalExpense),
+                profitLoss: profitHistoryNumber(profitLoss),
+                createdBy: String(getCurrentUser() || "").toUpperCase()
+            };
+
+            const history = readProfitHistory().sort((a, b) =>
+                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            );
+            const last = history[history.length - 1];
+            if (last &&
+                String(last.date || "").slice(0, 10) === dateKey &&
+                profitHistoryNumber(last.budgetTotal) === snapshot.budgetTotal &&
+                profitHistoryNumber(last.totalExpense) === snapshot.totalExpense &&
+                profitHistoryNumber(last.profitLoss) === snapshot.profitLoss) {
+                return false;
+            }
+
+            history.push(snapshot);
+            profitHistoryRecording = true;
+            try {
+                localStorage.setItem(PROFIT_HISTORY_KEY, JSON.stringify(history.slice(-5000)));
+            } finally {
+                profitHistoryRecording = false;
+            }
+            return true;
+        }
+
+        function initializeProfitHistoryFilters() {
+            const now = new Date();
+            const dateKey = now.getFullYear() + "-" +
+                String(now.getMonth() + 1).padStart(2, "0") + "-" +
+                String(now.getDate()).padStart(2, "0");
+            const dayInput = document.getElementById("profitHistoryDay");
+            const monthInput = document.getElementById("profitHistoryMonth");
+            const yearInput = document.getElementById("profitHistoryYear");
+            if (dayInput && !dayInput.value) dayInput.value = dateKey;
+            if (monthInput && !monthInput.value) monthInput.value = dateKey.slice(0, 7);
+            if (yearInput && !yearInput.value) yearInput.value = dateKey.slice(0, 4);
+        }
+
+        function toggleProfitHistoryFilter() {
+            initializeProfitHistoryFilters();
+            const mode = document.getElementById("profitHistoryMode")?.value || "month";
+            const boxes = {
+                day: document.getElementById("profitHistoryDayBox"),
+                month: document.getElementById("profitHistoryMonthBox"),
+                year: document.getElementById("profitHistoryYearBox")
+            };
+            Object.keys(boxes).forEach(key => {
+                if (boxes[key]) boxes[key].classList.toggle("hidden", key !== mode);
+            });
+            renderProfitHistory();
+        }
+
+        function renderProfitHistory() {
+            const body = document.getElementById("profitHistoryBody");
+            const summary = document.getElementById("profitHistorySummary");
+            if (!body) return;
+
+            initializeProfitHistoryFilters();
+            const mode = document.getElementById("profitHistoryMode")?.value || "month";
+            const day = document.getElementById("profitHistoryDay")?.value || "";
+            const month = document.getElementById("profitHistoryMonth")?.value || "";
+            const year = String(document.getElementById("profitHistoryYear")?.value || "");
+            const allRows = readProfitHistory().sort((a, b) =>
+                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            );
+
+            const previousById = new Map();
+            allRows.forEach((row, index) => previousById.set(String(row.id), allRows[index - 1] || null));
+
+            const filtered = allRows.filter(row => {
+                const rowDate = String(row.date || row.createdAt || "").slice(0, 10);
+                if (mode === "day") return rowDate === day;
+                if (mode === "month") return rowDate.slice(0, 7) === month;
+                if (mode === "year") return rowDate.slice(0, 4) === year;
+                return true;
+            }).reverse().slice(0, 500);
+
+            body.innerHTML = "";
+            if (!filtered.length) {
+                body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#666;">INGEN PROFITTHISTORIKK I VALGT PERIODE.</td></tr>';
+                if (summary) summary.textContent = "0 REGISTRERINGER";
+                return;
+            }
+
+            filtered.forEach(row => {
+                const previous = previousById.get(String(row.id));
+                const change = previous
+                    ? profitHistoryNumber(row.profitLoss) - profitHistoryNumber(previous.profitLoss)
+                    : 0;
+                const profit = profitHistoryNumber(row.profitLoss);
+                const tr = document.createElement("tr");
+                const values = [
+                    new Date(row.createdAt).toLocaleString("nb-NO"),
+                    profitHistoryNumber(row.budgetTotal).toFixed(2),
+                    profitHistoryNumber(row.totalExpense).toFixed(2)
+                ];
+                values.forEach(value => {
+                    const td = document.createElement("td");
+                    td.textContent = value;
+                    tr.appendChild(td);
+                });
+
+                const profitTd = document.createElement("td");
+                profitTd.textContent = (profit > 0 ? "+" : "") + profit.toFixed(2);
+                profitTd.className = profit > 0 ? "profit-history-positive"
+                    : (profit < 0 ? "profit-history-negative" : "profit-history-neutral");
+                tr.appendChild(profitTd);
+
+                const changeTd = document.createElement("td");
+                changeTd.textContent = (change > 0 ? "+" : "") + change.toFixed(2);
+                changeTd.className = change > 0 ? "profit-history-positive"
+                    : (change < 0 ? "profit-history-negative" : "profit-history-neutral");
+                tr.appendChild(changeTd);
+                body.appendChild(tr);
+            });
+
+            if (summary) {
+                const latest = filtered[0];
+                const latestProfit = profitHistoryNumber(latest.profitLoss);
+                summary.textContent = filtered.length + " REGISTRERINGER – SISTE RESULTAT: " +
+                    (latestProfit > 0 ? "+" : "") + latestProfit.toFixed(2);
+                summary.style.color = latestProfit > 0 ? "#218838"
+                    : (latestProfit < 0 ? "#dc3545" : "#6c757d");
+            }
+        }
+
         function renderBudsjetValues() {
             refreshTodayString();
             syncLagerDateToToday();
@@ -4932,6 +5150,9 @@
                     (displayedProfitLoss > 0 ? "+" : "") + displayedProfitLoss.toFixed(2);
                 boxBedriftEl.style.color = resultColor;
             }
+
+            recordProfitSnapshot(grandTotalNOK, totalUtgiftAlleDagerNOK, profitLossNOK);
+            renderProfitHistory();
         }
     </script>
 
@@ -4944,6 +5165,7 @@
         const HOMAR_SYNC_KEYS = new Set([
             'homar_lager', 'homar_samen', 'homar_shamito', 'homar_kunde',
             'homar_dhagaxshid', 'homar_gari', 'homar_qarash', 'homar_budsjet',
+            'homar_profit_history',
             'homar_roles', 'homar_user_permissions', 'homar_custom_labels', 'homar_trash'
         ]);
         let serverSyncReady = false;
@@ -5138,6 +5360,7 @@
             homar_lager:'LAGER', homar_samen:'SAMEN', homar_gari:'GARI',
             homar_shamito:'SHAMITO', homar_dhagaxshid:'DHAGAX SHID',
             homar_kunde:'KUNDE', homar_qarash:'QARASH', homar_budsjet:'BUDSJET',
+            homar_profit_history:'BUDSJET',
             homar_roles:'ADMIN PANEL', homar_user_permissions:'ADMIN PANEL',
             homar_custom_labels:'ADMIN PANEL', homar_trash:'ADMIN PANEL'
         };
@@ -5735,14 +5958,14 @@
     })();
     </script>
 
-    <script>window.__HOMAR_BUILD = "20260819-single-index-6";</script>
-    <script src="calendar-runtime-fix.js?v=20260819-single-index-6"></script>
-    <script src="accounting-runtime-fix.js?v=20260819-single-index-6"></script>
-    <script src="customer-status-runtime-fix.js?v=20260819-single-index-6"></script>
-    <script src="table-sort-runtime-fix.js?v=20260819-single-index-6"></script>
-    <script src="live-refresh-runtime-fix.js?v=20260819-single-index-6"></script>
+    <script>window.__HOMAR_BUILD = "20260819-single-index-7";</script>
+    <script src="calendar-runtime-fix.js?v=20260819-single-index-7"></script>
+    <script src="accounting-runtime-fix.js?v=20260819-single-index-7"></script>
+    <script src="customer-status-runtime-fix.js?v=20260819-single-index-7"></script>
+    <script src="table-sort-runtime-fix.js?v=20260819-single-index-7"></script>
+    <script src="live-refresh-runtime-fix.js?v=20260819-single-index-7"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="export-print-runtime-fix.js?v=20260819-single-index-6"></script>
+    <script src="export-print-runtime-fix.js?v=20260819-single-index-7"></script>
 </body>
 <!-- HOMAR PAGES BUILD TRIGGER 2026-08-14 -->
 </html>
