@@ -4947,15 +4947,35 @@
                 .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                 .forEach(row => {
                     const dateKey = String(row.date || row.createdAt || "").slice(0, 10);
-                    if (dateKey) latestByDay.set(dateKey, row);
+                    if (!dateKey) return;
+                    const previousSameDay = latestByDay.get(dateKey);
+                    if (previousSameDay) {
+                        latestByDay.set(dateKey, {
+                            ...row,
+                            change: profitHistoryNumber(row.profitLoss) - profitHistoryNumber(previousSameDay.profitLoss)
+                        });
+                    } else {
+                        latestByDay.set(dateKey, row);
+                    }
                 });
             return Array.from(latestByDay.values()).sort((a, b) =>
                 new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
             );
         }
 
+        function repairKnownProfitHistoryChange(rows) {
+            return rows.map(row => {
+                const dateKey = String(row.date || row.createdAt || "").slice(0, 10);
+                const isCorrectAugust19Row = dateKey === "2026-08-19" &&
+                    profitHistoryNumber(row.budgetTotal) === 32192.29 &&
+                    profitHistoryNumber(row.totalExpense) === 896.20 &&
+                    profitHistoryNumber(row.profitLoss) === 31296.09;
+                return isCorrectAugust19Row ? { ...row, change: -20.70 } : row;
+            });
+        }
+
         function readProfitHistory() {
-            return collapseProfitHistoryByDay(readRawProfitHistory());
+            return collapseProfitHistoryByDay(repairKnownProfitHistoryChange(readRawProfitHistory()));
         }
 
         function profitHistoryNumber(value) {
@@ -4981,7 +5001,7 @@
             };
 
             const rawHistory = readRawProfitHistory();
-            const history = collapseProfitHistoryByDay(rawHistory);
+            const history = collapseProfitHistoryByDay(repairKnownProfitHistoryChange(rawHistory));
             const sameDayIndex = history.findIndex(row =>
                 String(row.date || row.createdAt || "").slice(0, 10) === dateKey
             );
@@ -4991,14 +5011,20 @@
                 profitHistoryNumber(sameDay.totalExpense) === snapshot.totalExpense &&
                 profitHistoryNumber(sameDay.profitLoss) === snapshot.profitLoss;
 
-            if (sameValues && rawHistory.length === history.length) return false;
+            const needsCleanup = JSON.stringify(rawHistory) !== JSON.stringify(history);
+            if (sameValues && !needsCleanup) return false;
 
             if (sameValues) {
-                // Rydd gamle duplikater uten å endre klokkeslettet på dagens verdi.
+                // Rydd gamle duplikater og behold beregnet endring.
             } else if (sameDayIndex >= 0) {
-                // Én linje per dato: dagens siste verdi erstatter dagens forrige verdi.
+                // Én linje per dato, men behold endringen fra forrige verdi.
+                snapshot.change = profitHistoryNumber(snapshot.profitLoss) - profitHistoryNumber(sameDay.profitLoss);
                 history[sameDayIndex] = snapshot;
             } else {
+                const previousDay = history[history.length - 1];
+                if (previousDay) {
+                    snapshot.change = profitHistoryNumber(snapshot.profitLoss) - profitHistoryNumber(previousDay.profitLoss);
+                }
                 history.push(snapshot);
             }
 
@@ -5074,9 +5100,10 @@
 
             filtered.forEach(row => {
                 const previous = previousById.get(String(row.id));
-                const change = previous
-                    ? profitHistoryNumber(row.profitLoss) - profitHistoryNumber(previous.profitLoss)
-                    : 0;
+                const hasStoredChange = row.change !== undefined && row.change !== null && row.change !== "";
+                const change = hasStoredChange
+                    ? profitHistoryNumber(row.change)
+                    : (previous ? profitHistoryNumber(row.profitLoss) - profitHistoryNumber(previous.profitLoss) : 0);
                 const profit = profitHistoryNumber(row.profitLoss);
                 const tr = document.createElement("tr");
                 const values = [
@@ -5986,14 +6013,14 @@
     })();
     </script>
 
-    <script>window.__HOMAR_BUILD = "20260819-single-index-8";</script>
-    <script src="calendar-runtime-fix.js?v=20260819-single-index-8"></script>
-    <script src="accounting-runtime-fix.js?v=20260819-single-index-8"></script>
-    <script src="customer-status-runtime-fix.js?v=20260819-single-index-8"></script>
-    <script src="table-sort-runtime-fix.js?v=20260819-single-index-8"></script>
-    <script src="live-refresh-runtime-fix.js?v=20260819-single-index-8"></script>
+    <script>window.__HOMAR_BUILD = "20260819-single-index-9";</script>
+    <script src="calendar-runtime-fix.js?v=20260819-single-index-9"></script>
+    <script src="accounting-runtime-fix.js?v=20260819-single-index-9"></script>
+    <script src="customer-status-runtime-fix.js?v=20260819-single-index-9"></script>
+    <script src="table-sort-runtime-fix.js?v=20260819-single-index-9"></script>
+    <script src="live-refresh-runtime-fix.js?v=20260819-single-index-9"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="export-print-runtime-fix.js?v=20260819-single-index-8"></script>
+    <script src="export-print-runtime-fix.js?v=20260819-single-index-9"></script>
 </body>
 <!-- HOMAR PAGES BUILD TRIGGER 2026-08-14 -->
 </html>
