@@ -1121,7 +1121,7 @@
                     <div class="budget-card-value" id="boxGrandTotal" style="font-size: 26px; color: #28a745;">0.00</div>
                 </div>
                 <div class="budget-card" id="profitLossCard" style="background-color:#e8f5e9;border-color:#28a745;grid-column:1 / -1;">
-                    <div class="budget-card-title" id="profitLossTitle" style="font-size:16px;color:#155724;">PROFITT (BUDSJETT TOTAL − UTGIFT TOTAL)</div>
+                    <div class="budget-card-title" id="profitLossTitle" style="font-size:16px;color:#155724;">PROFITT / TAP (UTGIFT TREKKES VIA WAFI)</div>
                     <div class="budget-card-value" id="boxBedriftVerdi" style="font-size:28px;color:#28a745;">+0.00</div>
                 </div>
             </div>
@@ -2945,6 +2945,20 @@
             let driverNOK = convertInputPriceToNOK(driverInput);
             let priceNOK = convertInputPriceToNOK(priceInput);
             let list = JSON.parse(localStorage.getItem("homar_samen") || "[]");
+
+            // Sjekk WAFI før LAGER endres, slik at en avvist utgift aldri kan
+            // opprette eller endre lagerbeholdningen alene.
+            const oldSamenExpenseNOK = index > -1 && list[index]
+                ? (Number(list[index].qty) || 0) * (Number(list[index].price) || 0) +
+                  (Number(list[index].driverPrice) || Number(list[index].driver) || 0)
+                : 0;
+            const newSamenExpenseNOK = qty * priceNOK + driverNOK;
+            const samenExpenseIncreaseNOK = newSamenExpenseNOK - oldSamenExpenseNOK;
+            if (typeof window.homarCanApplyExpenseDelta === "function" &&
+                !window.homarCanApplyExpenseDelta(samenExpenseIncreaseNOK)) {
+                alert("KAN IKKE REGISTRERE ELLER ØKE UTGIFTEN. WAFI HAR IKKE NOK SALDO.");
+                return;
+            }
 
             if (index > -1) {
                 let oldItem = list[index];
@@ -5181,11 +5195,19 @@
                 .reduce((acc, x) => acc + Math.max(0, customerOrderTotal(x) - customerPaidTotal(x)), 0);
 
             let budsjetData = JSON.parse(localStorage.getItem("homar_budsjet") || "{}");
+            if (typeof window.homarEnsureAccountingBaseline === "function") {
+                window.homarEnsureAccountingBaseline();
+                budsjetData = JSON.parse(localStorage.getItem("homar_budsjet") || "{}");
+            }
             let bankNOK = Math.max(0, Number(budsjetData.bank) || 0);
             const wafiNOK = Math.max(0, Number(budsjetData.wafi) || 0);
-            // UTGIFT kobles synlig til BUDSJET og teller alle aktive rader fra
-            // alle datoer. WAFI beholdes som beløpet brukeren faktisk skrev inn.
+            // UTGIFT teller SAMEN, GARI, QARASH og DHAGAX SHID fra alle datoer.
+            // SHAMITO påvirker bare LAGER og skal aldri trekkes fra WAFI.
             const totalUtgiftAlleDagerNOK = calculateUtgiftTotals(() => true).total;
+            const savedExpenseBaseline = Number(budsjetData.wafiExpenseBaselineTotal);
+            const profitExpenseBaselineNOK = Number.isFinite(savedExpenseBaseline)
+                ? Math.max(0, savedExpenseBaseline)
+                : totalUtgiftAlleDagerNOK;
             renderUtgiftValues();
 
             document.getElementById("boxBudsjetLager").textContent = convertPriceToDisplay(lagerTotalNOK).toFixed(2);
@@ -5199,9 +5221,9 @@
             let grandTotalNOK = lagerTotalNOK + deenTotalNOK + bankNOK + wafiNOK;
             document.getElementById("boxGrandTotal").textContent = convertPriceToDisplay(grandTotalNOK).toFixed(2);
 
-            // PROFITT/TAP = BUDSJETT TOTAL minus UTGIFT TOTAL.
-            // Positivt resultat er profitt, negativt resultat er tap.
-            const profitLossNOK = grandTotalNOK - totalUtgiftAlleDagerNOK;
+            // Nye utgifter er allerede trukket fra WAFI. Den lagrede baselinjen
+            // bevarer tidligere PROFITT-historikk og hindrer dobbelt utgiftstrekk.
+            const profitLossNOK = grandTotalNOK - profitExpenseBaselineNOK;
             const displayedProfitLoss = convertPriceToDisplay(profitLossNOK);
             const profitLossCard = document.getElementById("profitLossCard");
             const profitLossTitle = document.getElementById("profitLossTitle");
@@ -5213,10 +5235,10 @@
 
             if (profitLossTitle) {
                 profitLossTitle.textContent =
-                    (isProfit ? "PROFITT – BUDSJETT ER HØYERE ENN UTGIFT"
-                        : (isLoss ? "TAP – UTGIFT ER HØYERE ENN BUDSJETT"
-                            : "BALANSE – BUDSJETT OG UTGIFT ER LIKE")) +
-                    " (BUDSJETT TOTAL − UTGIFT TOTAL)";
+                    (isProfit ? "PROFITT – POSITIV SAMLET VERDI ETTER UTGIFT"
+                        : (isLoss ? "TAP – NEGATIV SAMLET VERDI ETTER UTGIFT"
+                            : "BALANSE – SAMLET VERDI ER 0")) +
+                    " (UTGIFT TREKKES VIA WAFI)";
                 profitLossTitle.style.color = resultColor;
             }
             if (profitLossCard) {
@@ -6036,14 +6058,14 @@
     })();
     </script>
 
-    <script>window.__HOMAR_BUILD = "20260819-single-index-10";</script>
-    <script src="calendar-runtime-fix.js?v=20260819-single-index-10"></script>
-    <script src="accounting-runtime-fix.js?v=20260819-single-index-10"></script>
-    <script src="customer-status-runtime-fix.js?v=20260819-single-index-10"></script>
-    <script src="table-sort-runtime-fix.js?v=20260819-single-index-10"></script>
-    <script src="live-refresh-runtime-fix.js?v=20260819-single-index-10"></script>
+    <script>window.__HOMAR_BUILD = "20260819-wafi-utgift-11";</script>
+    <script src="calendar-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
+    <script src="accounting-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
+    <script src="customer-status-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
+    <script src="table-sort-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
+    <script src="live-refresh-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="export-print-runtime-fix.js?v=20260819-single-index-10"></script>
+    <script src="export-print-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
 </body>
 <!-- HOMAR PAGES BUILD TRIGGER 2026-08-14 -->
 </html>
