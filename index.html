@@ -1106,9 +1106,9 @@
                     <div class="budget-card-title" style="font-size: 15px; color: #155724;">TOTAL SAMLET SUM (LAGEROVERSIKT TOTALE PRIS + DEEN TOTALE PRIS + BANK PRIS + WAFI PRIS)</div>
                     <div class="budget-card-value" id="boxGrandTotal" style="font-size: 26px; color: #28a745;">0.00</div>
                 </div>
-                <div class="budget-card" style="background-color: #d1ecf1; border-color: #bee5eb; grid-column: 1 / -1;">
-                    <div class="budget-card-title" style="font-size: 16px; color: #0c5460;">BEDRIFTENS VERDI (BUDSJET TOTAL - UTGIFT TOTAL)</div>
-                    <div class="budget-card-value" id="boxBedriftVerdi" style="font-size: 28px; color: #0c5460;">0.00</div>
+                <div class="budget-card" id="profitLossCard" style="background-color:#e8f5e9;border-color:#28a745;grid-column:1 / -1;">
+                    <div class="budget-card-title" id="profitLossTitle" style="font-size:16px;color:#155724;">PROFITT (BUDSJETT TOTAL − UTGIFT TOTAL)</div>
+                    <div class="budget-card-value" id="boxBedriftVerdi" style="font-size:28px;color:#28a745;">+0.00</div>
                 </div>
             </div>
 
@@ -4903,12 +4903,34 @@
             let grandTotalNOK = lagerTotalNOK + deenTotalNOK + bankNOK + wafiNOK;
             document.getElementById("boxGrandTotal").textContent = convertPriceToDisplay(grandTotalNOK).toFixed(2);
 
-            // Den synlige koblingen: BEDRIFTENS VERDI er budsjettet etter at
-            // den samme UTGIFT-totalen er trukket nøyaktig én gang.
-            let bedriftVerdiNOK = grandTotalNOK - totalUtgiftAlleDagerNOK;
-            let boxBedriftEl = document.getElementById("boxBedriftVerdi");
+            // PROFITT/TAP = BUDSJETT TOTAL minus UTGIFT TOTAL.
+            // Positivt resultat er profitt, negativt resultat er tap.
+            const profitLossNOK = grandTotalNOK - totalUtgiftAlleDagerNOK;
+            const displayedProfitLoss = convertPriceToDisplay(profitLossNOK);
+            const profitLossCard = document.getElementById("profitLossCard");
+            const profitLossTitle = document.getElementById("profitLossTitle");
+            const boxBedriftEl = document.getElementById("boxBedriftVerdi");
+            const isProfit = displayedProfitLoss > 0;
+            const isLoss = displayedProfitLoss < 0;
+            const resultColor = isProfit ? "#28a745" : (isLoss ? "#dc3545" : "#6c757d");
+            const resultBackground = isProfit ? "#e8f5e9" : (isLoss ? "#f8d7da" : "#e2e3e5");
+
+            if (profitLossTitle) {
+                profitLossTitle.textContent =
+                    (isProfit ? "PROFITT – BUDSJETT ER HØYERE ENN UTGIFT"
+                        : (isLoss ? "TAP – UTGIFT ER HØYERE ENN BUDSJETT"
+                            : "BALANSE – BUDSJETT OG UTGIFT ER LIKE")) +
+                    " (BUDSJETT TOTAL − UTGIFT TOTAL)";
+                profitLossTitle.style.color = resultColor;
+            }
+            if (profitLossCard) {
+                profitLossCard.style.backgroundColor = resultBackground;
+                profitLossCard.style.borderColor = resultColor;
+            }
             if (boxBedriftEl) {
-                boxBedriftEl.textContent = convertPriceToDisplay(bedriftVerdiNOK).toFixed(2);
+                boxBedriftEl.textContent =
+                    (displayedProfitLoss > 0 ? "+" : "") + displayedProfitLoss.toFixed(2);
+                boxBedriftEl.style.color = resultColor;
             }
         }
     </script>
@@ -5713,14 +5735,14 @@
     })();
     </script>
 
-    <script>window.__HOMAR_BUILD = "20260818-single-index-5";</script>
-    <script src="calendar-runtime-fix.js?v=20260818-single-index-5"></script>
-    <script src="accounting-runtime-fix.js?v=20260818-single-index-5"></script>
-    <script src="customer-status-runtime-fix.js?v=20260818-single-index-5"></script>
-    <script src="table-sort-runtime-fix.js?v=20260818-single-index-5"></script>
-    <script src="live-refresh-runtime-fix.js?v=20260818-single-index-5"></script>
+    <script>window.__HOMAR_BUILD = "20260819-single-index-6";</script>
+    <script src="calendar-runtime-fix.js?v=20260819-single-index-6"></script>
+    <script src="accounting-runtime-fix.js?v=20260819-single-index-6"></script>
+    <script src="customer-status-runtime-fix.js?v=20260819-single-index-6"></script>
+    <script src="table-sort-runtime-fix.js?v=20260819-single-index-6"></script>
+    <script src="live-refresh-runtime-fix.js?v=20260819-single-index-6"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="export-print-runtime-fix.js?v=20260818-single-index-5"></script>
+    <script src="export-print-runtime-fix.js?v=20260819-single-index-6"></script>
 </body>
 <!-- HOMAR PAGES BUILD TRIGGER 2026-08-14 -->
 </html>
