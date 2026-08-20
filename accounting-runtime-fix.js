@@ -4,10 +4,19 @@
 const CUSTOMER_KEY='homar_kunde';
 const BUDGET_KEY='homar_budsjet';
 const EXPENSE_KEYS=new Set(['homar_samen','homar_gari','homar_qarash','homar_dhagaxshid']);
+const BUSINESS_KEYS=[
+  'homar_lager','homar_samen','homar_shamito','homar_kunde',
+  'homar_dhagaxshid','homar_gari','homar_qarash','homar_budsjet'
+];
 const ACCOUNTING_VERSION=1;
 const EPS=0.005;
 const previousSetItem=Storage.prototype.setItem;
+const nativeFetch=window.fetch.bind(window);
+const REVISION_KEY='homar_server_state_revision';
+const PENDING_SYNC_KEY='homar_pending_sync_keys';
 let internalWrite=false;
+let atomicQueue=Promise.resolve();
+let conflictReloadScheduled=false;
 
 function money(value){
   const n=Number(value)||0;
@@ -171,6 +180,114 @@ Storage.prototype.setItem=function(key,value){
   return previousSetItem.call(this,key,value);
 };
 
+function requestUrl(input){
+  if(typeof input==='string')return input;
+  if(input&&typeof input.url==='string')return input.url;
+  return String(input||'');
+}
+
+function isStatePath(url,path){
+  try{
+    return new URL(url,window.location.href).pathname===path;
+  }catch(_){
+    return false;
+  }
+}
+
+function rememberRevision(value){
+  const revision=Number(value);
+  if(!Number.isInteger(revision)||revision<0)return;
+  previousSetItem.call(localStorage,REVISION_KEY,String(revision));
+}
+
+function readRevision(){
+  const revision=Number(localStorage.getItem(REVISION_KEY));
+  return Number.isInteger(revision)&&revision>=0?revision:null;
+}
+
+function collectBusinessState(){
+  const state={};
+  BUSINESS_KEYS.forEach(function(key){
+    const value=readJson(key,undefined);
+    if(value!==undefined)state[key]=value;
+  });
+  return state;
+}
+
+async function responseJson(response){
+  try{return await response.clone().json();}catch(_){return null;}
+}
+
+async function fetchCurrentRevision(url,headers){
+  const stateUrl=url.replace(/\/state(?:\?.*)?$/,'/state');
+  const response=await nativeFetch(stateUrl,{method:'GET',headers:headers||{},cache:'no-store'});
+  const payload=await responseJson(response);
+  if(response.ok&&payload)rememberRevision(payload.revision);
+  return readRevision()===null?0:readRevision();
+}
+
+async function atomicBusinessRequest(input,init,url){
+  let revision=readRevision();
+  if(revision===null)revision=await fetchCurrentRevision(url,init&&init.headers);
+
+  const atomicUrl=url.replace(/\/state(?:\?.*)?$/,'/state/business');
+  const options=Object.assign({},init||{}, {
+    method:'PUT',
+    body:JSON.stringify({state:collectBusinessState(),expectedRevision:revision})
+  });
+  const response=await nativeFetch(atomicUrl,options);
+  const payload=await responseJson(response);
+
+  if(response.ok&&payload){
+    rememberRevision(payload.revision);
+    return response;
+  }
+
+  if(response.status===409&&payload&&
+    (payload.code==='STATE_CONFLICT'||payload.code==='WAFI_INSUFFICIENT')){
+    if(payload.code==='STATE_CONFLICT')rememberRevision(payload.currentRevision);
+    previousSetItem.call(localStorage,PENDING_SYNC_KEY,'[]');
+    if(!conflictReloadScheduled){
+      conflictReloadScheduled=true;
+      alert(payload.code==='STATE_CONFLICT'
+        ? 'DATA BLE OPPDATERT PÅ EN ANNEN ENHET. SIDEN LASTES INN PÅ NYTT SLIK AT INGEN DATA OVERSKRIVES.'
+        : 'ENDRINGEN BLE IKKE LAGRET FORDI WAFI IKKE HAR NOK SALDO. SIDEN LASTES INN PÅ NYTT.');
+      setTimeout(function(){window.location.reload();},50);
+    }
+  }
+  return response;
+}
+
+window.fetch=function(input,init){
+  const url=requestUrl(input);
+  const method=String((init&&init.method)||(input&&input.method)||'GET').toUpperCase();
+
+  if(method==='GET'&&isStatePath(url,'/api/state')){
+    return nativeFetch(input,init).then(async function(response){
+      const payload=await responseJson(response);
+      if(response.ok&&payload)rememberRevision(payload.revision);
+      return response;
+    });
+  }
+
+  if(method==='PUT'&&isStatePath(url,'/api/state')){
+    let body=null;
+    try{body=JSON.parse(String(init&&init.body||'{}'));}catch(_){body=null;}
+    const state=body&&body.state;
+    const hasBusinessState=state&&typeof state==='object'&&
+      BUSINESS_KEYS.some(function(key){return Object.prototype.hasOwnProperty.call(state,key);});
+    if(hasBusinessState){
+      const request=atomicQueue.then(function(){
+        return atomicBusinessRequest(input,init||{},url);
+      });
+      atomicQueue=request.catch(function(){});
+      return request;
+    }
+  }
+
+  return nativeFetch(input,init);
+};
+
 window.homarEnsureAccountingBaseline=ensureAccountingBaseline;
 window.homarCanApplyExpenseDelta=canApplyExpenseDelta;
 window.homarAccountingTestState=function(){
@@ -185,5 +302,5 @@ window.homarAccountingTestState=function(){
   };
 };
 
-console.info('HOMAR: UTGIFT TREKKES FRA WAFI. SHAMITO PÅVIRKER BARE LAGER.');
+console.info('HOMAR: UTGIFT/WAFI/LAGER SYNKRONISERES ATOMISK. SHAMITO PÅVIRKER BARE LAGER.');
 })();
