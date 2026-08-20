@@ -7,14 +7,13 @@ const vm = require('node:vm');
 
 const source = fs.readFileSync(require.resolve('../accounting-runtime-fix.js'), 'utf8');
 
-class Storage {
-  constructor() { this.values = new Map(); }
-  getItem(key) { return this.values.has(key) ? this.values.get(key) : null; }
-  setItem(key, value) { this.values.set(String(key), String(value)); }
-  removeItem(key) { this.values.delete(String(key)); }
-}
-
 function setup() {
+  class Storage {
+    constructor() { this.values = new Map(); }
+    getItem(key) { return this.values.has(key) ? this.values.get(key) : null; }
+    setItem(key, value) { this.values.set(String(key), String(value)); }
+    removeItem(key) { this.values.delete(String(key)); }
+  }
   const localStorage = new Storage();
   const requests = [];
   const window = {
