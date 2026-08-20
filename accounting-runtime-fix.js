@@ -243,12 +243,15 @@ async function atomicBusinessRequest(input,init,url){
     return response;
   }
 
-  if(response.status===409&&payload&&payload.code==='STATE_CONFLICT'){
-    rememberRevision(payload.currentRevision);
+  if(response.status===409&&payload&&
+    (payload.code==='STATE_CONFLICT'||payload.code==='WAFI_INSUFFICIENT')){
+    if(payload.code==='STATE_CONFLICT')rememberRevision(payload.currentRevision);
     previousSetItem.call(localStorage,PENDING_SYNC_KEY,'[]');
     if(!conflictReloadScheduled){
       conflictReloadScheduled=true;
-      alert('DATA BLE OPPDATERT PÅ EN ANNEN ENHET. SIDEN LASTES INN PÅ NYTT SLIK AT INGEN DATA OVERSKRIVES.');
+      alert(payload.code==='STATE_CONFLICT'
+        ? 'DATA BLE OPPDATERT PÅ EN ANNEN ENHET. SIDEN LASTES INN PÅ NYTT SLIK AT INGEN DATA OVERSKRIVES.'
+        : 'ENDRINGEN BLE IKKE LAGRET FORDI WAFI IKKE HAR NOK SALDO. SIDEN LASTES INN PÅ NYTT.');
       setTimeout(function(){window.location.reload();},50);
     }
   }
