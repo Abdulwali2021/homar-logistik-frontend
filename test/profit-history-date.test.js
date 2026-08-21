@@ -65,15 +65,15 @@ test('kundebetaling bruker betalingsdato', () => {
   assert.equal(effectiveDateFromChange('homar_kunde', before, after), '2026-08-20');
 });
 
-test('gjenoppretter 19.08 og legger ny endring på 20.08', () => {
+test('gjenoppretter eldre rader uten date-felt fra createdAt', () => {
   const history = [
     {
-      id:'old', date:'2026-08-20', createdAt:'2026-08-20T01:48:29Z',
+      id:'old', createdAt:'2026-08-20T07:24:20Z',
       budgetTotal:32675.75, totalExpense:953.94, profitLoss:31779.55, change:0
     },
     {
-      id:'wrong-day', date:'2026-08-21', createdAt:'2026-08-21T06:37:19Z',
-      budgetTotal:33148.06, totalExpense:1009.63, profitLoss:32251.86, change:472.31
+      id:'wrong-day', createdAt:'2026-08-21T06:47:24Z',
+      budgetTotal:33148.06, totalExpense:1009.63, profitLoss:32251.86, change:0
     }
   ];
   const repaired = restoreLostAugust19History(history);
@@ -91,6 +91,15 @@ test('annen historikk flyttes aldri automatisk', () => {
   ];
   assert.strictEqual(restoreLostAugust19History(history), history);
   assert.deepEqual(restoreLostAugust19History(history), history);
+});
+
+test('oppretter ikke en ekstra 19.08-rad når eldre rad bare har createdAt', () => {
+  const history = [
+    { id:'19', createdAt:'2026-08-19T18:38:48Z', budgetTotal:1, totalExpense:0, profitLoss:1 },
+    { id:'20', createdAt:'2026-08-20T07:24:20Z', budgetTotal:32675.75, totalExpense:953.94, profitLoss:31779.55 },
+    { id:'21', createdAt:'2026-08-21T06:47:24Z', budgetTotal:33148.06, totalExpense:1009.63, profitLoss:32251.86 }
+  ];
+  assert.strictEqual(restoreLostAugust19History(history), history);
 });
 
 test('normalisering bruker ikke lenger bred automatisk datoflytting', () => {

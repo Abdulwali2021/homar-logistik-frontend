@@ -78,6 +78,14 @@
       String(date.getDate()).padStart(2, '0');
   }
 
+  function utcDateKey(value) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (!Number.isFinite(date.getTime())) return '';
+    return date.getUTCFullYear() + '-' +
+      String(date.getUTCMonth() + 1).padStart(2, '0') + '-' +
+      String(date.getUTCDate()).padStart(2, '0');
+  }
+
   function money(value) {
     const number = Number(value) || 0;
     return Math.round((number + Number.EPSILON) * 100) / 100;
@@ -89,19 +97,23 @@
       money(row && row.profitLoss) === profitLoss;
   }
 
+  function historyDate(row) {
+    return validDate(row && row.date) || utcDateKey(row && row.createdAt);
+  }
+
   // Engangsreparasjon av regresjonen som slo 19.08 sammen med 20.08.
   // Den er med vilje begrenset til de eksakte kjente radene og endrer ingen
   // annen historikk. Nye tilbakedaterte registreringer får datoen ved lagring.
   function restoreLostAugust19History(historyRows) {
     const history = rows(historyRows);
-    if (history.some(row => validDate(row && row.date) === '2026-08-19')) return history;
+    if (history.some(row => historyDate(row) === '2026-08-19')) return history;
 
     const august20Index = history.findIndex(row =>
-      validDate(row && row.date) === '2026-08-20' &&
+      historyDate(row) === '2026-08-20' &&
       hasTotals(row, 32675.75, 953.94, 31779.55)
     );
     const august21Index = history.findIndex(row =>
-      validDate(row && row.date) === '2026-08-21' &&
+      historyDate(row) === '2026-08-21' &&
       hasTotals(row, 33148.06, 1009.63, 32251.86)
     );
     if (august20Index < 0 || august21Index < 0) return history;
