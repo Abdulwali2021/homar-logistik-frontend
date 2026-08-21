@@ -85,6 +85,25 @@ test('gjenoppretter eldre rader uten date-felt fra createdAt', () => {
   assert.match(formatEffectiveDateTime(repaired[1], 'nb-NO'), /^20\.8\.2026,/);
 });
 
+test('reparerer den faktiske viste tilstanden med duplikat på 21.08', () => {
+  const history = [
+    {
+      id:'correct-20', date:'2026-08-20', createdAt:'2026-08-21T07:26:19Z',
+      budgetTotal:33148.06, totalExpense:1009.63, profitLoss:32251.86, change:472.31
+    },
+    {
+      id:'duplicate-21', date:'2026-08-21', createdAt:'2026-08-21T06:47:24Z',
+      budgetTotal:33148.06, totalExpense:1009.63, profitLoss:32251.86, change:0
+    }
+  ];
+  const repaired = restoreLostAugust19History(history);
+  assert.deepEqual(repaired.map(row => row.date), ['2026-08-19', '2026-08-20']);
+  assert.deepEqual(repaired.map(row => row.budgetTotal), [32675.75, 33148.06]);
+  assert.deepEqual(repaired.map(row => row.totalExpense), [953.94, 1009.63]);
+  assert.deepEqual(repaired.map(row => row.profitLoss), [31779.55, 32251.86]);
+  assert.deepEqual(repaired.map(row => row.change), [462.76, 472.31]);
+});
+
 test('annen historikk flyttes aldri automatisk', () => {
   const history = [
     { id:'19', date:'2026-08-19', budgetTotal:10, totalExpense:1, profitLoss:9 },
@@ -109,7 +128,7 @@ test('normalisering bruker innebygd gjenoppretting uten ekstern avhengighet', ()
   assert.match(html, /function restoreKnownLostAugust19History\(rows\)/);
   assert.match(html, /let repaired = restoreKnownLostAugust19History\(rows\)/);
   assert.doesNotMatch(html, /window\.HomarProfitHistoryDates\.restoreLostAugust19History/);
-  assert.match(html, /20260821-inline-profit-recovery-19/);
+  assert.match(html, /20260821-actual-profit-repair-20/);
 });
 
 test('hovedkoden gjenoppretter skjermbildets rader uten hjelpefil', () => {
@@ -131,5 +150,28 @@ test('hovedkoden gjenoppretter skjermbildets rader uten hjelpefil', () => {
   `, context);
   const result = JSON.parse(JSON.stringify(context.result));
   assert.deepEqual(result.map(row => row.date), ['2026-08-19', '2026-08-20']);
+  assert.deepEqual(result.map(row => row.change), [462.76, 472.31]);
+});
+
+test('hovedkoden reparerer nåværende to identiske rader fra skjermbildet', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const recoveryCode = html.slice(
+    html.indexOf('function profitHistoryStoredDate'),
+    html.indexOf('function normalizeProfitHistoryRows')
+  );
+  const numberCode = html.slice(
+    html.indexOf('function profitHistoryNumber'),
+    html.indexOf('function rememberProfitChangeDate')
+  );
+  const context = { result:null };
+  vm.runInNewContext(numberCode + recoveryCode + `
+    result = restoreKnownLostAugust19History([
+      { id:'20', date:'2026-08-20', createdAt:'2026-08-21T07:26:19Z', budgetTotal:33148.06, totalExpense:1009.63, profitLoss:32251.86, change:472.31 },
+      { id:'21', date:'2026-08-21', createdAt:'2026-08-21T06:47:24Z', budgetTotal:33148.06, totalExpense:1009.63, profitLoss:32251.86, change:0 }
+    ]);
+  `, context);
+  const result = JSON.parse(JSON.stringify(context.result));
+  assert.deepEqual(result.map(row => row.date), ['2026-08-19', '2026-08-20']);
+  assert.deepEqual(result.map(row => row.profitLoss), [31779.55, 32251.86]);
   assert.deepEqual(result.map(row => row.change), [462.76, 472.31]);
 });
