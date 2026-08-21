@@ -5261,7 +5261,7 @@
     // The existing UI still uses its localStorage data model, but the keys below
     // are synchronized with PostgreSQL through the HOMAR backend.
     (function () {
-        const HOMAR_API_BASE = 'https://homar-logistik.onrender.com/api';
+        const HOMAR_API_BASE = window.HOMAR_API_BASE || 'https://homar-logistik.onrender.com/api';
         const HOMAR_SYNC_KEYS = new Set([
             'homar_lager', 'homar_samen', 'homar_shamito', 'homar_kunde',
             'homar_dhagaxshid', 'homar_gari', 'homar_qarash', 'homar_budsjet',
@@ -6058,9 +6058,9 @@
     })();
     </script>
 
-    <script>window.__HOMAR_BUILD = "20260819-wafi-utgift-11";</script>
+    <script>window.__HOMAR_BUILD = "20260821-atomic-wafi-12";</script>
     <script src="calendar-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
-    <script src="accounting-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
+    <script src="accounting-runtime-fix.js?v=20260821-atomic-wafi-12"></script>
     <script src="customer-status-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
     <script src="table-sort-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
     <script src="live-refresh-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
