@@ -15,7 +15,7 @@
     'homar_gari',
     'homar_qarash'
   ]);
-  const REPAIR_WINDOW_MS = 5 * 60 * 1000;
+  const REPAIR_WINDOW_MS = 6 * 60 * 60 * 1000;
 
   function validDate(value) {
     const text = String(value || '');
@@ -80,6 +80,18 @@
       String(date.getDate()).padStart(2, '0');
   }
 
+  function utcDateKey(value) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (!Number.isFinite(date.getTime())) return '';
+    return date.getUTCFullYear() + '-' +
+      String(date.getUTCMonth() + 1).padStart(2, '0') + '-' +
+      String(date.getUTCDate()).padStart(2, '0');
+  }
+
+  function timestampBelongsToDate(timestamp, dateKey) {
+    return localDateKey(timestamp) === dateKey || utcDateKey(timestamp) === dateKey;
+  }
+
   function eventFromRow(row) {
     if (!row || typeof row !== 'object') return null;
     const effectiveDate = validDate(row.date);
@@ -123,6 +135,7 @@
 
       const candidate = events
         .filter(event => event.effectiveDate !== rowDate)
+        .filter(event => timestampBelongsToDate(event.timestamp, rowDate))
         .filter(event => snapshotTime >= event.timestamp - 5000)
         .filter(event => Math.abs(snapshotTime - event.timestamp) <= REPAIR_WINDOW_MS)
         .sort((a, b) => Math.abs(snapshotTime - a.timestamp) - Math.abs(snapshotTime - b.timestamp))[0];
