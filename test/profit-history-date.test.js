@@ -6,9 +6,26 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   effectiveDateFromChange,
+  filterHistoryRows,
   formatEffectiveDateTime,
   realignProfitHistoryRows
 } = require('../profit-history-date');
+
+test('DAG-filter finner nøyaktig 20.08 og er standard i grensesnittet', () => {
+  const history = [
+    { id:'20', date:'2026-08-20', createdAt:'2026-08-21T05:16:50Z' },
+    { id:'21', date:'2026-08-21', createdAt:'2026-08-21T06:37:19Z' }
+  ];
+  assert.deepEqual(
+    filterHistoryRows(history, 'day', { day:'2026-08-20' }).map(row => row.id),
+    ['20']
+  );
+
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  assert.match(html, /id="profitHistoryMode" value="day"/);
+  assert.match(html, /id="profitHistoryDayBox">/);
+  assert.match(html, /data-profit-history-mode="day"[^>]*aria-pressed="true"/);
+});
 
 test('SAMEN sender valgt rapportdato direkte før profit beregnes', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');

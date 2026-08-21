@@ -233,16 +233,37 @@
         #profitHistoryCard { min-height: 300px; }
         .profit-history-filters {
             display: grid;
-            grid-template-columns: 180px minmax(170px, 1fr) 120px;
+            grid-template-columns: minmax(360px, 1.4fr) minmax(190px, .7fr) 120px;
             gap: 10px;
             align-items: end;
             margin-bottom: 12px;
+        }
+        .profit-history-mode-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(72px, 1fr));
+            gap: 6px;
+        }
+        .profit-history-mode-button {
+            min-height: 44px;
+            padding: 8px 10px;
+            border: 2px solid transparent;
+            border-radius: 6px;
+            background: #6c757d;
+            color: #fff;
+            font-weight: 800;
+        }
+        .profit-history-mode-button.active {
+            background: #0b63ce;
+            border-color: #063d80;
         }
         .profit-history-positive { color: #218838; font-weight: 800; }
         .profit-history-negative { color: #dc3545; font-weight: 800; }
         .profit-history-neutral { color: #6c757d; font-weight: 800; }
         @media (max-width: 700px) {
             .profit-history-filters { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 420px) {
+            .profit-history-mode-buttons { grid-template-columns: repeat(2, 1fr); }
         }
 
         .modal {
@@ -623,7 +644,7 @@
             }
         }
 </style>
-<script src="profit-history-date.js?v=20260821-backdated-profit-15"></script>
+<script src="profit-history-date.js?v=20260821-profit-day-filter-16"></script>
 </head>
 <body>
 
@@ -1135,18 +1156,19 @@
                 <div class="profit-history-filters">
                     <div>
                         <label>SØK ETTER</label>
-                        <select id="profitHistoryMode" onchange="toggleProfitHistoryFilter()">
-                            <option value="day">DAG</option>
-                            <option value="month" selected>MÅNED</option>
-                            <option value="year">ÅR</option>
-                            <option value="all">VIS ALT</option>
-                        </select>
+                        <input type="hidden" id="profitHistoryMode" value="day">
+                        <div class="profit-history-mode-buttons" role="group" aria-label="Søk profithistorikk etter periode">
+                            <button type="button" class="profit-history-mode-button active" data-profit-history-mode="day" aria-pressed="true" onclick="setProfitHistoryMode('day')">DAG</button>
+                            <button type="button" class="profit-history-mode-button" data-profit-history-mode="month" aria-pressed="false" onclick="setProfitHistoryMode('month')">MÅNED</button>
+                            <button type="button" class="profit-history-mode-button" data-profit-history-mode="year" aria-pressed="false" onclick="setProfitHistoryMode('year')">ÅR</button>
+                            <button type="button" class="profit-history-mode-button" data-profit-history-mode="all" aria-pressed="false" onclick="setProfitHistoryMode('all')">VIS ALT</button>
+                        </div>
                     </div>
-                    <div id="profitHistoryDayBox" class="hidden">
+                    <div id="profitHistoryDayBox">
                         <label>VELG DAG</label>
                         <input type="date" id="profitHistoryDay" onchange="renderProfitHistory()">
                     </div>
-                    <div id="profitHistoryMonthBox">
+                    <div id="profitHistoryMonthBox" class="hidden">
                         <label>VELG MÅNED</label>
                         <input type="month" id="profitHistoryMonth" onchange="renderProfitHistory()">
                     </div>
@@ -5171,7 +5193,7 @@
 
         function toggleProfitHistoryFilter() {
             initializeProfitHistoryFilters();
-            const mode = document.getElementById("profitHistoryMode")?.value || "month";
+            const mode = document.getElementById("profitHistoryMode")?.value || "day";
             const boxes = {
                 day: document.getElementById("profitHistoryDayBox"),
                 month: document.getElementById("profitHistoryMonthBox"),
@@ -5180,7 +5202,20 @@
             Object.keys(boxes).forEach(key => {
                 if (boxes[key]) boxes[key].classList.toggle("hidden", key !== mode);
             });
+            document.querySelectorAll("[data-profit-history-mode]").forEach(button => {
+                const active = button.dataset.profitHistoryMode === mode;
+                button.classList.toggle("active", active);
+                button.setAttribute("aria-pressed", active ? "true" : "false");
+            });
             renderProfitHistory();
+        }
+
+        function setProfitHistoryMode(mode) {
+            const allowed = new Set(["day", "month", "year", "all"]);
+            const nextMode = allowed.has(mode) ? mode : "day";
+            const input = document.getElementById("profitHistoryMode");
+            if (input) input.value = nextMode;
+            toggleProfitHistoryFilter();
         }
 
         function renderProfitHistory() {
@@ -5189,7 +5224,7 @@
             if (!body) return;
 
             initializeProfitHistoryFilters();
-            const mode = document.getElementById("profitHistoryMode")?.value || "month";
+            const mode = document.getElementById("profitHistoryMode")?.value || "day";
             const day = document.getElementById("profitHistoryDay")?.value || "";
             const month = document.getElementById("profitHistoryMonth")?.value || "";
             const year = String(document.getElementById("profitHistoryYear")?.value || "");
@@ -5200,13 +5235,16 @@
             const previousById = new Map();
             allRows.forEach((row, index) => previousById.set(String(row.id), allRows[index - 1] || null));
 
-            const filtered = allRows.filter(row => {
-                const rowDate = String(row.date || row.createdAt || "").slice(0, 10);
-                if (mode === "day") return rowDate === day;
-                if (mode === "month") return rowDate.slice(0, 7) === month;
-                if (mode === "year") return rowDate.slice(0, 4) === year;
-                return true;
-            }).reverse().slice(0, 500);
+            const matchingRows = window.HomarProfitHistoryDates
+                ? window.HomarProfitHistoryDates.filterHistoryRows(allRows, mode, { day, month, year })
+                : allRows.filter(row => {
+                    const rowDate = String(row.date || row.createdAt || "").slice(0, 10);
+                    if (mode === "day") return rowDate === day;
+                    if (mode === "month") return rowDate.slice(0, 7) === month;
+                    if (mode === "year") return rowDate.slice(0, 4) === year;
+                    return true;
+                });
+            const filtered = matchingRows.reverse().slice(0, 500);
 
             body.innerHTML = "";
             if (!filtered.length) {
@@ -6157,7 +6195,7 @@
     })();
     </script>
 
-    <script>window.__HOMAR_BUILD = "20260821-backdated-profit-15";</script>
+    <script>window.__HOMAR_BUILD = "20260821-profit-day-filter-16";</script>
     <script src="calendar-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
     <script src="accounting-runtime-fix.js?v=20260821-atomic-wafi-12"></script>
     <script src="customer-status-runtime-fix.js?v=20260819-wafi-utgift-11"></script>

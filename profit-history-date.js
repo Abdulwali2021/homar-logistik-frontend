@@ -155,9 +155,22 @@
     return Number(parts[2]) + '.' + Number(parts[1]) + '.' + parts[0] + ', ' + time;
   }
 
+  function filterHistoryRows(historyRows, mode, filters) {
+    const selectedMode = ['day', 'month', 'year', 'all'].includes(mode) ? mode : 'day';
+    const selected = filters && typeof filters === 'object' ? filters : {};
+    return rows(historyRows).filter(row => {
+      const rowDate = validDate(row && row.date) || localDateKey(row && row.createdAt);
+      if (selectedMode === 'day') return rowDate === validDate(selected.day);
+      if (selectedMode === 'month') return rowDate.slice(0, 7) === String(selected.month || '');
+      if (selectedMode === 'year') return rowDate.slice(0, 4) === String(selected.year || '');
+      return true;
+    });
+  }
+
   return {
     DATE_KEYS,
     effectiveDateFromChange,
+    filterHistoryRows,
     formatEffectiveDateTime,
     localDateKey,
     realignProfitHistoryRows,
