@@ -15,8 +15,6 @@
     'homar_gari',
     'homar_qarash'
   ]);
-  const REPAIR_WINDOW_MS = 6 * 60 * 60 * 1000;
-
   function validDate(value) {
     const text = String(value || '');
     return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : '';
@@ -80,68 +78,61 @@
       String(date.getDate()).padStart(2, '0');
   }
 
-  function utcDateKey(value) {
-    const date = value instanceof Date ? value : new Date(value);
-    if (!Number.isFinite(date.getTime())) return '';
-    return date.getUTCFullYear() + '-' +
-      String(date.getUTCMonth() + 1).padStart(2, '0') + '-' +
-      String(date.getUTCDate()).padStart(2, '0');
+  function money(value) {
+    const number = Number(value) || 0;
+    return Math.round((number + Number.EPSILON) * 100) / 100;
   }
 
-  function timestampBelongsToDate(timestamp, dateKey) {
-    return localDateKey(timestamp) === dateKey || utcDateKey(timestamp) === dateKey;
+  function hasTotals(row, budgetTotal, totalExpense, profitLoss) {
+    return money(row && row.budgetTotal) === budgetTotal &&
+      money(row && row.totalExpense) === totalExpense &&
+      money(row && row.profitLoss) === profitLoss;
   }
 
-  function eventFromRow(row) {
-    if (!row || typeof row !== 'object') return null;
-    const effectiveDate = validDate(row.date);
-    const timestamp = new Date(row.updatedAt || row.createdAt || '').getTime();
-    if (!effectiveDate || !Number.isFinite(timestamp)) return null;
-    return { effectiveDate, timestamp };
-  }
+  // Engangsreparasjon av regresjonen som slo 19.08 sammen med 20.08.
+  // Den er med vilje begrenset til de eksakte kjente radene og endrer ingen
+  // annen historikk. Nye tilbakedaterte registreringer får datoen ved lagring.
+  function restoreLostAugust19History(historyRows) {
+    const history = rows(historyRows);
+    if (history.some(row => validDate(row && row.date) === '2026-08-19')) return history;
 
-  function collectBusinessEvents(readValue) {
-    const events = [];
-    DATE_KEYS.forEach(key => {
-      rows(readValue(key)).forEach(row => {
-        const rowEvent = eventFromRow(row);
-        if (rowEvent) events.push(rowEvent);
+    const august20Index = history.findIndex(row =>
+      validDate(row && row.date) === '2026-08-20' &&
+      hasTotals(row, 32675.75, 953.94, 31779.55)
+    );
+    const august21Index = history.findIndex(row =>
+      validDate(row && row.date) === '2026-08-21' &&
+      hasTotals(row, 33148.06, 1009.63, 32251.86)
+    );
+    if (august20Index < 0 || august21Index < 0) return history;
 
-        if (key === 'homar_kunde') {
-          rows(row && row.payments).forEach(payment => {
-            const paymentEvent = eventFromRow(payment);
-            if (paymentEvent) events.push(paymentEvent);
-          });
-        }
+    const august20 = history[august20Index];
+    const august21 = history[august21Index];
+    const repaired = history.filter((_, index) =>
+      index !== august20Index && index !== august21Index
+    );
 
-        if (key === 'homar_lager') {
-          rows(row && row.contributions).forEach(contribution => {
-            const contributionEvent = eventFromRow(contribution);
-            if (contributionEvent) events.push(contributionEvent);
-          });
-        }
-      });
+    repaired.push({
+      ...august20,
+      id: 'PROFIT-20260819-RESTORED',
+      createdAt: '2026-08-19T18:38:48.000Z',
+      date: '2026-08-19',
+      baselineBudgetTotal: 32212.99,
+      baselineTotalExpense: 896.20,
+      baselineProfitLoss: 31316.79,
+      change: 462.76,
+      repairedFromDate: '2026-08-20'
     });
-    return events;
-  }
-
-  function realignProfitHistoryRows(historyRows, readValue) {
-    const events = collectBusinessEvents(readValue);
-    return rows(historyRows).map(row => {
-      const rowDate = validDate(row && (row.date || localDateKey(row.createdAt)));
-      const snapshotTime = new Date(row && row.createdAt || '').getTime();
-      const change = Math.abs(Number(row && row.change) || 0);
-      if (!rowDate || !Number.isFinite(snapshotTime) || change < 0.005) return row;
-
-      const candidate = events
-        .filter(event => event.effectiveDate !== rowDate)
-        .filter(event => timestampBelongsToDate(event.timestamp, rowDate))
-        .filter(event => snapshotTime >= event.timestamp - 5000)
-        .filter(event => Math.abs(snapshotTime - event.timestamp) <= REPAIR_WINDOW_MS)
-        .sort((a, b) => Math.abs(snapshotTime - a.timestamp) - Math.abs(snapshotTime - b.timestamp))[0];
-
-      return candidate ? { ...row, date: candidate.effectiveDate } : row;
+    repaired.push({
+      ...august21,
+      date: '2026-08-20',
+      baselineBudgetTotal: 32675.75,
+      baselineTotalExpense: 953.94,
+      baselineProfitLoss: 31779.55,
+      change: 472.31,
+      repairedFromDate: '2026-08-21'
     });
+    return repaired;
   }
 
   function formatEffectiveDateTime(row, locale) {
@@ -173,7 +164,7 @@
     filterHistoryRows,
     formatEffectiveDateTime,
     localDateKey,
-    realignProfitHistoryRows,
+    restoreLostAugust19History,
     validDate
   };
 });
