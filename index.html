@@ -623,6 +623,7 @@
             }
         }
 </style>
+<script src="profit-history-date.js?v=20260821-backdated-profit-13"></script>
 </head>
 <body>
 
@@ -4944,6 +4945,8 @@
         }
 
         const PROFIT_HISTORY_KEY = "homar_profit_history";
+        const PROFIT_CHANGE_CONTEXT_KEY = "homar_profit_change_context";
+        const PROFIT_CHANGE_CONTEXT_MAX_AGE_MS = 10 * 60 * 1000;
         let profitHistoryRecording = false;
 
         function readRawProfitHistory() {
@@ -5008,8 +5011,28 @@
             });
         }
 
+        function readProfitBusinessValue(key) {
+            try {
+                const value = JSON.parse(localStorage.getItem(key) || "[]");
+                return Array.isArray(value) ? value : [];
+            } catch (_) {
+                return [];
+            }
+        }
+
+        function normalizeProfitHistoryRows(rows) {
+            let repaired = repairKnownProfitHistoryBaseline(rows);
+            if (window.HomarProfitHistoryDates) {
+                repaired = window.HomarProfitHistoryDates.realignProfitHistoryRows(
+                    repaired,
+                    readProfitBusinessValue
+                );
+            }
+            return collapseProfitHistoryByDay(repaired);
+        }
+
         function readProfitHistory() {
-            return collapseProfitHistoryByDay(repairKnownProfitHistoryBaseline(readRawProfitHistory()));
+            return normalizeProfitHistoryRows(readRawProfitHistory());
         }
 
         function profitHistoryNumber(value) {
@@ -5017,13 +5040,48 @@
             return Math.round((number + Number.EPSILON) * 100) / 100;
         }
 
+        function takeProfitChangeDate() {
+            let context = null;
+            try { context = JSON.parse(localStorage.getItem(PROFIT_CHANGE_CONTEXT_KEY) || "null"); }
+            catch (_) { context = null; }
+            localStorage.removeItem(PROFIT_CHANGE_CONTEXT_KEY);
+
+            const validDate = window.HomarProfitHistoryDates
+                ? window.HomarProfitHistoryDates.validDate(context && context.date)
+                : "";
+            const recordedAt = Number(context && context.recordedAt);
+            if (!validDate || !Number.isFinite(recordedAt) ||
+                Date.now() - recordedAt > PROFIT_CHANGE_CONTEXT_MAX_AGE_MS) return "";
+            return validDate;
+        }
+
+        function sameProfitSnapshotValues(row, snapshot) {
+            return !!row &&
+                profitHistoryNumber(row.budgetTotal) === snapshot.budgetTotal &&
+                profitHistoryNumber(row.totalExpense) === snapshot.totalExpense &&
+                profitHistoryNumber(row.profitLoss) === snapshot.profitLoss;
+        }
+
+        function persistProfitHistory(history) {
+            profitHistoryRecording = true;
+            try {
+                localStorage.setItem(PROFIT_HISTORY_KEY, JSON.stringify(
+                    history.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).slice(-5000)
+                ));
+            } finally {
+                profitHistoryRecording = false;
+            }
+        }
+
         function recordProfitSnapshot(budgetTotal, totalExpense, profitLoss) {
             if (profitHistoryRecording || localStorage.getItem("homar_logged_in") !== "true") return false;
 
             const now = new Date();
-            const dateKey = now.getFullYear() + "-" +
+            const todayKey = now.getFullYear() + "-" +
                 String(now.getMonth() + 1).padStart(2, "0") + "-" +
                 String(now.getDate()).padStart(2, "0");
+            const selectedBusinessDate = takeProfitChangeDate();
+            const dateKey = selectedBusinessDate || todayKey;
             const snapshot = {
                 id: "PROFIT-" + now.getTime() + "-" + Math.random().toString(36).slice(2, 8),
                 createdAt: now.toISOString(),
@@ -5035,17 +5093,20 @@
             };
 
             const rawHistory = readRawProfitHistory();
-            const history = collapseProfitHistoryByDay(repairKnownProfitHistoryBaseline(rawHistory));
+            const history = normalizeProfitHistoryRows(rawHistory);
             const sameDayIndex = history.findIndex(row =>
                 String(row.date || row.createdAt || "").slice(0, 10) === dateKey
             );
             const sameDay = sameDayIndex >= 0 ? history[sameDayIndex] : null;
-            const sameValues = sameDay &&
-                profitHistoryNumber(sameDay.budgetTotal) === snapshot.budgetTotal &&
-                profitHistoryNumber(sameDay.totalExpense) === snapshot.totalExpense &&
-                profitHistoryNumber(sameDay.profitLoss) === snapshot.profitLoss;
+            const sameValues = sameProfitSnapshotValues(sameDay, snapshot);
+            const latest = history[history.length - 1] || null;
+            const latestValuesAreCurrent = sameProfitSnapshotValues(latest, snapshot);
 
             const needsCleanup = JSON.stringify(rawHistory) !== JSON.stringify(history);
+            if (!selectedBusinessDate && latestValuesAreCurrent) {
+                if (needsCleanup) persistProfitHistory(history);
+                return needsCleanup;
+            }
             if (sameValues && !needsCleanup) return false;
 
             if (sameValues) {
@@ -5065,14 +5126,7 @@
                 history.push(snapshot);
             }
 
-            profitHistoryRecording = true;
-            try {
-                localStorage.setItem(PROFIT_HISTORY_KEY, JSON.stringify(
-                    history.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).slice(-5000)
-                ));
-            } finally {
-                profitHistoryRecording = false;
-            }
+            persistProfitHistory(history);
             return true;
         }
 
@@ -5144,7 +5198,9 @@
                 const profit = profitHistoryNumber(row.profitLoss);
                 const tr = document.createElement("tr");
                 const values = [
-                    new Date(row.createdAt).toLocaleString("nb-NO"),
+                    window.HomarProfitHistoryDates
+                        ? window.HomarProfitHistoryDates.formatEffectiveDateTime(row, "nb-NO")
+                        : new Date(row.createdAt).toLocaleString("nb-NO"),
                     profitHistoryNumber(row.budgetTotal).toFixed(2),
                     profitHistoryNumber(row.totalExpense).toFixed(2)
                 ];
@@ -5512,6 +5568,23 @@
         Storage.prototype.setItem = function (key, value) {
             const previousRaw = this === localStorage ? this.getItem(key) : null;
             nativeSetItem.call(this, key, value);
+            if (this === localStorage && previousRaw !== value && window.HomarProfitHistoryDates) {
+                let previousValue, nextValue;
+                try { previousValue = JSON.parse(previousRaw || 'null'); } catch (_) { previousValue = previousRaw; }
+                try { nextValue = JSON.parse(value); } catch (_) { nextValue = value; }
+                const effectiveDate = window.HomarProfitHistoryDates.effectiveDateFromChange(
+                    key,
+                    previousValue,
+                    nextValue
+                );
+                if (effectiveDate) {
+                    nativeSetItem.call(localStorage, PROFIT_CHANGE_CONTEXT_KEY, JSON.stringify({
+                        date: effectiveDate,
+                        key,
+                        recordedAt: Date.now()
+                    }));
+                }
+            }
             if (this === localStorage && HOMAR_SYNC_KEYS.has(key) && serverSyncReady) {
                 if (ADMIN_ONLY_SYNC_KEYS.has(key) && !isCurrentApiAdmin()) return;
                 markPendingSync(key);
@@ -6058,7 +6131,7 @@
     })();
     </script>
 
-    <script>window.__HOMAR_BUILD = "20260821-atomic-wafi-12";</script>
+    <script>window.__HOMAR_BUILD = "20260821-backdated-profit-13";</script>
     <script src="calendar-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
     <script src="accounting-runtime-fix.js?v=20260821-atomic-wafi-12"></script>
     <script src="customer-status-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
