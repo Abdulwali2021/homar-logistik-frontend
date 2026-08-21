@@ -8,7 +8,7 @@ const {
   effectiveDateFromChange,
   filterHistoryRows,
   formatEffectiveDateTime,
-  realignProfitHistoryRows
+  restoreLostAugust19History
 } = require('../profit-history-date');
 
 test('DAG-filter finner nøyaktig 20.08 og er standard i grensesnittet', () => {
@@ -65,7 +65,7 @@ test('kundebetaling bruker betalingsdato', () => {
   assert.equal(effectiveDateFromChange('homar_kunde', before, after), '2026-08-20');
 });
 
-test('eksisterende pluss flyttes fra registreringsdag til SAMEN-dato', () => {
+test('gjenoppretter 19.08 og legger ny endring på 20.08', () => {
   const history = [
     {
       id:'old', date:'2026-08-20', createdAt:'2026-08-20T01:48:29Z',
@@ -76,24 +76,25 @@ test('eksisterende pluss flyttes fra registreringsdag til SAMEN-dato', () => {
       budgetTotal:33148.06, totalExpense:1009.63, profitLoss:32251.86, change:472.31
     }
   ];
-  const state = {
-    homar_samen:[{
-      date:'2026-08-20', qty:10, price:5.569,
-      createdAt:'2026-08-21T05:16:50Z'
-    }]
-  };
-  const repaired = realignProfitHistoryRows(history, key => state[key] || []);
-  assert.equal(repaired[1].date, '2026-08-20');
+  const repaired = restoreLostAugust19History(history);
+  assert.deepEqual(repaired.map(row => row.date), ['2026-08-19', '2026-08-20']);
+  assert.equal(repaired[0].change, 462.76);
+  assert.equal(repaired[1].change, 472.31);
+  assert.match(formatEffectiveDateTime(repaired[0], 'nb-NO'), /^19\.8\.2026,/);
   assert.match(formatEffectiveDateTime(repaired[1], 'nb-NO'), /^20\.8\.2026,/);
 });
 
-test('eldre hendelser flytter ikke en senere historikkrad', () => {
-  const history = [{
-    date:'2026-08-21', createdAt:'2026-08-21T14:00:00Z', change:20
-  }];
-  const state = {
-    homar_samen:[{ date:'2026-08-20', createdAt:'2026-08-21T05:00:00Z' }]
-  };
-  const repaired = realignProfitHistoryRows(history, key => state[key] || []);
-  assert.equal(repaired[0].date, '2026-08-21');
+test('annen historikk flyttes aldri automatisk', () => {
+  const history = [
+    { id:'19', date:'2026-08-19', budgetTotal:10, totalExpense:1, profitLoss:9 },
+    { id:'21', date:'2026-08-21', budgetTotal:20, totalExpense:2, profitLoss:18 }
+  ];
+  assert.strictEqual(restoreLostAugust19History(history), history);
+  assert.deepEqual(restoreLostAugust19History(history), history);
+});
+
+test('normalisering bruker ikke lenger bred automatisk datoflytting', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  assert.doesNotMatch(html, /realignProfitHistoryRows/);
+  assert.match(html, /restoreLostAugust19History\(repaired\)/);
 });

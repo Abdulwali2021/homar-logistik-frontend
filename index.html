@@ -644,7 +644,7 @@
             }
         }
 </style>
-<script src="profit-history-date.js?v=20260821-profit-day-filter-16"></script>
+<script src="profit-history-date.js?v=20260821-restore-profit-history-17"></script>
 </head>
 <body>
 
@@ -5045,22 +5045,10 @@
             });
         }
 
-        function readProfitBusinessValue(key) {
-            try {
-                const value = JSON.parse(localStorage.getItem(key) || "[]");
-                return Array.isArray(value) ? value : [];
-            } catch (_) {
-                return [];
-            }
-        }
-
         function normalizeProfitHistoryRows(rows) {
             let repaired = repairKnownProfitHistoryBaseline(rows);
             if (window.HomarProfitHistoryDates) {
-                repaired = window.HomarProfitHistoryDates.realignProfitHistoryRows(
-                    repaired,
-                    readProfitBusinessValue
-                );
+                repaired = window.HomarProfitHistoryDates.restoreLostAugust19History(repaired);
             }
             return collapseProfitHistoryByDay(repaired);
         }
@@ -6195,7 +6183,7 @@
     })();
     </script>
 
-    <script>window.__HOMAR_BUILD = "20260821-profit-day-filter-16";</script>
+    <script>window.__HOMAR_BUILD = "20260821-restore-profit-history-17";</script>
     <script src="calendar-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
     <script src="accounting-runtime-fix.js?v=20260821-atomic-wafi-12"></script>
     <script src="customer-status-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
