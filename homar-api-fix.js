@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  const API_BASE = 'https://homar-logistik.onrender.com/api';
+  const API_BASE = window.HOMAR_API_BASE || 'https://homar-logistik.onrender.com/api';
   const ADMIN_PERMS = { fullAccess:true, noAccess:false, canViewBudget:true, canRegister:true, canChangeStatus:true, editAnytime:true, deleteAnytime:true };
   const NO_PERMS = { fullAccess:false, noAccess:true, canViewBudget:false, canRegister:false, canChangeStatus:false, editAnytime:false, deleteAnytime:false };
   let adminUsersCache = [];
