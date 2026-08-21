@@ -644,7 +644,7 @@
             }
         }
 </style>
-<script src="profit-history-date.js?v=20260821-restore-profit-history-18"></script>
+<script src="profit-history-date.js?v=20260821-inline-profit-recovery-19"></script>
 </head>
 <body>
 
@@ -5045,11 +5045,70 @@
             });
         }
 
+        function profitHistoryStoredDate(row) {
+            const explicitDate = String(row && row.date || "");
+            if (/^\d{4}-\d{2}-\d{2}$/.test(explicitDate)) return explicitDate;
+            const timestamp = new Date(row && row.createdAt || "");
+            if (!Number.isFinite(timestamp.getTime())) return "";
+            return timestamp.getUTCFullYear() + "-" +
+                String(timestamp.getUTCMonth() + 1).padStart(2, "0") + "-" +
+                String(timestamp.getUTCDate()).padStart(2, "0");
+        }
+
+        function profitHistoryHasTotals(row, budgetTotal, totalExpense, profitLoss) {
+            return profitHistoryNumber(row && row.budgetTotal) === budgetTotal &&
+                profitHistoryNumber(row && row.totalExpense) === totalExpense &&
+                profitHistoryNumber(row && row.profitLoss) === profitLoss;
+        }
+
+        // Denne gjenopprettingen ligger i hovedkoden og kjører selv om en
+        // ekstern hjelpefil er blokkert eller ikke er ferdig lastet.
+        function restoreKnownLostAugust19History(rows) {
+            const history = Array.isArray(rows) ? rows : [];
+            if (history.some(row => profitHistoryStoredDate(row) === "2026-08-19")) return history;
+
+            // Finn de to kjente radene etter lagrede summer. Datoformatet i de
+            // gamle radene kan mangle eller være feil og brukes derfor ikke her.
+            const august19SourceIndex = history.findIndex(row =>
+                profitHistoryHasTotals(row, 32675.75, 953.94, 31779.55)
+            );
+            const august20SourceIndex = history.findIndex(row =>
+                profitHistoryHasTotals(row, 33148.06, 1009.63, 32251.86)
+            );
+            if (august19SourceIndex < 0 || august20SourceIndex < 0 ||
+                august19SourceIndex === august20SourceIndex) return history;
+
+            const august19Source = history[august19SourceIndex];
+            const august20Source = history[august20SourceIndex];
+            const repaired = history.filter((_, index) =>
+                index !== august19SourceIndex && index !== august20SourceIndex
+            );
+            repaired.push({
+                ...august19Source,
+                id: "PROFIT-20260819-RESTORED",
+                createdAt: "2026-08-19T18:38:48.000Z",
+                date: "2026-08-19",
+                baselineBudgetTotal: 32212.99,
+                baselineTotalExpense: 896.20,
+                baselineProfitLoss: 31316.79,
+                change: 462.76,
+                repairedFromDate: profitHistoryStoredDate(august19Source)
+            });
+            repaired.push({
+                ...august20Source,
+                date: "2026-08-20",
+                baselineBudgetTotal: 32675.75,
+                baselineTotalExpense: 953.94,
+                baselineProfitLoss: 31779.55,
+                change: 472.31,
+                repairedFromDate: profitHistoryStoredDate(august20Source)
+            });
+            return repaired;
+        }
+
         function normalizeProfitHistoryRows(rows) {
-            let repaired = repairKnownProfitHistoryBaseline(rows);
-            if (window.HomarProfitHistoryDates) {
-                repaired = window.HomarProfitHistoryDates.restoreLostAugust19History(repaired);
-            }
+            let repaired = restoreKnownLostAugust19History(rows);
+            repaired = repairKnownProfitHistoryBaseline(repaired);
             return collapseProfitHistoryByDay(repaired);
         }
 
@@ -6183,7 +6242,7 @@
     })();
     </script>
 
-    <script>window.__HOMAR_BUILD = "20260821-restore-profit-history-18";</script>
+    <script>window.__HOMAR_BUILD = "20260821-inline-profit-recovery-19";</script>
     <script src="calendar-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
     <script src="accounting-runtime-fix.js?v=20260821-atomic-wafi-12"></script>
     <script src="customer-status-runtime-fix.js?v=20260819-wafi-utgift-11"></script>

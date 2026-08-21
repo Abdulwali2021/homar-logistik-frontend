@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 const {
   effectiveDateFromChange,
   filterHistoryRows,
@@ -102,8 +103,33 @@ test('oppretter ikke en ekstra 19.08-rad når eldre rad bare har createdAt', () 
   assert.strictEqual(restoreLostAugust19History(history), history);
 });
 
-test('normalisering bruker ikke lenger bred automatisk datoflytting', () => {
+test('normalisering bruker innebygd gjenoppretting uten ekstern avhengighet', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   assert.doesNotMatch(html, /realignProfitHistoryRows/);
-  assert.match(html, /restoreLostAugust19History\(repaired\)/);
+  assert.match(html, /function restoreKnownLostAugust19History\(rows\)/);
+  assert.match(html, /let repaired = restoreKnownLostAugust19History\(rows\)/);
+  assert.doesNotMatch(html, /window\.HomarProfitHistoryDates\.restoreLostAugust19History/);
+  assert.match(html, /20260821-inline-profit-recovery-19/);
+});
+
+test('hovedkoden gjenoppretter skjermbildets rader uten hjelpefil', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const recoveryCode = html.slice(
+    html.indexOf('function profitHistoryStoredDate'),
+    html.indexOf('function normalizeProfitHistoryRows')
+  );
+  const numberCode = html.slice(
+    html.indexOf('function profitHistoryNumber'),
+    html.indexOf('function rememberProfitChangeDate')
+  );
+  const context = { result:null };
+  vm.runInNewContext(numberCode + recoveryCode + `
+    result = restoreKnownLostAugust19History([
+      { id:'old', createdAt:'2026-08-20T07:24:20Z', budgetTotal:32675.75, totalExpense:953.94, profitLoss:31779.55, change:0 },
+      { id:'new', createdAt:'2026-08-21T06:47:24Z', budgetTotal:33148.06, totalExpense:1009.63, profitLoss:32251.86, change:0 }
+    ]);
+  `, context);
+  const result = JSON.parse(JSON.stringify(context.result));
+  assert.deepEqual(result.map(row => row.date), ['2026-08-19', '2026-08-20']);
+  assert.deepEqual(result.map(row => row.change), [462.76, 472.31]);
 });
