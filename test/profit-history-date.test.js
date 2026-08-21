@@ -2,11 +2,27 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const {
   effectiveDateFromChange,
   formatEffectiveDateTime,
   realignProfitHistoryRows
 } = require('../profit-history-date');
+
+test('SAMEN sender valgt rapportdato direkte før profit beregnes', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  assert.match(html, /localStorage\.setItem\("homar_samen"[\s\S]{0,180}rememberProfitChangeDate\(date, "homar_samen"\)[\s\S]{0,180}loadData\(\)/);
+  assert.match(html, /localStorage\.setItem\("homar_samen"[\s\S]{0,180}rememberProfitChangeDate\(item\.date, "homar_samen"\)[\s\S]{0,180}loadData\(\)/);
+});
+
+test('alle daterte rapportområder sender valgt dato til profit', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  for (const key of ['lager', 'samen', 'shamito', 'gari', 'qarash', 'dhagaxshid']) {
+    assert.match(html, new RegExp('rememberProfitChangeDate\\(date, "homar_' + key + '"\\)'));
+  }
+  assert.match(html, /rememberProfitChangeDate\(paymentDate, "homar_kunde"\)/);
+});
 
 test('ny SAMEN registrert i dag bruker valgt arbeidsdato', () => {
   const createdAt = '2026-08-21T05:16:50.000Z';
@@ -39,7 +55,7 @@ test('eksisterende pluss flyttes fra registreringsdag til SAMEN-dato', () => {
       budgetTotal:32675.75, totalExpense:953.94, profitLoss:31779.55, change:0
     },
     {
-      id:'wrong-day', date:'2026-08-21', createdAt:'2026-08-21T05:16:54Z',
+      id:'wrong-day', date:'2026-08-21', createdAt:'2026-08-21T06:37:19Z',
       budgetTotal:33148.06, totalExpense:1009.63, profitLoss:32251.86, change:472.31
     }
   ];
@@ -56,7 +72,7 @@ test('eksisterende pluss flyttes fra registreringsdag til SAMEN-dato', () => {
 
 test('eldre hendelser flytter ikke en senere historikkrad', () => {
   const history = [{
-    date:'2026-08-21', createdAt:'2026-08-21T12:00:00Z', change:20
+    date:'2026-08-21', createdAt:'2026-08-21T14:00:00Z', change:20
   }];
   const state = {
     homar_samen:[{ date:'2026-08-20', createdAt:'2026-08-21T05:00:00Z' }]

@@ -623,7 +623,7 @@
             }
         }
 </style>
-<script src="profit-history-date.js?v=20260821-backdated-profit-13"></script>
+<script src="profit-history-date.js?v=20260821-backdated-profit-15"></script>
 </head>
 <body>
 
@@ -2189,6 +2189,7 @@
             const savedQarash = index > -1 ? list[index] : list[list.length - 1];
             markWrittenAmountsFixed(savedQarash, [["price", "priceEntered"]]);
             localStorage.setItem("homar_qarash", JSON.stringify(list));
+            rememberProfitChangeDate(date, "homar_qarash");
             showSavedHistoricalDate(date);
             resetQarashForm();
             loadData();
@@ -2389,6 +2390,7 @@
             const savedGari = index > -1 ? list[index] : list[list.length - 1];
             markWrittenAmountsFixed(savedGari, [["price", "priceEntered"]]);
             localStorage.setItem("homar_gari", JSON.stringify(list));
+            rememberProfitChangeDate(date, "homar_gari");
             showSavedHistoricalDate(date);
             resetGariForm();
             loadData();
@@ -2490,6 +2492,7 @@
             const savedDhagaxshid = index > -1 ? list[index] : list[list.length - 1];
             markWrittenAmountsFixed(savedDhagaxshid, [["price", "priceEntered"], ["driver", "driverEntered"]]);
             localStorage.setItem("homar_dhagaxshid", JSON.stringify(list));
+            rememberProfitChangeDate(date, "homar_dhagaxshid");
             showSavedHistoricalDate(date);
             resetDhagaxshidForm();
             loadData();
@@ -2790,6 +2793,7 @@
             markWrittenAmountsFixed(savedLagerItem, [["price", "priceEntered"]]);
             if (savedLagerItem) savedLagerItem.priceCurrency = "FAST";
             localStorage.setItem("homar_lager", JSON.stringify(list));
+            rememberProfitChangeDate(date, "homar_lager");
             resetLagerForm();
             loadData();
         }
@@ -3007,6 +3011,7 @@
             const savedSamen = index > -1 ? list[index] : list[list.length - 1];
             markWrittenAmountsFixed(savedSamen, [["price", "priceEntered"], ["driverPrice", "driverPriceEntered"]]);
             localStorage.setItem("homar_samen", JSON.stringify(list));
+            rememberProfitChangeDate(date, "homar_samen");
             showSavedHistoricalDate(date);
             resetLogisticsForm();
             loadData();
@@ -3067,6 +3072,7 @@
                 if (canUseDeleteUndo()) moveDeletedRowToTrash("homar_samen", index, item, "SAMEN", "samen");
                 list.splice(index, 1);
                 localStorage.setItem("homar_samen", JSON.stringify(list));
+                rememberProfitChangeDate(item.date, "homar_samen");
                 loadData();
             }
         }
@@ -3174,6 +3180,7 @@
             const savedShamito = index > -1 ? list[index] : list[list.length - 1];
             markWrittenAmountsFixed(savedShamito, [["price", "priceEntered"]]);
             localStorage.setItem("homar_shamito", JSON.stringify(list));
+            rememberProfitChangeDate(date, "homar_shamito");
             showSavedHistoricalDate(date);
             resetShamitoForm();
             loadData();
@@ -3426,6 +3433,7 @@
             const savedPayment = existingPayment || item.payments[item.payments.length - 1];
             markWrittenAmountsFixed(savedPayment, [["amount", "amountEntered"]]);
             localStorage.setItem("homar_kunde", JSON.stringify(list));
+            rememberProfitChangeDate(paymentDate, "homar_kunde");
             loadData();
             closeStatusModal();
         }
@@ -3566,6 +3574,10 @@
             syncCustomerPaymentState(savedCustomer);
 
             localStorage.setItem("homar_kunde", JSON.stringify(list));
+            rememberProfitChangeDate(
+                selectedCustomerStatus === "BETALT" ? selectedCustomerPaymentDate : date,
+                "homar_kunde"
+            );
             showSavedHistoricalDate(date);
             resetCustomerForm();
             loadData();
@@ -5040,6 +5052,20 @@
             return Math.round((number + Number.EPSILON) * 100) / 100;
         }
 
+        function rememberProfitChangeDate(date, key) {
+            const text = String(date || "");
+            const validDate = window.HomarProfitHistoryDates
+                ? window.HomarProfitHistoryDates.validDate(text)
+                : (/^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "");
+            if (!validDate) return false;
+            localStorage.setItem(PROFIT_CHANGE_CONTEXT_KEY, JSON.stringify({
+                date: validDate,
+                key: String(key || ""),
+                recordedAt: Date.now()
+            }));
+            return true;
+        }
+
         function takeProfitChangeDate() {
             let context = null;
             try { context = JSON.parse(localStorage.getItem(PROFIT_CHANGE_CONTEXT_KEY) || "null"); }
@@ -6131,7 +6157,7 @@
     })();
     </script>
 
-    <script>window.__HOMAR_BUILD = "20260821-backdated-profit-13";</script>
+    <script>window.__HOMAR_BUILD = "20260821-backdated-profit-15";</script>
     <script src="calendar-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
     <script src="accounting-runtime-fix.js?v=20260821-atomic-wafi-12"></script>
     <script src="customer-status-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
