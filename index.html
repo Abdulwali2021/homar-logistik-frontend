@@ -644,7 +644,7 @@
             }
         }
 </style>
-<script src="profit-history-date.js?v=20260821-inline-profit-recovery-19"></script>
+<script src="profit-history-date.js?v=20260821-actual-profit-repair-20"></script>
 </head>
 <body>
 
@@ -5067,6 +5067,47 @@
             const history = Array.isArray(rows) ? rows : [];
             if (history.some(row => profitHistoryStoredDate(row) === "2026-08-19")) return history;
 
+            // Faktisk servertilstand 21.08: riktig sluttsum finnes både på
+            // 20.08 og 21.08, mens den opprinnelige 19.08-raden mangler.
+            const correctAugust20Index = history.findIndex(row =>
+                profitHistoryStoredDate(row) === "2026-08-20" &&
+                profitHistoryHasTotals(row, 33148.06, 1009.63, 32251.86)
+            );
+            const duplicateAugust21Index = history.findIndex(row =>
+                profitHistoryStoredDate(row) === "2026-08-21" &&
+                profitHistoryHasTotals(row, 33148.06, 1009.63, 32251.86)
+            );
+            if (correctAugust20Index >= 0 && duplicateAugust21Index >= 0) {
+                const correctAugust20 = history[correctAugust20Index];
+                const repaired = history.filter((_, index) =>
+                    index !== correctAugust20Index && index !== duplicateAugust21Index
+                );
+                repaired.push({
+                    ...correctAugust20,
+                    id: "PROFIT-20260819-RESTORED",
+                    createdAt: "2026-08-19T18:38:48.000Z",
+                    date: "2026-08-19",
+                    budgetTotal: 32675.75,
+                    totalExpense: 953.94,
+                    profitLoss: 31779.55,
+                    baselineBudgetTotal: 32212.99,
+                    baselineTotalExpense: 896.20,
+                    baselineProfitLoss: 31316.79,
+                    change: 462.76,
+                    repairedFromDate: "MISSING"
+                });
+                repaired.push({
+                    ...correctAugust20,
+                    date: "2026-08-20",
+                    baselineBudgetTotal: 32675.75,
+                    baselineTotalExpense: 953.94,
+                    baselineProfitLoss: 31779.55,
+                    change: 472.31,
+                    repairedFromDate: "2026-08-21-DUPLICATE"
+                });
+                return repaired;
+            }
+
             // Finn de to kjente radene etter lagrede summer. Datoformatet i de
             // gamle radene kan mangle eller være feil og brukes derfor ikke her.
             const august19SourceIndex = history.findIndex(row =>
@@ -6242,7 +6283,7 @@
     })();
     </script>
 
-    <script>window.__HOMAR_BUILD = "20260821-inline-profit-recovery-19";</script>
+    <script>window.__HOMAR_BUILD = "20260821-actual-profit-repair-20";</script>
     <script src="calendar-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
     <script src="accounting-runtime-fix.js?v=20260821-atomic-wafi-12"></script>
     <script src="customer-status-runtime-fix.js?v=20260819-wafi-utgift-11"></script>

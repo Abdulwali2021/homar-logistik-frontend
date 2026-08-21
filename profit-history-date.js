@@ -108,6 +108,45 @@
     const history = rows(historyRows);
     if (history.some(row => historyDate(row) === '2026-08-19')) return history;
 
+    const correctAugust20Index = history.findIndex(row =>
+      historyDate(row) === '2026-08-20' &&
+      hasTotals(row, 33148.06, 1009.63, 32251.86)
+    );
+    const duplicateAugust21Index = history.findIndex(row =>
+      historyDate(row) === '2026-08-21' &&
+      hasTotals(row, 33148.06, 1009.63, 32251.86)
+    );
+    if (correctAugust20Index >= 0 && duplicateAugust21Index >= 0) {
+      const correctAugust20 = history[correctAugust20Index];
+      const repaired = history.filter((_, index) =>
+        index !== correctAugust20Index && index !== duplicateAugust21Index
+      );
+      repaired.push({
+        ...correctAugust20,
+        id: 'PROFIT-20260819-RESTORED',
+        createdAt: '2026-08-19T18:38:48.000Z',
+        date: '2026-08-19',
+        budgetTotal: 32675.75,
+        totalExpense: 953.94,
+        profitLoss: 31779.55,
+        baselineBudgetTotal: 32212.99,
+        baselineTotalExpense: 896.20,
+        baselineProfitLoss: 31316.79,
+        change: 462.76,
+        repairedFromDate: 'MISSING'
+      });
+      repaired.push({
+        ...correctAugust20,
+        date: '2026-08-20',
+        baselineBudgetTotal: 32675.75,
+        baselineTotalExpense: 953.94,
+        baselineProfitLoss: 31779.55,
+        change: 472.31,
+        repairedFromDate: '2026-08-21-DUPLICATE'
+      });
+      return repaired;
+    }
+
     const august20Index = history.findIndex(row =>
       historyDate(row) === '2026-08-20' &&
       hasTotals(row, 32675.75, 953.94, 31779.55)
