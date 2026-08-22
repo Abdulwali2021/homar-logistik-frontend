@@ -82,6 +82,27 @@
     }
   }, true);
 
+  let serverPollRunning = false;
+
+  async function pollServerForChanges() {
+    if (serverPollRunning || typeof window.homarRefreshFromServer !== 'function') return;
+    serverPollRunning = true;
+    try {
+      await window.homarRefreshFromServer();
+    } finally {
+      serverPollRunning = false;
+    }
+  }
+
+  // Hent endringer fra andre brukere uten at noen må laste inn siden på nytt.
+  setInterval(pollServerForChanges, 4000);
+  window.addEventListener('focus', pollServerForChanges);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) pollServerForChanges();
+  });
+  setTimeout(pollServerForChanges, 2000);
+
   window.refreshHomarImmediately = queueImmediateRefresh;
-  console.info('HOMAR: ØYEBLIKKELIG OPPDATERING ER AKTIV.');
+  window.pollHomarServerNow = pollServerForChanges;
+  console.info('HOMAR: ØYEBLIKKELIG OPPDATERING OG LIVE-SYNK ER AKTIV.');
 })();
