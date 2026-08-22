@@ -350,12 +350,12 @@ function mergeBusinessState(baseState,localState,remoteState){
 }
 
 function readBaseState(){
-  return readJson(BASE_STATE_KEY,{});
+  return parseRaw(sessionStorage.getItem(BASE_STATE_KEY),{});
 }
 
 function rememberBaseState(state){
   if(!plainObject(state))return;
-  previousSetItem.call(localStorage,BASE_STATE_KEY,JSON.stringify(cloneValue(state)));
+  sessionStorage.setItem(BASE_STATE_KEY,JSON.stringify(cloneValue(state)));
 }
 
 function pendingBusinessSync(){
