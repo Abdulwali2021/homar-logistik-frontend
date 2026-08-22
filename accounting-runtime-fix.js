@@ -10,6 +10,7 @@ const BUSINESS_KEYS=[
 ];
 const ACCOUNTING_VERSION=1;
 const EPS=0.005;
+const ADDITIVE_NUMBER_FIELDS=new Set(['qty','quantity','antall']);
 const previousSetItem=Storage.prototype.setItem;
 const nativeFetch=window.fetch.bind(window);
 const REVISION_KEY='homar_server_state_revision';
@@ -310,15 +311,23 @@ function mergeObjectValue(baseValue,localValue,remoteValue){
       result[key]=jsonEqual(local[key],remote[key])?local[key]:remote[key];
       return;
     }
-    result[key]=mergeConcurrentValue(base[key],local[key],remote[key]);
+    result[key]=mergeConcurrentValue(base[key],local[key],remote[key],key);
   });
   return result;
 }
 
-function mergeConcurrentValue(baseValue,localValue,remoteValue){
+function mergeConcurrentValue(baseValue,localValue,remoteValue,fieldName){
   if(jsonEqual(localValue,baseValue))return remoteValue;
   if(jsonEqual(remoteValue,baseValue))return localValue;
   if(jsonEqual(localValue,remoteValue))return localValue;
+  if(ADDITIVE_NUMBER_FIELDS.has(fieldName)&&
+    Number.isFinite(Number(baseValue))&&
+    Number.isFinite(Number(localValue))&&
+    Number.isFinite(Number(remoteValue))){
+    return Number(baseValue)+
+      (Number(localValue)-Number(baseValue))+
+      (Number(remoteValue)-Number(baseValue));
+  }
   if(Array.isArray(localValue)&&Array.isArray(remoteValue)){
     return mergeArrayValue(baseValue,localValue,remoteValue);
   }
