@@ -13,10 +13,12 @@ const EPS=0.005;
 const previousSetItem=Storage.prototype.setItem;
 const nativeFetch=window.fetch.bind(window);
 const REVISION_KEY='homar_server_state_revision';
+const BASE_STATE_KEY='homar_server_state_base_v2';
 const PENDING_SYNC_KEY='homar_pending_sync_keys';
 let internalWrite=false;
 let atomicQueue=Promise.resolve();
-let conflictReloadScheduled=false;
+let atomicInFlight=false;
+let lastNoticeAt=0;
 
 function money(value){
   const n=Number(value)||0;
@@ -137,7 +139,7 @@ function applyWafiDelta(delta,kind){
 }
 
 Storage.prototype.setItem=function(key,value){
-  if(this!==localStorage||internalWrite){
+  if(this!==localStorage||internalWrite||window.__homarApplyingRemoteState){
     return previousSetItem.call(this,key,value);
   }
 
@@ -218,47 +220,276 @@ async function responseJson(response){
   try{return await response.clone().json();}catch(_){return null;}
 }
 
-async function fetchCurrentRevision(url,headers){
+function jsonEqual(a,b){
+  return JSON.stringify(a)===JSON.stringify(b);
+}
+
+function plainObject(value){
+  return !!(value&&typeof value==='object'&&!Array.isArray(value));
+}
+
+function cloneValue(value){
+  if(value===undefined)return undefined;
+  try{return JSON.parse(JSON.stringify(value));}catch(_){return value;}
+}
+
+function rowIdentity(row){
+  if(!plainObject(row))return null;
+  const explicitId=row._syncId||row.id||row.uuid||row.paymentId;
+  if(explicitId!==undefined&&explicitId!==null&&String(explicitId)){
+    return 'id:'+String(explicitId);
+  }
+  if(row.createdAt){
+    return 'created:'+String(row.createdAt)+':'+
+      String(row.createdBy||row.user||row.username||'');
+  }
+  const name=row.type||row.name||row.navn||row.kundeNavn||
+    row.gariType||row.phone||row.telefon||'';
+  const dateValue=row.date||row.dato||row.betaltDato||'';
+  if(name||dateValue){
+    return 'legacy:'+String(name).trim().toUpperCase()+':'+
+      String(dateValue)+':'+String(row.createdBy||'');
+  }
+  return 'value:'+JSON.stringify(row);
+}
+
+function mergeArrayValue(baseValue,localValue,remoteValue){
+  const baseRows=Array.isArray(baseValue)?baseValue:[];
+  const localRows=Array.isArray(localValue)?localValue:[];
+  const remoteRows=Array.isArray(remoteValue)?remoteValue:[];
+  const baseById=new Map(baseRows.map(function(row){return [rowIdentity(row),row];}));
+  const localById=new Map(localRows.map(function(row){return [rowIdentity(row),row];}));
+  const remoteById=new Map(remoteRows.map(function(row){return [rowIdentity(row),row];}));
+  const result=[];
+
+  remoteRows.forEach(function(remoteRow){
+    const id=rowIdentity(remoteRow);
+    const baseHas=baseById.has(id);
+    const localHas=localById.has(id);
+    if(!baseHas){
+      result.push(localHas
+        ? mergeConcurrentValue(undefined,localById.get(id),remoteRow)
+        : remoteRow);
+      return;
+    }
+    const baseRow=baseById.get(id);
+    if(!localHas){
+      if(!jsonEqual(remoteRow,baseRow))result.push(remoteRow);
+      return;
+    }
+    result.push(mergeConcurrentValue(baseRow,localById.get(id),remoteRow));
+  });
+
+  localRows.forEach(function(localRow){
+    const id=rowIdentity(localRow);
+    if(!baseById.has(id)&&!remoteById.has(id))result.push(localRow);
+  });
+  return result;
+}
+
+function mergeObjectValue(baseValue,localValue,remoteValue){
+  const base=plainObject(baseValue)?baseValue:{};
+  const local=plainObject(localValue)?localValue:{};
+  const remote=plainObject(remoteValue)?remoteValue:{};
+  const result={};
+  const keys=new Set(Object.keys(base).concat(Object.keys(local),Object.keys(remote)));
+
+  keys.forEach(function(key){
+    const baseHas=Object.prototype.hasOwnProperty.call(base,key);
+    const localHas=Object.prototype.hasOwnProperty.call(local,key);
+    const remoteHas=Object.prototype.hasOwnProperty.call(remote,key);
+    if(!localHas){
+      if(remoteHas&&(!baseHas||!jsonEqual(remote[key],base[key])))result[key]=remote[key];
+      return;
+    }
+    if(!remoteHas){
+      if(!baseHas)result[key]=local[key];
+      return;
+    }
+    if(!baseHas){
+      result[key]=jsonEqual(local[key],remote[key])?local[key]:remote[key];
+      return;
+    }
+    result[key]=mergeConcurrentValue(base[key],local[key],remote[key]);
+  });
+  return result;
+}
+
+function mergeConcurrentValue(baseValue,localValue,remoteValue){
+  if(jsonEqual(localValue,baseValue))return remoteValue;
+  if(jsonEqual(remoteValue,baseValue))return localValue;
+  if(jsonEqual(localValue,remoteValue))return localValue;
+  if(Array.isArray(localValue)&&Array.isArray(remoteValue)){
+    return mergeArrayValue(baseValue,localValue,remoteValue);
+  }
+  if(plainObject(localValue)&&plainObject(remoteValue)){
+    return mergeObjectValue(baseValue,localValue,remoteValue);
+  }
+  return remoteValue;
+}
+
+function mergeBusinessState(baseState,localState,remoteState){
+  const base=plainObject(baseState)?baseState:{};
+  const local=plainObject(localState)?localState:{};
+  const remote=plainObject(remoteState)?remoteState:{};
+  const merged=Object.assign({},remote);
+  BUSINESS_KEYS.forEach(function(key){
+    if(!Object.prototype.hasOwnProperty.call(local,key))return;
+    merged[key]=mergeConcurrentValue(base[key],local[key],remote[key]);
+  });
+  return merged;
+}
+
+function readBaseState(){
+  return readJson(BASE_STATE_KEY,{});
+}
+
+function rememberBaseState(state){
+  if(!plainObject(state))return;
+  previousSetItem.call(localStorage,BASE_STATE_KEY,JSON.stringify(cloneValue(state)));
+}
+
+function pendingBusinessSync(){
+  const pending=readJson(PENDING_SYNC_KEY,[]);
+  return Array.isArray(pending)&&pending.some(function(key){return BUSINESS_KEYS.includes(key);});
+}
+
+function clearBusinessPending(){
+  const pending=readJson(PENDING_SYNC_KEY,[]);
+  const keep=Array.isArray(pending)
+    ? pending.filter(function(key){return !BUSINESS_KEYS.includes(key);})
+    : [];
+  previousSetItem.call(localStorage,PENDING_SYNC_KEY,JSON.stringify(keep));
+}
+
+function applyServerState(state){
+  if(!plainObject(state))return;
+  window.__homarApplyingRemoteState=true;
+  try{
+    BUSINESS_KEYS.forEach(function(key){
+      if(Object.prototype.hasOwnProperty.call(state,key)){
+        previousSetItem.call(localStorage,key,JSON.stringify(state[key]));
+      }
+    });
+  }finally{
+    window.__homarApplyingRemoteState=false;
+  }
+  if(typeof window.refreshHomarImmediately==='function'){
+    window.refreshHomarImmediately();
+  }else if(typeof window.loadData==='function'){
+    window.loadData();
+  }
+}
+
+function showSyncNotice(message,isError){
+  let box=document.getElementById('homarLiveSyncNotice');
+  if(!box){
+    box=document.createElement('div');
+    box.id='homarLiveSyncNotice';
+    box.setAttribute('role','status');
+    box.setAttribute('aria-live','polite');
+    Object.assign(box.style,{
+      position:'fixed',right:'16px',bottom:'16px',zIndex:'100000',
+      maxWidth:'420px',padding:'12px 16px',borderRadius:'10px',
+      boxShadow:'0 4px 18px rgba(0,0,0,.22)',fontWeight:'700'
+    });
+    document.body.appendChild(box);
+  }
+  box.textContent=message;
+  box.style.background=isError?'#fff3cd':'#e8f5e9';
+  box.style.color=isError?'#856404':'#155724';
+  box.style.display='block';
+  const shownAt=Date.now();
+  lastNoticeAt=shownAt;
+  setTimeout(function(){
+    if(lastNoticeAt===shownAt)box.style.display='none';
+  },4500);
+}
+
+async function fetchCurrentState(url,headers){
   const stateUrl=url.replace(/\/state(?:\?.*)?$/,'/state');
   const response=await nativeFetch(stateUrl,{method:'GET',headers:headers||{},cache:'no-store'});
   const payload=await responseJson(response);
-  if(response.ok&&payload)rememberRevision(payload.revision);
-  return readRevision()===null?0:readRevision();
+  if(response.ok&&payload){
+    rememberRevision(payload.revision);
+    rememberBaseState(payload.state||{});
+    return payload;
+  }
+  return {state:{},revision:readRevision()===null?0:readRevision()};
+}
+
+async function handleSuccessfulBusinessWrite(response,payload,sentState){
+  const returnedState=plainObject(payload&&payload.state)?payload.state:{};
+  const committedState=Object.assign({},sentState,returnedState);
+  const currentLocal=collectBusinessState();
+  const safeLocalState=mergeBusinessState(sentState,currentLocal,committedState);
+  rememberRevision(payload&&payload.revision);
+  rememberBaseState(committedState);
+  applyServerState(safeLocalState);
+  if(payload&&payload.merged){
+    showSyncNotice('NYE DATA FRA EN ANNEN BRUKER BLE SLÅTT SAMMEN.',false);
+  }
+  return response;
 }
 
 async function atomicBusinessRequest(input,init,url){
-  let revision=readRevision();
-  if(revision===null)revision=await fetchCurrentRevision(url,init&&init.headers);
-
-  const atomicUrl=url.replace(/\/state(?:\?.*)?$/,'/state/business');
-  const options=Object.assign({},init||{}, {
-    method:'PUT',
-    body:JSON.stringify({state:collectBusinessState(),expectedRevision:revision})
-  });
-  const response=await nativeFetch(atomicUrl,options);
-  const payload=await responseJson(response);
-
-  if(response.ok&&payload){
-    rememberRevision(payload.revision);
-    if(payload.state&&payload.state.homar_budsjet){
-      previousSetItem.call(localStorage,BUDGET_KEY,JSON.stringify(payload.state.homar_budsjet));
+  atomicInFlight=true;
+  try{
+    let revision=readRevision();
+    let baseState=readBaseState();
+    if(revision===null||!Object.keys(baseState).length){
+      const current=await fetchCurrentState(url,init&&init.headers);
+      revision=Number.isInteger(Number(current.revision))?Number(current.revision):0;
+      baseState=current.state||{};
     }
-    return response;
-  }
 
-  if(response.status===409&&payload&&
-    (payload.code==='STATE_CONFLICT'||payload.code==='WAFI_INSUFFICIENT')){
-    if(payload.code==='STATE_CONFLICT')rememberRevision(payload.currentRevision);
-    previousSetItem.call(localStorage,PENDING_SYNC_KEY,'[]');
-    if(!conflictReloadScheduled){
-      conflictReloadScheduled=true;
-      alert(payload.code==='STATE_CONFLICT'
-        ? 'DATA BLE OPPDATERT PÅ EN ANNEN ENHET. SIDEN LASTES INN PÅ NYTT SLIK AT INGEN DATA OVERSKRIVES.'
-        : 'ENDRINGEN BLE IKKE LAGRET FORDI WAFI IKKE HAR NOK SALDO. SIDEN LASTES INN PÅ NYTT.');
-      setTimeout(function(){window.location.reload();},50);
+    let sentState=collectBusinessState();
+    const atomicUrl=url.replace(/\/state(?:\?.*)?$/,'/state/business');
+
+    for(let attempt=0;attempt<3;attempt+=1){
+      const options=Object.assign({},init||{},{
+        method:'PUT',
+        body:JSON.stringify({
+          state:sentState,
+          baseState:baseState,
+          expectedRevision:revision
+        })
+      });
+      const response=await nativeFetch(atomicUrl,options);
+      const payload=await responseJson(response);
+
+      if(response.ok&&payload){
+        return handleSuccessfulBusinessWrite(response,payload,sentState);
+      }
+
+      if(response.status===409&&payload&&payload.code==='STATE_CONFLICT'){
+        const current=await fetchCurrentState(url,init&&init.headers);
+        sentState=mergeBusinessState(baseState,sentState,current.state||{});
+        baseState=current.state||{};
+        revision=Number.isInteger(Number(current.revision))?Number(current.revision):0;
+        continue;
+      }
+
+      if(response.status===409&&payload&&payload.code==='WAFI_INSUFFICIENT'){
+        const current=await fetchCurrentState(url,init&&init.headers);
+        applyServerState(current.state||{});
+        clearBusinessPending();
+        showSyncNotice(
+          'ENDRINGEN BLE IKKE LAGRET FORDI WAFI IKKE HAR NOK SALDO.',
+          true
+        );
+      }
+      return response;
     }
+
+    showSyncNotice('KUNNE IKKE SLÅ SAMMEN ENDRINGENE ENNÅ. PRØVER IGJEN AUTOMATISK.',true);
+    return new Response(JSON.stringify({
+      error:'MIDLERTIDIG SYNKRONISERINGSKONFLIKT',
+      code:'STATE_CONFLICT'
+    }),{status:409,headers:{'Content-Type':'application/json'}});
+  }finally{
+    atomicInFlight=false;
   }
-  return response;
 }
 
 window.fetch=function(input,init){
@@ -268,7 +499,10 @@ window.fetch=function(input,init){
   if(method==='GET'&&isStatePath(url,'/api/state')){
     return nativeFetch(input,init).then(async function(response){
       const payload=await responseJson(response);
-      if(response.ok&&payload)rememberRevision(payload.revision);
+      if(response.ok&&payload){
+        rememberRevision(payload.revision);
+        rememberBaseState(payload.state||{});
+      }
       return response;
     });
   }
@@ -304,6 +538,26 @@ window.fetch=function(input,init){
 
 window.homarEnsureAccountingBaseline=ensureAccountingBaseline;
 window.homarCanApplyExpenseDelta=canApplyExpenseDelta;
+window.homarMergeBusinessState=mergeBusinessState;
+window.homarRefreshFromServer=async function(){
+  if(atomicInFlight||pendingBusinessSync()||document.hidden||
+    !localStorage.getItem('homar_api_token')||typeof window.homarApiRequest!=='function'){
+    return false;
+  }
+  const beforeRevision=readRevision();
+  try{
+    const payload=await window.homarApiRequest('/state');
+    const nextRevision=Number(payload&&payload.revision);
+    if(Number.isInteger(nextRevision)&&nextRevision>(beforeRevision===null?-1:beforeRevision)){
+      applyServerState((payload&&payload.state)||{});
+      showSyncNotice('DATA FRA EN ANNEN BRUKER ER OPPDATERT.',false);
+      return true;
+    }
+  }catch(error){
+    console.error('HOMAR live-oppdatering feilet:',error);
+  }
+  return false;
+};
 window.homarAccountingTestState=function(){
   const budget=ensureAccountingBaseline();
   return {
