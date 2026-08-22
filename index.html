@@ -5720,6 +5720,11 @@
         Storage.prototype.setItem = function (key, value) {
             const previousRaw = this === localStorage ? this.getItem(key) : null;
             nativeSetItem.call(this, key, value);
+
+            // Data som nettopp ble hentet fra serveren skal tegnes på skjermen,
+            // men må ikke sendes tilbake som en ny lokal endring.
+            if (this === localStorage && window.__homarApplyingRemoteState) return;
+
             if (this === localStorage && previousRaw !== value && window.HomarProfitHistoryDates) {
                 let previousValue, nextValue;
                 try { previousValue = JSON.parse(previousRaw || 'null'); } catch (_) { previousValue = previousRaw; }
@@ -6283,12 +6288,12 @@
     })();
     </script>
 
-    <script>window.__HOMAR_BUILD = "20260821-actual-profit-repair-20";</script>
+    <script>window.__HOMAR_BUILD = "20260822-multi-user-live-sync-21";</script>
     <script src="calendar-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
-    <script src="accounting-runtime-fix.js?v=20260821-atomic-wafi-12"></script>
+    <script src="accounting-runtime-fix.js?v=20260822-multi-user-live-sync-13"></script>
     <script src="customer-status-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
     <script src="table-sort-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
-    <script src="live-refresh-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
+    <script src="live-refresh-runtime-fix.js?v=20260822-multi-user-live-sync-12"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script src="export-print-runtime-fix.js?v=20260819-wafi-utgift-11"></script>
 </body>
